@@ -366,8 +366,8 @@ _select_poll(int microseconds) {
    sw = &ss->fdset[MNET_SET_WRITE];
    se = &ss->fdset[MNET_SET_ERROR];
 
-   tv.tv_sec = microseconds >> 20;
-   tv.tv_usec = microseconds & ((1<<20)-1);
+   tv.tv_sec = microseconds >> MNET_ONE_SECOND_BIT;
+   tv.tv_usec = microseconds & ((1<<MNET_ONE_SECOND_BIT)-1);
 
    if (select(nfds, sr, sw, se, microseconds >= 0 ? &tv : NULL) < 0) {
       if (errno != EINTR) {
@@ -654,8 +654,8 @@ _evt_poll(int microseconds) {
 #if MNET_OS_MACOX
    struct timespec tsp;
    if (microseconds > 0) {
-      tsp.tv_sec = microseconds >> 20;
-      tsp.tv_nsec = (uint64_t)(microseconds & ((1<<20)-1)) * 1000;
+      tsp.tv_sec = microseconds >> MNET_ONE_SECOND_BIT;
+      tsp.tv_nsec = (uint64_t)(microseconds & ((1<<MNET_ONE_SECOND_BIT)-1)) * 1000;
    }
    nfd = kevent(ss->kq, chg->array, chg->count, evt->array, evt->size, microseconds<=0 ? NULL : &tsp);
 #else
@@ -989,13 +989,16 @@ mnet_chann_connect(chann_t *n, const char *host, int port) {
                n->state = CHANN_STATE_CONNECTING;
             }
             _log("chann %p fd:%d type:%d connecting...\n", n, fd, n->type);
+#if (MNET_OS_MACOX | MNET_OS_LINUX)
+            _evt_add(n, MNET_SET_WRITE);
+#endif
          } else {
             n->state = CHANN_STATE_CONNECTED;
             _log("chann %p fd:%d type:%d connected\n", n, fd, n->type);
-         }
 #if (MNET_OS_MACOX | MNET_OS_LINUX)
-         _evt_add(n, MNET_SET_WRITE);
+            _evt_add(n, MNET_SET_READ);
 #endif
+         }
          return 1;
       }
       _err("chann %p fail to connect\n", n);

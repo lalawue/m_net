@@ -53,6 +53,8 @@ typedef void (*chann_cb)(chann_event_t*);
 int mnet_init(void);
 void mnet_fini(void);
 
+#define MNET_ONE_SECOND_BIT 20  /* 1 seconds == (1<<20) microseconds */
+
 /* using poll to get data received/sended event */
 int mnet_poll(int microseconds);
 int mnet_report(int level);

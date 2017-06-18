@@ -2,9 +2,18 @@
 # About
 
 m_net was a cross platform network library, provide a simple and
-powerfull interface for covenient use.
+efficient interface for covenient use.
 
 Support MacOS/Linux/Windows, using kqueue/epoll/select underlining.
+
+
+
+
+# Features
+
+- simple API with TCP/UDP support
+- nonblocking & event driven interface
+- using kqueue/epoll/select in MacOS/Linux/Windows
 
 
 
