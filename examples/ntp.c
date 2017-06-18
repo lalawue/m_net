@@ -146,6 +146,7 @@ _ntp_loop(ntp_ctx_t *ctx) {
       printf("ntp: try connect to '%s:123'\n", ctx->ip_addr);
    } else {
       printf("ntp: fail to connect to '%s:123'\n", ctx->ip_addr);
+      return;
    }
 
    // init packet
@@ -159,7 +160,7 @@ _ntp_loop(ntp_ctx_t *ctx) {
    }
    
    // wait event
-   ctx->second_left = 30;
+   ctx->second_left = 15;
    ctx->is_running = 1;
 
    for (;;) {
