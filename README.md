@@ -30,4 +30,6 @@ connection between local <-> remote side.
 
 
 
-# Question & Bugs
+# Thanks
+
+Thanks NTP source code from https://github.com/edma2/ntp, author: Eugene Ma (edma2)
