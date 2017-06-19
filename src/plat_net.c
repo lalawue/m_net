@@ -98,7 +98,7 @@ enum {
 typedef struct s_rwbuf {
    int ptr, ptw;
    struct s_rwbuf *next;
-   char *buf;
+   unsigned char *buf;
 } rwb_t;
 
 typedef struct s_rwbuf_head {
@@ -183,7 +183,7 @@ _rwb_available(rwb_t *b) {
 static inline rwb_t*
 _rwb_new(void) {
    rwb_t *b = (rwb_t*)mm_malloc(sizeof(rwb_t) + MNET_BUF_SIZE);
-   b->buf = (char*)b + sizeof(*b);
+   b->buf = (unsigned char*)b + sizeof(*b);
    return b;
 }
 
@@ -214,7 +214,7 @@ _rwb_destroy_head(rwb_head_t *h) {
 }
 
 static void
-_rwb_cache(rwb_head_t *h, char *buf, int buf_len) {
+_rwb_cache(rwb_head_t *h, unsigned char *buf, int buf_len) {
    int buf_ptw = 0;
    while (buf_ptw < buf_len) {
       rwb_t *b = _rwb_create_tail(h);
@@ -225,7 +225,7 @@ _rwb_cache(rwb_head_t *h, char *buf, int buf_len) {
    }
 }
 
-static char*
+static unsigned char*
 _rwb_drain_param(rwb_head_t *h, int *len) {
    rwb_t *b = h->head;
    assert(b);
@@ -720,7 +720,7 @@ _evt_poll(int microseconds) {
                   rwb_head_t *prh = &n->rwb_send;
                   if (_rwb_count(prh) > 0) {
                      int ret=0, len=0;
-                     char *buf = _rwb_drain_param(prh, &len);
+                     unsigned char *buf = _rwb_drain_param(prh, &len);
                      ret = _chann_send(n, buf, len);
                      if (ret > 0) _rwb_drain(prh, ret);
                   } else if ( n->active_send_event ) {
@@ -1077,7 +1077,7 @@ int mnet_chann_send(chann_t *n, void *buf, int len) {
       rwb_head_t *prh = &n->rwb_send;
 
       if (_rwb_count(prh) > 0) {
-         _rwb_cache(prh, (char*)buf, len);
+         _rwb_cache(prh, (unsigned char*)buf, len);
          _info("------------ still cache %d!\n", len);
       }
       else {
@@ -1088,7 +1088,7 @@ int mnet_chann_send(chann_t *n, void *buf, int len) {
                _chann_close_socket(_gmnet(), n);
             }
          } else if (ret < len) {
-            _rwb_cache(prh, ((char*)buf) + ret, len - ret);
+            _rwb_cache(prh, ((unsigned char*)buf) + ret, len - ret);
             ret = len;
 #if (MNET_OS_MACOX | MNET_OS_LINUX)
             _evt_add(n, MNET_SET_WRITE);
