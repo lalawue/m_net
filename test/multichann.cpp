@@ -17,7 +17,7 @@
 using namespace std;
 
 static void _tcpChannEvent(chann_event_t*);
-static int const kMaxClientCount = 20;
+static unsigned const kMaxClientCount = 20;
 
 
 class TestChanns {
