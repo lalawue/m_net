@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <strings.h>
+#include <string.h>
 #include <time.h>
 #include <sys/time.h>
 #include "plat_net.h"
