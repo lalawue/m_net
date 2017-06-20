@@ -17,7 +17,7 @@
 using namespace std;
 
 static void _tcpChannEvent(chann_event_t*);
-static unsigned const kMaxClientCount = 32;
+static unsigned const kMaxClientCount = 64;
 
 
 class TestChanns {
@@ -115,7 +115,7 @@ public:
    }
 
 
-   bool clientContact(const char *ipAddr, int port, int value) {
+   bool clientConnect(const char *ipAddr, int port, int value) {
       if (m_isServer >= 0) {
          return false;
       }
@@ -180,14 +180,19 @@ int main(int argc, char *argv[]) {
 
    for (;;) {
 
-      if (!isServer && channsVec.size()<kMaxClientCount) {
-         TestChanns *tc = new TestChanns;
-         if ( tc->clientContact((const char*)argv[2], 8099, channsVec.size()) ) {
-            channsVec.push_back(tc);
-         }         
+      if ( !isServer ) {
+         if (channsVec.size() < kMaxClientCount) {
+            TestChanns *tc = new TestChanns;
+            if ( tc->clientConnect((const char*)argv[2], 8099, channsVec.size()) ) {
+               channsVec.push_back(tc);
+            }
+         }
       }
 
-      mnet_poll( 2000 );
+      if (mnet_poll( 2000 ) == 0) {
+         cout << "no more channs !" << endl;
+         break;
+      }
    }
 
    mnet_fini();
