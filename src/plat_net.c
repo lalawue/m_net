@@ -84,9 +84,18 @@ typedef struct epoll_event mevent_t;
 #endif  /* WIN */
 
 /* malloc */
-#define mm_malloc malloc
-#define mm_realloc realloc
-#define mm_free free
+static void* mm_malloc(size_t n) {
+   void *p = malloc(n);
+   memset(p, 0, n);
+   return p;
+}
+static void* mm_realloc(void *p, size_t n) {
+   return realloc(p, n);
+}
+static void mm_free(void *p) {
+   free(p);
+}
+
 
 enum {
    MNET_SET_READ,
