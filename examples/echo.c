@@ -30,7 +30,7 @@ _server_event_cb(chann_event_t *e) {
       // client accepted event
 
       ctx->client_count += 1;
-      printf("svr: client accepted, count %d\n", ctx->client_count);
+      printf("svr: client %p accepted, count %d\n", e->r, ctx->client_count);
 
       mnet_chann_set_cb(e->r, _server_event_cb, e->opaque);
    }
@@ -40,16 +40,20 @@ _server_event_cb(chann_event_t *e) {
       
       char buf[128] = {0};
       if ( mnet_chann_recv(e->n, buf, 128) ) {
-         printf("svr: recv %s", buf);
+         printf("svr: client %p recv %s", e->n, buf);
          mnet_chann_send(e->n, buf, strlen(buf));
       }
    }
-   else if (e->event == MNET_EVENT_CLOSE) {
+   else if (e->event == MNET_EVENT_DISCONNECT) {
 
       // client exit event
 
       ctx->client_count -= 1;
-      printf("svr: client exit, count %d\n", ctx->client_count);
+      printf("svr: client %p exit, count %d\n", e->n, ctx->client_count);
+      mnet_chann_close(e->n);;
+   }
+   else if (e->event == MNET_EVENT_CLOSE) {
+      printf("svr: client %p destroy.\n", e->n);
    }
 }
 

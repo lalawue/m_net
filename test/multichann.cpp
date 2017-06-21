@@ -17,7 +17,7 @@
 using namespace std;
 
 static void _tcpChannEvent(chann_event_t*);
-static unsigned const kMaxClientCount = 64;
+static unsigned const kMaxClientCount = 4096;
 
 
 class TestChanns {
@@ -26,6 +26,7 @@ public:
    TestChanns() {
       m_isServer = -1;
       m_value = 0;
+      m_tcp = NULL;
    }
 
    ~TestChanns() { 
@@ -38,15 +39,17 @@ public:
       switch (e->event) {
 
          case MNET_EVENT_ACCEPT: {
+            m_value += 1;
+            cout << "client connected count " << m_value << endl;
             mnet_chann_set_cb(e->r, _tcpChannEvent, this);
             break;
          }
 
          case MNET_EVENT_CONNECTED: {
             if (mnet_chann_send(e->n, &m_value, sizeof(m_value)) > 0) {
-               cout << m_value << ":send data " << m_value << endl;
+               cout << m_value << ": send data " << m_value << endl;
             } else {
-               cerr << "fail to send data !" << endl;
+               cerr << m_value << ": fail to send data !" << endl;
             }
             break;
          }
@@ -55,8 +58,7 @@ public:
             int value = 0;
             if (m_isServer == 1) {
                if (mnet_chann_recv(e->n, &value, sizeof(value)) > 0) {
-                  m_value += value;
-                  cout << "recv client value " << value << ", max " << m_value << endl;
+                  cout << "recv client value " << value << endl;
                } else {
                   cerr << "fail to recv data !" << endl;
                }
@@ -67,9 +69,9 @@ public:
                }
             } else {
                if (mnet_chann_recv(e->n, &value, sizeof(value)) > 0) {
-                  cout << m_value << ":recv server data " << value << endl;
+                  cout << m_value << ": recv server data " << value << endl;
                } else {
-                  cerr << m_value << ":fail to recv server data !" << endl;
+                  cerr << m_value << ": fail to recv server data !" << endl;
                }
                mnet_chann_close(m_tcp);
                m_tcp = NULL;
@@ -77,10 +79,23 @@ public:
             break;
          }
 
+         case MNET_EVENT_DISCONNECT: {
+            cout << m_value << ": disconnect." << endl;
+            mnet_chann_close(e->n);
+            break;
+         }
+
          case MNET_EVENT_CLOSE: {
             if ( !m_isServer ) {
-               cout << m_value << ":client exit." << endl;
+               cout << m_value << ": client exit." << endl;
             }
+            m_tcp = NULL;
+            break;
+         }
+
+         case MNET_EVENT_ERROR: {
+            cout << m_value << ": error then exit ------------------------------- " << e->err << endl;
+            mnet_chann_close(e->n);
             break;
          }
 
@@ -189,8 +204,8 @@ int main(int argc, char *argv[]) {
          }
       }
 
-      if (mnet_poll( 2000 ) == 0) {
-         cout << "no more channs !" << endl;
+      int count = mnet_poll( 2000 );
+      if (count == 0) {
          break;
       }
    }

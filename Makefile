@@ -17,7 +17,7 @@ DIRS := $(shell find src -type d)
 
 INCS := $(foreach n, $(DIRS), -I$(n))
 
-all: echo.out ntp.out multichann.out
+all: echo.out ntp.out multichann.out reconnect.out
 
 echo.out: $(C_SRCS)
 	$(CC) $(CFLAGS) $(INCS) -o examples/$@ $^ $(LIBS) -DEXAMPLE_ECHO
@@ -27,6 +27,9 @@ ntp.out: $(C_SRCS)
 
 multichann.out: $(CPP_SRCS)
 	$(CPP) $(CPPFLAGS) $(INCS) -o test/$@ $^ $(LIBS) -DTEST_MULTICHANNS
+
+reconnect.out: $(CPP_SRCS)
+	$(CPP) $(CPPFLAGS) $(INCS) -o test/$@ $^ $(LIBS) -DTEST_RECONNECT
 
 clean:
 	rm -rf examples/*.out test/*.out examples/*.dSYM test/*.dSYM

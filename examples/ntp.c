@@ -54,7 +54,6 @@ struct ntpPacket {
 
 typedef struct {
    int second_left;
-   int is_running;
    char ip_addr[16];
    struct ntpPacket packet;
 } ntp_ctx_t;
@@ -124,7 +123,7 @@ _ntp_event_cb(chann_event_t *e) {
          printf("ntp: recieved invalid data length !\n");         
       }
 
-      ctx->is_running = 0;
+      mnet_chann_close(e->n);;
    }
 }
 
@@ -161,17 +160,14 @@ _ntp_loop(ntp_ctx_t *ctx) {
    
    // wait event
    ctx->second_left = 15;
-   ctx->is_running = 1;
 
    for (;;) {
 
-      mnet_poll( K_ONE_SECOND );
-
-      ctx->second_left -= 1;
-
-      if ( !ctx->is_running ) {
+      if (mnet_poll( K_ONE_SECOND ) == 0) {
          break;
       }
+
+      ctx->second_left -= 1;
 
       if (ctx->second_left > 0) {
          printf("ntp: timeout in %d second\n", ctx->second_left);

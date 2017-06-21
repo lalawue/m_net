@@ -51,10 +51,7 @@ typedef struct epoll_event mevent_t;
 #include <stdlib.h>
 #include <string.h>
 
-//#include "plat_type.h"
 #include "plat_net.h"
-/* #include "m_mem.h" */
-/* #include "m_debug.h" */
 #include <assert.h>
 
 #define _err(...) printf(__VA_ARGS__)
@@ -170,8 +167,9 @@ _gmnet() {
  */
 static chann_t* _chann_accept(mnet_t *ss, chann_t *n);
 static void _chann_destroy(mnet_t *ss, chann_t *n);
+static int _chann_disconnect_socket(mnet_t *ss, chann_t *n);
 static void _chann_close_socket(mnet_t *ss, chann_t *n);
-static void _chann_event(chann_t *n, mnet_event_type_t event, chann_t *r);
+static void _chann_event(chann_t *n, mnet_event_type_t event, chann_t *r, int err);
 static int _chann_send(chann_t *n, void *buf, int len);
 
 /* buf op
@@ -381,7 +379,6 @@ _select_poll(int microseconds) {
    if (select(nfds, sr, sw, se, microseconds >= 0 ? &tv : NULL) < 0) {
       if (errno != EINTR) {
          perror("select error !\n");
-         abort();
          return -1;
       }
    }
@@ -394,9 +391,9 @@ _select_poll(int microseconds) {
             if ( _select_isset(sr, n->fd) ) {
                if (n->type == CHANN_TYPE_STREAM) {
                   chann_t *c = _chann_accept(ss, n);
-                  if (c) _chann_event(n, MNET_EVENT_ACCEPT, c);
+                  if (c) _chann_event(n, MNET_EVENT_ACCEPT, c, 0);
                } else {
-                  _chann_event(n, MNET_EVENT_RECV, NULL);
+                  _chann_event(n, MNET_EVENT_RECV, NULL, 0);
                }
             }
             break;
@@ -407,38 +404,43 @@ _select_poll(int microseconds) {
                getsockopt(n->fd, SOL_SOCKET, SO_ERROR, &opt, &opt_len);
                if (opt == 0) {
                   n->state = CHANN_STATE_CONNECTED;
-                  _chann_event(n, MNET_EVENT_CONNECTED, NULL);
+                  _chann_event(n, MNET_EVENT_CONNECTED, NULL, 0);
                } else {
+                  _chann_event(n, MNET_EVENT_ERROR, NULL, opt);
                   _chann_close_socket(ss, n);
                }
             }
             if ( _select_isset(se, n->fd) ) {
-               _chann_close_socket(ss, n);
+               _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
             }
             break;
 
          case CHANN_STATE_CONNECTED:
-            if ( _select_isset(sr, n->fd) ) {
-               _chann_event(n, MNET_EVENT_RECV, NULL);
-            }
-            if ( _select_isset(sw, n->fd) ) {
-               rwb_head_t *prh = &n->rwb_send;
-               if (_rwb_count(prh) > 0) {
-                  int ret=0, len=0;
-                  char *buf = _rwb_drain_param(prh, &len);
-                  ret = _chann_send(n, buf, len);
-                  if (ret > 0) _rwb_drain(prh, ret);
-               } else if ( n->active_send_event ) {
-                  _chann_event(n, MNET_EVENT_SEND, NULL);
+            if ( _select_isset(se, n->fd) ) {
+               _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
+            } else {
+               if ( _select_isset(sr, n->fd) ) {
+                  _chann_event(n, MNET_EVENT_RECV, NULL, 0);
+               }
+               if ( _select_isset(sw, n->fd) ) {
+                  rwb_head_t *prh = &n->rwb_send;
+                  if (_rwb_count(prh) > 0) {
+                     int ret=0, len=0;
+                     char *buf = _rwb_drain_param(prh, &len);
+                     ret = _chann_send(n, buf, len);
+                     if (ret > 0) _rwb_drain(prh, ret);
+                  } else if ( n->active_send_event ) {
+                     _chann_event(n, MNET_EVENT_SEND, NULL, 0);
+                  }
                }
             }
             break;
+
          default:
             break;
       }
-      if (n->state == CHANN_STATE_DISCONNCT) {
-         _chann_event(n, MNET_EVENT_DISCONNECT, NULL);
-         _chann_event(n, MNET_EVENT_CLOSE, NULL);
+      if (n->state <= CHANN_STATE_CLOSED) {
+         _chann_event(n, MNET_EVENT_CLOSE, NULL, 0);
          _chann_destroy(ss, n);
       }
       n = nn;
@@ -500,20 +502,26 @@ _kev_events(mevent_t *kev, int events) {
 
 static inline int
 _kev_get_flags(mevent_t *kev) {
+   if (kev) {
 #if MNET_OS_MACOX
-   return kev->flags;
+      return kev->flags;
 #else
-   return kev->events;
+      return kev->events;
 #endif
+   }
+   return -1;
 }
 
 static inline int
 _kev_get_events(mevent_t *kev) {
+   if (kev) {
 #if MNET_OS_MACOX
-   return kev->filter;
+      return kev->filter;
 #else
-   return kev->events;
+      return kev->events;
 #endif
+   }
+   return -1;
 }
 
 static inline int
@@ -681,16 +689,22 @@ _evt_poll(int microseconds) {
          mevent_t *kev = &evt->array[i];
          chann_t *n = (chann_t*)_kev_opaque(kev);
 
-         (void)_kev_get_flags(kev);
          _log("chann:%p,fd:%d,flags:%x,events:%x,state:%d (E:%x,H:%x,R:%x,W:%x)\n",
               n, n->fd, _kev_get_flags(kev), _kev_get_events(kev), n->state,
               _KEV_FLAG_ERROR, _KEV_FLAG_HUP, _KEV_EVENT_READ, _KEV_EVENT_WRITE);
 
          /* check error first */
          if ( _kev_flags(kev, (_KEV_FLAG_ERROR | _KEV_FLAG_HUP)) ) {
-            if (_kev_flags(kev, _KEV_FLAG_ERROR)) { _err("chann %p got error: %d\n", n, _kev_errno(kev)); }
-            else { _log("chann %p got eof: %d\n", n, _kev_errno(kev)); }
-            _chann_close_socket(ss, n);
+            int err = _kev_errno(kev);
+            if (_kev_flags(kev, _KEV_FLAG_ERROR)) {
+               _err("chann %p got error: %d\n", n, err);
+               _chann_event(n, MNET_EVENT_ERROR, NULL, err);
+            } else {
+               _log("chann %p got eof: %d\n", n, err);
+               if ( _chann_disconnect_socket(ss, n) ) {
+                  _chann_event(n, MNET_EVENT_DISCONNECT, NULL, err);
+               }
+            }
          }
 
          switch ( n->state ) {
@@ -698,11 +712,11 @@ _evt_poll(int microseconds) {
                if (n->type == CHANN_TYPE_STREAM) {
                   chann_t *c = _chann_accept(ss, n);
                   if (c) {
-                     _chann_event(n, MNET_EVENT_ACCEPT, c);
+                     _chann_event(n, MNET_EVENT_ACCEPT, c, 0);
                      _evt_add(c, MNET_SET_READ);
                   }
                } else {
-                  _chann_event(n, MNET_EVENT_RECV, NULL);
+                  _chann_event(n, MNET_EVENT_RECV, NULL, 0);
                }
                break;
             }
@@ -714,9 +728,10 @@ _evt_poll(int microseconds) {
                   _evt_del(n, MNET_SET_WRITE);
                   _evt_add(n, MNET_SET_READ);
                   n->state = CHANN_STATE_CONNECTED;
-                  _chann_event(n, MNET_EVENT_CONNECTED, NULL);
+                  _chann_event(n, MNET_EVENT_CONNECTED, NULL, 0);
                } else {
                   _err("chann %p, fd:%d getsockopt %d\n", n, n->fd, opt);
+                  _chann_event(n, MNET_EVENT_ERROR, NULL, opt);
                   _chann_close_socket(ss, n);
                }
                break;
@@ -724,7 +739,7 @@ _evt_poll(int microseconds) {
 
             case CHANN_STATE_CONNECTED: {
                if ( _kev_events(kev, _KEV_EVENT_READ) ) {
-                  _chann_event(n, MNET_EVENT_RECV, NULL);                  
+                  _chann_event(n, MNET_EVENT_RECV, NULL, 0);
                } else if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
                   rwb_head_t *prh = &n->rwb_send;
                   if (_rwb_count(prh) > 0) {
@@ -733,7 +748,7 @@ _evt_poll(int microseconds) {
                      ret = _chann_send(n, buf, len);
                      if (ret > 0) _rwb_drain(prh, ret);
                   } else if ( n->active_send_event ) {
-                     _chann_event(n, MNET_EVENT_SEND, NULL);
+                     _chann_event(n, MNET_EVENT_SEND, NULL, 0);
                   } else {
                      _evt_del(n, MNET_SET_WRITE);
                   }
@@ -741,12 +756,7 @@ _evt_poll(int microseconds) {
                break;
             }
 
-            case CHANN_STATE_DISCONNCT:
-               break;
-
             default:
-               _err("invalid chann:%p, state:%d, events:%x, del_channs:%p\n",
-                    n, n->state, _kev_get_events(kev), ss->del_channs);
                break;
          }
       }
@@ -755,8 +765,7 @@ _evt_poll(int microseconds) {
    chann_t *n = ss->del_channs;
    while (n) {
       chann_t *next = n->del_next;
-      _chann_event(n, MNET_EVENT_DISCONNECT, NULL);
-      _chann_event(n, MNET_EVENT_CLOSE, NULL);
+      _chann_event(n, MNET_EVENT_CLOSE, NULL, 0);
       _chann_destroy(ss, n);
       n = next;
    }
@@ -826,9 +835,21 @@ _chann_send(chann_t *n, void *buf, int len) {
    return ret;
 }
 
+int
+_chann_disconnect_socket(mnet_t *ss, chann_t *n) {
+   if (n->state > CHANN_STATE_DISCONNCT) {
+      n->state = CHANN_STATE_DISCONNCT;
+      close(n->fd);
+      _log("chann disconnect fd %d\n", n->fd);
+      n->fd = -1;
+      return 1;
+   }
+   return 0;
+}
+
 void
 _chann_close_socket(mnet_t *ss, chann_t *n) {
-   if (n->state > CHANN_STATE_DISCONNCT) {
+   if (n->state > CHANN_STATE_CLOSED) {
 #if (MNET_OS_MACOX | MNET_OS_LINUX)
       n->del_next = ss->del_channs;
       if (ss->del_channs) {
@@ -836,16 +857,16 @@ _chann_close_socket(mnet_t *ss, chann_t *n) {
       }
       ss->del_channs = n;
 #endif
-      n->state = CHANN_STATE_DISCONNCT;
-      close(n->fd);
+      n->state = CHANN_STATE_CLOSED;
       _log("chann close fd %d\n", n->fd);
    }
 }
 
 void
-_chann_event(chann_t *n, mnet_event_type_t event, chann_t *r) {
+_chann_event(chann_t *n, mnet_event_type_t event, chann_t *r, int err) {
    chann_event_t e;
    e.event = event;
+   e.err = err;
    e.n = n;
    e.r = r;
    e.opaque = n->opaque;
@@ -887,15 +908,17 @@ mnet_fini() {
       chann_t *n = ss->channs;
       while ( n ) {
          chann_t *next = n->next;
-         _chann_event(n, MNET_EVENT_DISCONNECT, NULL);
+         _chann_disconnect_socket(ss, n);
          _chann_close_socket(ss, n);
-         _chann_event(n, MNET_EVENT_CLOSE, NULL);
+         _chann_event(n, MNET_EVENT_CLOSE, NULL, 0);
          _chann_destroy(ss, n);
          n = next;
       }
 #if MNET_OS_WIN
       WSACleanup();
 #else
+      _kev_get_flags(NULL); // for compile warning
+      _kev_get_events(NULL);
       _evt_fini();
 #endif
       ss->init = 0;
@@ -928,6 +951,7 @@ mnet_chann_open(chann_type_t type) {
 
 void mnet_chann_close(chann_t *n) {
    if (n) {
+      mnet_chann_disconnect(n);
       _chann_close_socket(_gmnet(), n);
    }
 }
@@ -1018,7 +1042,9 @@ mnet_chann_connect(chann_t *n, const char *host, int port) {
 void
 mnet_chann_disconnect(chann_t *n) {
    if (n) {
-      _chann_close_socket(_gmnet(), n);
+      if (_chann_disconnect_socket(_gmnet(), n) ) {
+         _chann_event(n, MNET_EVENT_DISCONNECT, NULL, 0);         
+      }
    }
 }
 
@@ -1053,6 +1079,13 @@ void mnet_chann_active_event(chann_t *n, mnet_event_type_t et, int active) {
    if ( n ) {
       if (et == MNET_EVENT_SEND) {
          n->active_send_event = active;
+#if (MNET_OS_MACOX | MNET_OS_LINUX)
+         if (active) {
+            _evt_add(n, MNET_SET_WRITE);
+         } else {
+            _evt_del(n, MNET_SET_WRITE);
+         }
+#endif
       }
    }
 }

@@ -33,15 +33,17 @@ typedef enum {
 typedef enum {
    MNET_EVENT_RECV = 1,     /* socket has data to read */
    MNET_EVENT_SEND,         /* socket send buf empty, inactive default */
-   MNET_EVENT_CLOSE,        /* socket close */
-   MNET_EVENT_ACCEPT,       /* tcp accept */
-   MNET_EVENT_CONNECTED,    /* tcp connected */
-   MNET_EVENT_DISCONNECT,   /* tcp disconnect */
+   MNET_EVENT_CLOSE,        /* socket closed (destroyed) */
+   MNET_EVENT_ACCEPT,       /* socket accept */
+   MNET_EVENT_CONNECTED,    /* socket connected */
+   MNET_EVENT_DISCONNECT,   /* socket disconnect */
+   MNET_EVENT_ERROR,        /* socket error */
 } mnet_event_type_t;
 
 typedef struct s_mchann chann_t;
 typedef struct {
    mnet_event_type_t event;     /* event type */
+   int err;                     /* errno */
    chann_t *n;                  /* chann emit the event */
    chann_t *r;                  /* chann accept from remote */
    void *opaque;                /* opaque in set_cb */
