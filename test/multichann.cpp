@@ -82,13 +82,6 @@ public:
          case MNET_EVENT_DISCONNECT: {
             cout << m_value << ": disconnect." << endl;
             mnet_chann_close(e->n);
-            break;
-         }
-
-         case MNET_EVENT_CLOSE: {
-            if ( !m_isServer ) {
-               cout << m_value << ": client exit." << endl;
-            }
             m_tcp = NULL;
             break;
          }
@@ -211,6 +204,8 @@ int main(int argc, char *argv[]) {
    }
 
    mnet_fini();
+
+   cout << "channs vec " << channsVec.size() << endl;
 
    return 0;
 }

@@ -440,7 +440,6 @@ _select_poll(int microseconds) {
             break;
       }
       if (n->state <= CHANN_STATE_CLOSED) {
-         _chann_event(n, MNET_EVENT_CLOSE, NULL, 0);
          _chann_destroy(ss, n);
       }
       n = nn;
@@ -765,7 +764,6 @@ _evt_poll(int microseconds) {
    chann_t *n = ss->del_channs;
    while (n) {
       chann_t *next = n->del_next;
-      _chann_event(n, MNET_EVENT_CLOSE, NULL, 0);
       _chann_destroy(ss, n);
       n = next;
    }
@@ -858,6 +856,8 @@ _chann_close_socket(mnet_t *ss, chann_t *n) {
       ss->del_channs = n;
 #endif
       n->state = CHANN_STATE_CLOSED;
+      n->cb = NULL;
+      n->opaque = NULL;
       _log("chann close fd %d\n", n->fd);
    }
 }
@@ -910,7 +910,6 @@ mnet_fini() {
          chann_t *next = n->next;
          _chann_disconnect_socket(ss, n);
          _chann_close_socket(ss, n);
-         _chann_event(n, MNET_EVENT_CLOSE, NULL, 0);
          _chann_destroy(ss, n);
          n = next;
       }
@@ -1014,25 +1013,23 @@ mnet_chann_connect(chann_t *n, const char *host, int port) {
       if (fd > 0) {
          n->fd = fd;
          if (n->type == CHANN_TYPE_STREAM) {
+            n->state = CHANN_STATE_CONNECTING;
             int r = connect(fd, (struct sockaddr*)&n->addr, n->addr_len);
-            if (r < 0) {
-               if (errno==EINPROGRESS || errno==EWOULDBLOCK)
-                  n->state = CHANN_STATE_CONNECTING;
-            } else {
-               n->state = CHANN_STATE_CONNECTING;
-            }
-            _log("chann %p fd:%d type:%d connecting...\n", n, fd, n->type);
+            if (r>=0 || errno==EINPROGRESS || errno==EWOULDBLOCK) {
+               _log("chann %p fd:%d type:%d connecting...\n", n, fd, n->type);
 #if (MNET_OS_MACOX | MNET_OS_LINUX)
-            _evt_add(n, MNET_SET_WRITE);
+               _evt_add(n, MNET_SET_WRITE);
 #endif
+               return 1;
+            }
          } else {
             n->state = CHANN_STATE_CONNECTED;
             _log("chann %p fd:%d type:%d connected\n", n, fd, n->type);
 #if (MNET_OS_MACOX | MNET_OS_LINUX)
             _evt_add(n, MNET_SET_READ);
 #endif
+            return 1;
          }
-         return 1;
       }
       _err("chann %p fail to connect\n", n);
    }

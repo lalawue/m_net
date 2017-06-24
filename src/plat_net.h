@@ -33,7 +33,6 @@ typedef enum {
 typedef enum {
    MNET_EVENT_RECV = 1,     /* socket has data to read */
    MNET_EVENT_SEND,         /* socket send buf empty, inactive default */
-   MNET_EVENT_CLOSE,        /* socket closed (destroyed) */
    MNET_EVENT_ACCEPT,       /* socket accept */
    MNET_EVENT_CONNECTED,    /* socket connected */
    MNET_EVENT_DISCONNECT,   /* socket disconnect */

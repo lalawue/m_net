@@ -67,7 +67,7 @@ public:
             cerr << "fail to recv" << endl;
          }
       }
-      else if (e->event == MNET_EVENT_CLOSE) {
+      else if (e->event == MNET_EVENT_DISCONNECT) {
          if (e->n == m_tcp) {
             m_tcp = NULL;
          }
@@ -102,7 +102,7 @@ public:
             return true;
          } else {
             cout << m_mark << ": fail to connect server" << endl;
-            mnet_chann_close(m_tcp);;
+            mnet_chann_close(m_tcp);
          }
       }
       return false;
@@ -126,18 +126,14 @@ public:
          }
       }
       else if (e->event == MNET_EVENT_DISCONNECT) {
-         cout << m_mark << ": server disconnect" << endl << endl;
+         cout << m_mark << ": server disconnect" << endl;
          m_tcp = NULL;
 
-         //sleep(1);
+         //usleep(50000);
 
          if ( !this->connectSvr(m_ipAddr, m_port, m_mark) ) {
-            cerr << m_mark << ": fail to cnnect server" << endl;
-            mnet_chann_close(e->n);
+            cerr << m_mark << ": fail to connect server" << endl;
          }
-      }
-      else if (e->event == MNET_EVENT_CLOSE) {
-         cout << m_mark << ": cilent closed" << endl;
       }
    }
 
@@ -192,6 +188,8 @@ int main(int argc, char *argv[]) {
    }
 
    mnet_fini();
+
+   cout << "sc " << sc << ", channs vec " << channsVec.size() << endl;
 
    return 0;
 }

@@ -52,9 +52,6 @@ _server_event_cb(chann_event_t *e) {
       printf("svr: client %p exit, count %d\n", e->n, ctx->client_count);
       mnet_chann_close(e->n);;
    }
-   else if (e->event == MNET_EVENT_CLOSE) {
-      printf("svr: client %p destroy.\n", e->n);
-   }
 }
 
 static void
