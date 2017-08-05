@@ -146,7 +146,7 @@ main(int argc, char *argv[]) {
    echo_ctx_t ctx;
 
    if (argc < 3) {
-      printf("%s -s server_ip | -c server_ip\n", argv[0]);
+      printf("%s -s server_ip | -c client_ip\n", argv[0]);
       return 0;
    }
 
