@@ -4,7 +4,7 @@
 m_net was a cross platform network library, provide a simple and
 efficient interface for covenient use.
 
-Support MacOS/Linux/Windows, using kqueue/epoll/select underlining.
+Support MacOS/Linux/Windows, using kqueue/epoll/select underlying.
 
 
 
