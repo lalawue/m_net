@@ -9,6 +9,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <stdint.h>
 #pragma comment(lib, "ws2_32.lib")
 #define MNET_OS_WIN 1
 
@@ -426,7 +427,7 @@ _select_poll(int microseconds) {
                   rwb_head_t *prh = &n->rwb_send;
                   if (_rwb_count(prh) > 0) {
                      int ret=0, len=0;
-                     char *buf = _rwb_drain_param(prh, &len);
+                     void *buf = _rwb_drain_param(prh, &len);
                      ret = _chann_send(n, buf, len);
                      if (ret > 0) _rwb_drain(prh, ret);
                   } else if ( n->active_send_event ) {
