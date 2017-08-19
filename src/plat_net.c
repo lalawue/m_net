@@ -49,7 +49,6 @@ typedef struct epoll_event mevent_t;
 #endif  /* WIN */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 

@@ -8,6 +8,8 @@
 #ifndef MNET_H
 #define MNET_H
 
+#include <stdlib.h>
+
 #define MNET_BUF_SIZE (64*1024) /* 64kb default */
 
 #ifdef __cplusplus
