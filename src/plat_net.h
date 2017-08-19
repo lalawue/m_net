@@ -8,9 +8,7 @@
 #ifndef MNET_H
 #define MNET_H
 
-#ifndef MNET_BUF_SIZE
-#define MNET_BUF_SIZE (64*1024) /* 64kb */
-#endif
+#define MNET_BUF_SIZE (64*1024) /* 64kb default */
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,22 +41,29 @@ typedef struct s_mchann chann_t;
 typedef struct {
    mnet_event_type_t event;     /* event type */
    int err;                     /* errno */
-   chann_t *n;                  /* chann emit the event */
+   chann_t *n;                  /* chann to emit event */
    chann_t *r;                  /* chann accept from remote */
    void *opaque;                /* opaque in set_cb */
 } chann_event_t;
 
 typedef void (*chann_cb)(chann_event_t*);
+typedef void (*mnet_log_cb)(chann_t*, int, const char *log_string);
+
 
 /* init before use */
 int mnet_init(void);
 void mnet_fini(void);
 
 #define MNET_ONE_SECOND_BIT 20  /* 1 seconds == (1<<20) microseconds */
+int mnet_poll(int microseconds); /* dispatch chann event */
 
-/* using poll to get data received/sended event */
-int mnet_poll(int microseconds);
-int mnet_report(int level);
+void mnet_allocator(void* (*new_malloc)(size_t),
+                    void* (*new_realloc)(void*, size_t),
+                    void  (*new_free)(void*));
+void mnet_setlog(int level, mnet_log_cb); /* 0:disable, 1:error, 2:info, 3:verbose */
+int mnet_report(int level);     /* 0:chann_count 1:chann_detail */
+
+
 
 /* channel */
 chann_t* mnet_chann_open(chann_type_t type);
@@ -80,7 +85,9 @@ void mnet_chann_active_event(chann_t *n, mnet_event_type_t et, int active);
 int mnet_chann_recv(chann_t *n, void *buf, int len);
 int mnet_chann_send(chann_t *n, void *buf, int len);
 
+int mnet_chann_set_bufsize(chann_t *n, int bufsize);
 int mnet_chann_cached(chann_t *n);
+
 char* mnet_chann_addr(chann_t *n);
 int mnet_chann_port(chann_t *n);
 
