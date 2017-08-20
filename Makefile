@@ -18,20 +18,27 @@ DIRS := $(shell find src -type d)
 
 INCS := $(foreach n, $(DIRS), -I$(n))
 
-all: dir debug_c debug_cpp lib
+.PHONY : all
+.PHONY : dir
+.PHONY : debug_c
+.PHONY : debug_cpp
+.PHONY : lib
+.PHONY : clean
 
-dir:
+all: _dir _debug_c _debug_cpp _lib
+
+_dir:
 	mkdir -p build
 
-debug_c: $(LIB_SRCS) $(C_SRCS)
+_debug_c: $(LIB_SRCS) $(C_SRCS)
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo.out $^ $(LIBS) -DEXAMPLE_ECHO
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
 
-debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
+_debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/multichann.out $^ $(LIBS) -DTEST_MULTICHANNS
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/reconnect.out $^ $(LIBS) -DTEST_RECONNECT
 
-lib: $(LIB_SRCS)
+_lib: $(LIB_SRCS)
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/libmnet.dylib $^ $(LIBS) -shared
 
 clean:

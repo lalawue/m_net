@@ -49,11 +49,14 @@ typedef struct epoll_event mevent_t;
 #endif  /* WIN */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 
 #include "plat_net.h"
 #include <assert.h>
+
+#define MNET_BUF_SIZE (64*1024) /* 64kb default */
 
 #define _MIN_OF(a, b) (((a) < (b)) ? (a) : (b))
 #define _MAX_OF(a, b) (((a) > (b)) ? (a) : (b))
@@ -165,12 +168,16 @@ static int _chann_send(chann_t *n, void *buf, int len);
 
 /* basic
  */
-static void* (*mnet_malloc)(size_t) = NULL;
-static void* (*mnet_realloc)(void*, size_t) = NULL;
+static void* (*mnet_malloc)(int) = NULL;
+static void* (*mnet_realloc)(void*, int) = NULL;
 static void  (*mnet_free)(void*) = NULL;
 static void  (*mnet_log)(chann_t*, int, const char*) = NULL;
 
-static inline void* mm_malloc(size_t n) {
+static inline void* _mmalloc(int n) { return malloc(n); }
+static inline void* _mrealloc(void*p, int n) { return realloc(p, n); }
+static inline void  _mfree(void *p) { free(p); }
+
+static inline void* mm_malloc(int n) {
    void *p = mnet_malloc(n);
    memset(p, 0, n);
    return p;
@@ -698,8 +705,8 @@ _evt_poll(int microseconds) {
       tsp.tv_nsec = (uint64_t)(microseconds & ((1<<MNET_ONE_SECOND_BIT)-1)) * 1000;
    }
    nfd = kevent(ss->kq, chg->array, chg->count, evt->array, evt->size, microseconds<=0 ? NULL : &tsp);
-#else
-   nfd = epoll_wait(ss->kq, evt->array, evt->size, microseconds); /* LINUX */
+#else  /* LINUX */
+   nfd = epoll_wait(ss->kq, evt->array, evt->size, microseconds);
 #endif
 
    if (nfd<0 && errno!=EINTR) {
@@ -908,9 +915,9 @@ int mnet_init() {
    mnet_t *ss = _gmnet();
    if ( !ss->init ) {
       memset(ss, 0, sizeof(mnet_t));
-      mnet_malloc = malloc;
-      mnet_realloc = realloc;
-      mnet_free = free;
+      mnet_malloc = _mmalloc;
+      mnet_realloc = _mrealloc;
+      mnet_free = _mfree;
       mnet_log = mnet_log_default;
       ss->log_level = MNET_LOG_INFO;
 #if MNET_OS_WIN
@@ -953,8 +960,8 @@ void mnet_fini() {
    }
 }
 
-void mnet_allocator(void* (*new_malloc)(size_t),
-                    void* (*new_realloc)(void*, size_t),
+void mnet_allocator(void* (*new_malloc)(int),
+                    void* (*new_realloc)(void*, int),
                     void  (*new_free)(void*))
 {
    if (new_malloc)  { mnet_malloc  = new_malloc; }

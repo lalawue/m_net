@@ -8,10 +8,6 @@
 #ifndef MNET_H
 #define MNET_H
 
-#include <stdlib.h>
-
-#define MNET_BUF_SIZE (64*1024) /* 64kb default */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -59,8 +55,8 @@ void mnet_fini(void);
 #define MNET_ONE_SECOND_BIT 20  /* 1 seconds == (1<<20) microseconds */
 int mnet_poll(int microseconds); /* dispatch chann event */
 
-void mnet_allocator(void* (*new_malloc)(size_t),
-                    void* (*new_realloc)(void*, size_t),
+void mnet_allocator(void* (*new_malloc)(int),
+                    void* (*new_realloc)(void*, int),
                     void  (*new_free)(void*));
 void mnet_setlog(int level, mnet_log_cb); /* 0:disable, 1:error, 2:info, 3:verbose */
 int mnet_report(int level);     /* 0:chann_count 1:chann_detail */
