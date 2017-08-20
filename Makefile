@@ -18,18 +18,21 @@ DIRS := $(shell find src -type d)
 
 INCS := $(foreach n, $(DIRS), -I$(n))
 
-all: debug_c debug_cpp
+all: dir debug_c debug_cpp lib
+
+dir:
+	mkdir -p build
 
 debug_c: $(LIB_SRCS) $(C_SRCS)
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o examples/echo.out $^ $(LIBS) -DEXAMPLE_ECHO
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o examples/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo.out $^ $(LIBS) -DEXAMPLE_ECHO
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
 
 debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o test/multichann.out $^ $(LIBS) -DTEST_MULTICHANNS
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o test/reconnect.out $^ $(LIBS) -DTEST_RECONNECT
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/multichann.out $^ $(LIBS) -DTEST_MULTICHANNS
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/reconnect.out $^ $(LIBS) -DTEST_RECONNECT
 
 lib: $(LIB_SRCS)
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o libmnet.dylib $^ $(LIBS) -shared
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/libmnet.dylib $^ $(LIBS) -shared
 
 clean:
-	rm -rf examples/*.out test/*.out examples/*.dSYM test/*.dSYM *.dylib
+	rm -rf build
