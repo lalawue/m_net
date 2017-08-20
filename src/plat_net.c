@@ -138,7 +138,6 @@ typedef struct s_mnet {
    int init;
    int chann_count;
    chann_t *channs;
-   int log_level;
 #if MNET_OS_WIN
    fd_set fdset[MNET_SET_MAX];  // select
 #else
@@ -164,18 +163,18 @@ static int _chann_disconnect_socket(mnet_t *ss, chann_t *n);
 static void _chann_close_socket(mnet_t *ss, chann_t *n);
 static void _chann_event(chann_t *n, mnet_event_type_t event, chann_t *r, int err);
 static int _chann_send(chann_t *n, void *buf, int len);
-
+static inline void mnet_log_default(chann_t *n, int level, const char *log_string);
 
 /* basic
  */
-static void* (*mnet_malloc)(int) = NULL;
-static void* (*mnet_realloc)(void*, int) = NULL;
-static void  (*mnet_free)(void*) = NULL;
-static void  (*mnet_log)(chann_t*, int, const char*) = NULL;
-
 static inline void* _mmalloc(int n) { return malloc(n); }
 static inline void* _mrealloc(void*p, int n) { return realloc(p, n); }
 static inline void  _mfree(void *p) { free(p); }
+
+static void* (*mnet_malloc)(int) = _mmalloc;
+static void* (*mnet_realloc)(void*, int) = _mrealloc;
+static void  (*mnet_free)(void*) = _mfree;
+static void  (*mnet_log)(chann_t*, int, const char*) = mnet_log_default;
 
 static inline void* mm_malloc(int n) {
    void *p = mnet_malloc(n);
@@ -188,9 +187,10 @@ static inline void* mm_realloc(void *p, size_t n) {
 static inline void mm_free(void *p) {
    mnet_free(p);
 }
+
+static int _log_level = MNET_LOG_INFO;
 static inline void mm_log(chann_t *n, int level, const char *fmt, ...) {
-   mnet_t *ss = _gmnet();
-   if (level <= ss->log_level) {
+   if (level <= _log_level) {
       char buf[192];
       va_list argptr;
       va_start(argptr, fmt);
@@ -199,7 +199,7 @@ static inline void mm_log(chann_t *n, int level, const char *fmt, ...) {
       mnet_log(n, level, buf);
    }
 }
-static inline void mnet_log_default(chann_t *n, int level, const char *log_string) {
+void mnet_log_default(chann_t *n, int level, const char *log_string) {
    char slev[8] = { 'D', 'E', 'I', 'V'};
    printf("[%c]%p: %s", slev[level], n, log_string);
 }
@@ -914,12 +914,6 @@ _chann_event(chann_t *n, mnet_event_type_t event, chann_t *r, int err) {
 int mnet_init() {
    mnet_t *ss = _gmnet();
    if ( !ss->init ) {
-      memset(ss, 0, sizeof(mnet_t));
-      mnet_malloc = _mmalloc;
-      mnet_realloc = _mrealloc;
-      mnet_free = _mfree;
-      mnet_log = mnet_log_default;
-      ss->log_level = MNET_LOG_INFO;
 #if MNET_OS_WIN
       WSADATA wdata;
       if (WSAStartup(MAKEWORD(2,2), &wdata) != 0) {
@@ -956,6 +950,7 @@ void mnet_fini() {
       _evt_fini();
 #endif
       ss->init = 0;
+      memset(ss, 0, sizeof(*ss));
       mm_log(NULL, MNET_LOG_VERBOSE, "fini\n");
    }
 }
@@ -970,9 +965,8 @@ void mnet_allocator(void* (*new_malloc)(int),
 }
 
 void mnet_setlog(int level, mnet_log_cb cb) {
-   mnet_t *ss = _gmnet();
    if (level >= 0) {
-      ss->log_level = level;
+      _log_level = level;
    }
    if (cb) {
       mnet_log = cb;

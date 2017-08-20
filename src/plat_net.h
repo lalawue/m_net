@@ -48,19 +48,20 @@ typedef void (*chann_cb)(chann_event_t*);
 typedef void (*mnet_log_cb)(chann_t*, int, const char *log_string);
 
 
-/* init before use */
-int mnet_init(void);
-void mnet_fini(void);
-
-#define MNET_ONE_SECOND_BIT 20  /* 1 seconds == (1<<20) microseconds */
-int mnet_poll(int microseconds); /* dispatch chann event */
-
+/* set allocator/log before init */
 void mnet_allocator(void* (*new_malloc)(int),
                     void* (*new_realloc)(void*, int),
                     void  (*new_free)(void*));
 void mnet_setlog(int level, mnet_log_cb); /* 0:disable, 1:error, 2:info, 3:verbose */
+
+
+/* init before use */
+int mnet_init(void);
+void mnet_fini(void);
 int mnet_report(int level);     /* 0:chann_count 1:chann_detail */
 
+#define MNET_ONE_SECOND_BIT 20   /* 1 seconds == (1<<20) microseconds */
+int mnet_poll(int microseconds); /* dispatch chann event */
 
 
 /* channel */
