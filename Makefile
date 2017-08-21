@@ -3,7 +3,7 @@ CC=gcc
 CFLAGS= -Wall -std=c99 -Wdeprecated-declarations
 
 CPP=g++
-CPPFLAGS= -Wall -Wdeprecated-declarations
+CPPFLAGS= -Wall -Wdeprecated-declarations -Wno-deprecated
 
 DEBUG= -g
 RELEASE= -O2
