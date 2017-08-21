@@ -257,7 +257,7 @@ _rwb_cache(rwb_head_t *h, unsigned char *buf, int buf_len) {
    int buf_ptw = 0;
    while (buf_ptw < buf_len) {
       rwb_t *b = _rwb_create_tail(h);
-      int len = _MIN_OF(buf_len - buf_ptw, _rwb_available(b));
+      int len = _MIN_OF((buf_len - buf_ptw), _rwb_available(b));
       memcpy(&b->buf[b->ptw], &buf[buf_ptw], len);
       b->ptw += len;
       buf_ptw += len;
@@ -267,7 +267,6 @@ _rwb_cache(rwb_head_t *h, unsigned char *buf, int buf_len) {
 static unsigned char*
 _rwb_drain_param(rwb_head_t *h, int *len) {
    rwb_t *b = h->head;
-   assert(b);
    *len = _rwb_buffered(b);
    return &b->buf[b->ptr];
 }
@@ -438,6 +437,7 @@ _select_poll(int microseconds) {
                   _chann_event(n, MNET_EVENT_CONNECTED, NULL, 0);
                } else {
                   _chann_event(n, MNET_EVENT_ERROR, NULL, opt);
+                  _chann_disconnect_socket(ss, n);
                   _chann_close_socket(ss, n);
                }
             }
@@ -457,9 +457,18 @@ _select_poll(int microseconds) {
                   rwb_head_t *prh = &n->rwb_send;
                   if (_rwb_count(prh) > 0) {
                      int ret=0, len=0;
-                     void *buf = _rwb_drain_param(prh, &len);
-                     ret = _chann_send(n, buf, len);
-                     if (ret > 0) _rwb_drain(prh, ret);
+                     do {
+                        unsigned char *buf = _rwb_drain_param(prh, &len);
+                        ret = _chann_send(n, buf, len);
+                        if (ret < 0) {
+                           _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
+                           _chann_disconnect_socket(ss, n);
+                           _chann_close_socket(ss, n);
+                           break;
+                        } else {
+                           _rwb_drain(prh, ret);
+                        }
+                     } while (ret>=len && _rwb_count(prh)>0);
                   } else if ( n->active_send_event ) {
                      _chann_event(n, MNET_EVENT_SEND, NULL, 0);
                   }
@@ -762,6 +771,7 @@ _evt_poll(int microseconds) {
                } else {
                   mm_log(n, MNET_LOG_ERR, "chann fd:%d getsockopt %d\n", n->fd, opt);
                   _chann_event(n, MNET_EVENT_ERROR, NULL, opt);
+                  _chann_disconnect_socket(ss, n);
                   _chann_close_socket(ss, n);
                }
                break;
@@ -774,9 +784,18 @@ _evt_poll(int microseconds) {
                   rwb_head_t *prh = &n->rwb_send;
                   if (_rwb_count(prh) > 0) {
                      int ret=0, len=0;
-                     unsigned char *buf = _rwb_drain_param(prh, &len);
-                     ret = _chann_send(n, buf, len);
-                     if (ret > 0) _rwb_drain(prh, ret);
+                     do {
+                        unsigned char *buf = _rwb_drain_param(prh, &len);
+                        ret = _chann_send(n, buf, len);
+                        if (ret < 0) {
+                           _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
+                           _chann_disconnect_socket(ss, n);
+                           _chann_close_socket(ss, n);
+                           break;
+                        } else {
+                           _rwb_drain(prh, ret);
+                        }
+                     } while (ret>=len && _rwb_count(prh)>0);
                   } else if ( n->active_send_event ) {
                      _chann_event(n, MNET_EVENT_SEND, NULL, 0);
                   } else {
@@ -827,9 +846,9 @@ _chann_destroy(mnet_t *ss, chann_t *n) {
    if (n->prev) { n->prev->next = n->next; }
    else { ss->channs = n->next; }
    _rwb_destroy(&n->rwb_send);
-   mm_free(n);
    ss->chann_count--;
    mm_log(n, MNET_LOG_VERBOSE, "chann destroy, count %d\n", ss->chann_count);
+   mm_free(n);
 }
 
 chann_t*
@@ -867,8 +886,8 @@ _chann_send(chann_t *n, void *buf, int len) {
 
 int
 _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
-   if (n->state > CHANN_STATE_DISCONNCT) {
-      n->state = CHANN_STATE_DISCONNCT;
+   if (n->fd > 0) {
+      n->state = CHANN_STATE_DISCONNECT;
       close(n->fd);
       mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd %d\n", n->fd);
       n->fd = -1;
@@ -998,8 +1017,9 @@ mnet_chann_open(chann_type_t type) {
 
 void mnet_chann_close(chann_t *n) {
    if (n) {
-      mnet_chann_disconnect(n);
-      _chann_close_socket(_gmnet(), n);
+      mnet_t *ss = _gmnet();
+      _chann_disconnect_socket(ss, n);
+      _chann_close_socket(ss, n);
    }
 }
 
@@ -1018,7 +1038,7 @@ _chann_fill_addr(chann_t *n, const char *host, int port) {
 
 static int
 _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
-   if (n->state <= CHANN_STATE_DISCONNCT) {
+   if (n->state <= CHANN_STATE_DISCONNECT) {
       int istcp = n->type == CHANN_TYPE_STREAM;
       int isbc = n->type == CHANN_TYPE_BROADCAST;
       int fd = socket(AF_INET, istcp ? SOCK_STREAM : SOCK_DGRAM, 0);
@@ -1089,9 +1109,7 @@ mnet_chann_connect(chann_t *n, const char *host, int port) {
 void
 mnet_chann_disconnect(chann_t *n) {
    if (n) {
-      if (_chann_disconnect_socket(_gmnet(), n) ) {
-         _chann_event(n, MNET_EVENT_DISCONNECT, NULL, 0);         
-      }
+      _chann_disconnect_socket(_gmnet(), n);
    }
 }
 
@@ -1148,8 +1166,10 @@ int mnet_chann_recv(chann_t *n, void *buf, int len) {
       }
       if (ret <= 0) {
          if (errno != EWOULDBLOCK) {
+            mnet_t *ss = _gmnet();
             mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, recv errno = %d\n", n, n->fd, errno);
-            _chann_close_socket(_gmnet(), n);
+            _chann_disconnect_socket(ss, n);
+            _chann_close_socket(ss, n);
          }
       } else {
          n->bytes_recv += ret;
@@ -1167,22 +1187,25 @@ int mnet_chann_send(chann_t *n, void *buf, int len) {
 
       if (_rwb_count(prh) > 0) {
          _rwb_cache(prh, (unsigned char*)buf, len);
-         mm_log(n, MNET_LOG_INFO, "------------ still cache %d!\n", len);
+         mm_log(n, MNET_LOG_INFO, "------------ still cache %d(%d)!\n",
+                _rwb_buffered(prh->tail), _rwb_count(prh));
       }
       else {
          ret = _chann_send(n, buf, len);
          if (ret <= 0) {
             if (errno != EWOULDBLOCK) {
+               mnet_t *ss = _gmnet();
                mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno = %d\n", n, n->fd, errno);
-               _chann_close_socket(_gmnet(), n);
+               _chann_disconnect_socket(ss, n);
+               _chann_close_socket(ss, n);
             }
          } else if (ret < len) {
+            mm_log(n, MNET_LOG_INFO, "------------ cache %d of %d!\n", len - ret, len);
             _rwb_cache(prh, ((unsigned char*)buf) + ret, len - ret);
             ret = len;
 #if (MNET_OS_MACOX | MNET_OS_LINUX)
             _evt_add(n, MNET_SET_WRITE);
 #endif
-            mm_log(n, MNET_LOG_INFO, "------------ cache %d of %d!\n", ret, len);
          }
       }
       return ret;

@@ -20,7 +20,7 @@ typedef enum {
 
 typedef enum {
    CHANN_STATE_CLOSED = 0,
-   CHANN_STATE_DISCONNCT,
+   CHANN_STATE_DISCONNECT,
    CHANN_STATE_CONNECTING,
    CHANN_STATE_CONNECTED,
    CHANN_STATE_LISTENING,
@@ -31,7 +31,7 @@ typedef enum {
    MNET_EVENT_SEND,         /* socket send buf empty, inactive default */
    MNET_EVENT_ACCEPT,       /* socket accept */
    MNET_EVENT_CONNECTED,    /* socket connected */
-   MNET_EVENT_DISCONNECT,   /* socket disconnect */
+   MNET_EVENT_DISCONNECT,   /* socket disconnect when got EOF */
    MNET_EVENT_ERROR,        /* socket error */
 } mnet_event_type_t;
 
