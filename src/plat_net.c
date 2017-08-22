@@ -443,12 +443,16 @@ _select_poll(int microseconds) {
             }
             if ( _select_isset(se, n->fd) ) {
                _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
+               _chann_disconnect_socket(ss, n);
+               _chann_close_socket(ss, n);
             }
             break;
 
          case CHANN_STATE_CONNECTED:
             if ( _select_isset(se, n->fd) ) {
                _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
+               _chann_disconnect_socket(ss, n);
+               _chann_close_socket(ss, n);
             } else {
                if ( _select_isset(sr, n->fd) ) {
                   _chann_event(n, MNET_EVENT_RECV, NULL, 0);
@@ -460,14 +464,7 @@ _select_poll(int microseconds) {
                      do {
                         unsigned char *buf = _rwb_drain_param(prh, &len);
                         ret = _chann_send(n, buf, len);
-                        if (ret < 0) {
-                           _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
-                           _chann_disconnect_socket(ss, n);
-                           _chann_close_socket(ss, n);
-                           break;
-                        } else {
-                           _rwb_drain(prh, ret);
-                        }
+                        _rwb_drain(prh, ret);
                      } while (ret>=len && _rwb_count(prh)>0);
                   } else if ( n->active_send_event ) {
                      _chann_event(n, MNET_EVENT_SEND, NULL, 0);
@@ -486,6 +483,9 @@ _select_poll(int microseconds) {
    }
    return ss->chann_count;
 }
+
+#define _evt_add(...)
+#define _evt_del(...)
 
 #else
 
@@ -639,7 +639,7 @@ _evt_add(chann_t *n, int set) {
       kev->flags = EV_ADD | EV_EOF;
       kev->udata = (void*)n;
       chg->count += 1;
-      mm_log(n, MNET_LOG_VERBOSE, "kq add chann filter %x\n", kev->filter);
+      mm_log(n, MNET_LOG_VERBOSE, "kq add chann filter %x (%d)\n", kev->filter);
 #else
       uint32_t events = 0;
       kev->data.ptr = (void*)n;
@@ -700,6 +700,7 @@ _evt_del(chann_t *n, int set) {
    return 0;
 }
 
+
 static int
 _evt_poll(int microseconds) {
    int nfd = 0;
@@ -738,11 +739,13 @@ _evt_poll(int microseconds) {
             if (_kev_flags(kev, _KEV_FLAG_ERROR)) {
                mm_log(n, MNET_LOG_ERR, "chann got error: %d\n", err);
                _chann_event(n, MNET_EVENT_ERROR, NULL, err);
+               _chann_disconnect_socket(ss, n);
+               _chann_close_socket(ss, n);
             } else {
                mm_log(n, MNET_LOG_VERBOSE, "chann got eof: %d\n", err);
-               if ( _chann_disconnect_socket(ss, n) ) {
+               if ( _chann_disconnect_socket(ss, n) )
                   _chann_event(n, MNET_EVENT_DISCONNECT, NULL, err);
-               }
+               _chann_close_socket(ss, n);
             }
          }
 
@@ -787,14 +790,7 @@ _evt_poll(int microseconds) {
                      do {
                         unsigned char *buf = _rwb_drain_param(prh, &len);
                         ret = _chann_send(n, buf, len);
-                        if (ret < 0) {
-                           _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
-                           _chann_disconnect_socket(ss, n);
-                           _chann_close_socket(ss, n);
-                           break;
-                        } else {
-                           _rwb_drain(prh, ret);
-                        }
+                        _rwb_drain(prh, ret);
                      } while (ret>=len && _rwb_count(prh)>0);
                   } else if ( n->active_send_event ) {
                      _chann_event(n, MNET_EVENT_SEND, NULL, 0);
@@ -1044,6 +1040,7 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
       int fd = socket(AF_INET, istcp ? SOCK_STREAM : SOCK_DGRAM, 0);
       if (fd > 0) {
          int buf_size = n->buf_size>0 ? n->buf_size : MNET_BUF_SIZE;
+         n->state = CHANN_STATE_DISCONNECT;
 
          _chann_fill_addr(n, host, port);
 
@@ -1083,25 +1080,21 @@ mnet_chann_connect(chann_t *n, const char *host, int port) {
       if (fd > 0) {
          n->fd = fd;
          if (n->type == CHANN_TYPE_STREAM) {
-            n->state = CHANN_STATE_CONNECTING;
             int r = connect(fd, (struct sockaddr*)&n->addr, n->addr_len);
-            if (r>=0 || errno==EINPROGRESS || errno==EWOULDBLOCK) {
-               mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d type:%d connecting...\n", n, fd, n->type);
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
+            if (r >= 0 || errno==EINPROGRESS || errno==EWOULDBLOCK) {
+               n->state = CHANN_STATE_CONNECTING;
                _evt_add(n, MNET_SET_WRITE);
-#endif
+               mm_log(n, MNET_LOG_VERBOSE, "chann fd:%d type:%d connecting %d...\n", fd, n->type, r);
                return 1;
             }
          } else {
             n->state = CHANN_STATE_CONNECTED;
-            mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d type:%d connected\n", n, fd, n->type);
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
             _evt_add(n, MNET_SET_READ);
-#endif
+            mm_log(n, MNET_LOG_VERBOSE, "chann fd:%d type:%d connected\n", fd, n->type);
             return 1;
          }
       }
-      mm_log(n, MNET_LOG_ERR, "chann %p fail to connect\n", n);
+      mm_log(n, MNET_LOG_ERR, "chann fail to connect %d\n", errno);
    }
    return 0;
 }
@@ -1120,9 +1113,7 @@ mnet_chann_listen_ex(chann_t *n, const char *host, int port, int backlog) {
       if (fd > 0) {
          n->fd = fd;
          n->state = CHANN_STATE_LISTENING;
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
          _evt_add(n, MNET_SET_READ);
-#endif
          mm_log(n, MNET_LOG_VERBOSE, "chann %p, fd:%d listen\n", n, fd);
          return 1;
       }
@@ -1144,13 +1135,11 @@ void mnet_chann_active_event(chann_t *n, mnet_event_type_t et, int active) {
    if ( n ) {
       if (et == MNET_EVENT_SEND) {
          n->active_send_event = active;
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
          if (active) {
             _evt_add(n, MNET_SET_WRITE);
          } else {
             _evt_del(n, MNET_SET_WRITE);
          }
-#endif
       }
    }
 }
@@ -1187,8 +1176,8 @@ int mnet_chann_send(chann_t *n, void *buf, int len) {
 
       if (_rwb_count(prh) > 0) {
          _rwb_cache(prh, (unsigned char*)buf, len);
-         mm_log(n, MNET_LOG_INFO, "------------ still cache %d(%d)!\n",
-                _rwb_buffered(prh->tail), _rwb_count(prh));
+         mm_log(n, MNET_LOG_INFO, "------------ fd:%d still cache %d(%d)!\n",
+                n->fd, _rwb_buffered(prh->tail), _rwb_count(prh));
       }
       else {
          ret = _chann_send(n, buf, len);
@@ -1200,12 +1189,10 @@ int mnet_chann_send(chann_t *n, void *buf, int len) {
                _chann_close_socket(ss, n);
             }
          } else if (ret < len) {
-            mm_log(n, MNET_LOG_INFO, "------------ cache %d of %d!\n", len - ret, len);
+            mm_log(n, MNET_LOG_INFO, "------------ fd:%d cache %d of %d!\n", n->fd, len - ret, len);
             _rwb_cache(prh, ((unsigned char*)buf) + ret, len - ret);
             ret = len;
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
             _evt_add(n, MNET_SET_WRITE);
-#endif
          }
       }
       return ret;
