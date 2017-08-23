@@ -436,23 +436,20 @@ _select_poll(int microseconds) {
                   n->state = CHANN_STATE_CONNECTED;
                   _chann_event(n, MNET_EVENT_CONNECTED, NULL, 0);
                } else {
-                  _chann_event(n, MNET_EVENT_ERROR, NULL, opt);
                   _chann_disconnect_socket(ss, n);
-                  _chann_close_socket(ss, n);
+                  _chann_event(n, MNET_EVENT_DISCONNECT, NULL, opt);
                }
             }
             if ( _select_isset(se, n->fd) ) {
-               _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
                _chann_disconnect_socket(ss, n);
-               _chann_close_socket(ss, n);
+               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, 0);
             }
             break;
 
          case CHANN_STATE_CONNECTED:
             if ( _select_isset(se, n->fd) ) {
-               _chann_event(n, MNET_EVENT_ERROR, NULL, 0);
                _chann_disconnect_socket(ss, n);
-               _chann_close_socket(ss, n);
+               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, 0);
             } else {
                if ( _select_isset(sr, n->fd) ) {
                   _chann_event(n, MNET_EVENT_RECV, NULL, 0);
@@ -738,14 +735,12 @@ _evt_poll(int microseconds) {
             int err = _kev_errno(kev);
             if (_kev_flags(kev, _KEV_FLAG_ERROR)) {
                mm_log(n, MNET_LOG_ERR, "chann got error: %d\n", err);
-               _chann_event(n, MNET_EVENT_ERROR, NULL, err);
                _chann_disconnect_socket(ss, n);
-               _chann_close_socket(ss, n);
+               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, err);
             } else {
                mm_log(n, MNET_LOG_VERBOSE, "chann got eof: %d\n", err);
-               if ( _chann_disconnect_socket(ss, n) )
-                  _chann_event(n, MNET_EVENT_DISCONNECT, NULL, err);
-               _chann_close_socket(ss, n);
+               _chann_disconnect_socket(ss, n);
+               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, err);
             }
          }
 
@@ -773,9 +768,8 @@ _evt_poll(int microseconds) {
                   _chann_event(n, MNET_EVENT_CONNECTED, NULL, 0);
                } else {
                   mm_log(n, MNET_LOG_ERR, "chann fd:%d getsockopt %d\n", n->fd, opt);
-                  _chann_event(n, MNET_EVENT_ERROR, NULL, opt);
                   _chann_disconnect_socket(ss, n);
-                  _chann_close_socket(ss, n);
+                  _chann_event(n, MNET_EVENT_DISCONNECT, NULL, opt);
                }
                break;
             }
@@ -1158,7 +1152,7 @@ int mnet_chann_recv(chann_t *n, void *buf, int len) {
             mnet_t *ss = _gmnet();
             mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, recv errno = %d\n", n, n->fd, errno);
             _chann_disconnect_socket(ss, n);
-            _chann_close_socket(ss, n);
+            _chann_event(n, MNET_EVENT_DISCONNECT, NULL, errno);
          }
       } else {
          n->bytes_recv += ret;

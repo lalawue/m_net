@@ -31,8 +31,7 @@ typedef enum {
    MNET_EVENT_SEND,         /* socket send buf empty, inactive default */
    MNET_EVENT_ACCEPT,       /* socket accept */
    MNET_EVENT_CONNECTED,    /* socket connected */
-   MNET_EVENT_DISCONNECT,   /* socket disconnect when got EOF */
-   MNET_EVENT_ERROR,        /* socket error */
+   MNET_EVENT_DISCONNECT,   /* socket disconnect when got EOF or error */
 } mnet_event_type_t;
 
 typedef struct s_mchann chann_t;
