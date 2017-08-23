@@ -1,3 +1,4 @@
+*.dylib
 *.out
 *.dSYM
 TAGS

@@ -86,12 +86,6 @@ public:
             break;
          }
 
-         case MNET_EVENT_ERROR: {
-            cout << m_value << ": error then exit ------------------------------- " << e->err << endl;
-            mnet_chann_close(e->n);
-            break;
-         }
-
          default: {
             break;
          }
@@ -193,6 +187,8 @@ int main(int argc, char *argv[]) {
             TestChanns *tc = new TestChanns;
             if ( tc->clientConnect((const char*)argv[2], 8099, channsVec.size()) ) {
                channsVec.push_back(tc);
+            } else {
+               break;
             }
          }
       }

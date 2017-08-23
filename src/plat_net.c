@@ -879,6 +879,7 @@ _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
    if (n->fd > 0) {
       n->state = CHANN_STATE_DISCONNECT;
       close(n->fd);
+      _rwb_destroy(&n->rwb_send);
       mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd %d\n", n->fd);
       n->fd = -1;
       return 1;
@@ -1088,7 +1089,7 @@ mnet_chann_connect(chann_t *n, const char *host, int port) {
             return 1;
          }
       }
-      mm_log(n, MNET_LOG_ERR, "chann fail to connect %d\n", errno);
+      mm_log(n, MNET_LOG_ERR, "chann fail to connect %d:%s\n", errno, strerror(errno));
    }
    return 0;
 }

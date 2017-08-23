@@ -76,9 +76,6 @@ public:
          cout << "disconnect client " << e->n << endl << endl;
          mnet_chann_close(e->n);
       }
-      else if (e->event == MNET_EVENT_ERROR) {
-         mnet_chann_close(e->n);
-      }
    }
 };
 
