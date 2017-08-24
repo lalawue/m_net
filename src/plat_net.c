@@ -286,11 +286,8 @@ static void
 _rwb_destroy(rwb_head_t *h) {
    while (h->count > 0) {
       rwb_t *b = h->head;
-      if ( b ) {
-         h->head = b->next;
-         h->count--;
-         mm_free(b);
-      }
+      b->ptr = b->ptw = 0;
+      _rwb_destroy_head(h);
    }
 }
 
