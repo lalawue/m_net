@@ -1207,14 +1207,9 @@ int mnet_chann_set_bufsize(chann_t *n, int bufsize) {
 int mnet_chann_cached(chann_t *n) {
    if (n) {
       rwb_head_t *prh = &n->rwb_send;
-      if (_rwb_count(prh) > 0) {
-         rwb_t *b = prh->head;
-         int i = 0, bytes = 0;
-         for (i=0; i<_rwb_count(prh); i++) {
-            bytes += _rwb_buffered(b);
-            b = b->next;
-         }
-         return bytes;
+      int count = _rwb_count(prh);
+      if (count > 0) {
+         return _rwb_buffered(prh->head) + (count - 1) * MNET_BUF_SIZE;
       }
    } 
    return 0;
