@@ -39,7 +39,7 @@ _debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/reconnect.out $^ $(LIBS) -DTEST_RECONNECT
 
 _lib: $(LIB_SRCS)
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/libmnet.dylib $^ $(LIBS) -shared
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/libmnet.dylib $^ $(LIBS) -shared -fPIC
 
 clean:
 	rm -rf build

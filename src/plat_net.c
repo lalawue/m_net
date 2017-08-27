@@ -829,13 +829,16 @@ _chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
 
 void
 _chann_destroy(mnet_t *ss, chann_t *n) {
-   if (n->next) { n->next->prev = n->prev; }
-   if (n->prev) { n->prev->next = n->next; }
-   else { ss->channs = n->next; }
-   _rwb_destroy(&n->rwb_send);
-   ss->chann_count--;
-   mm_log(n, MNET_LOG_VERBOSE, "chann destroy, count %d\n", ss->chann_count);
-   mm_free(n);
+   if (n->state >= CHANN_STATE_CLOSED) {
+      if (n->next) { n->next->prev = n->prev; }
+      if (n->prev) { n->prev->next = n->next; }
+      else { ss->channs = n->next; }
+      _rwb_destroy(&n->rwb_send);
+      ss->chann_count--;
+      mm_log(n, MNET_LOG_VERBOSE, "chann destroy, count %d\n", ss->chann_count);
+      n->state = (chann_state_t)-1;
+      mm_free(n);
+   }
 }
 
 chann_t*
