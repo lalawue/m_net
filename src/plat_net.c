@@ -254,13 +254,13 @@ _rwb_destroy_head(rwb_head_t *h) {
 
 static void
 _rwb_cache(rwb_head_t *h, unsigned char *buf, int buf_len) {
-   int buf_ptw = 0;
-   while (buf_ptw < buf_len) {
+   int buf_ptr = 0;
+   while (buf_ptr < buf_len) {
       rwb_t *b = _rwb_create_tail(h);
-      int len = _MIN_OF((buf_len - buf_ptw), _rwb_available(b));
-      memcpy(&b->buf[b->ptw], &buf[buf_ptw], len);
+      int len = _MIN_OF((buf_len - buf_ptr), _rwb_available(b));
+      memcpy(&b->buf[b->ptw], &buf[buf_ptr], len);
       b->ptw += len;
-      buf_ptw += len;
+      buf_ptr += len;
    }
 }
 
@@ -1178,7 +1178,7 @@ int mnet_chann_send(chann_t *n, void *buf, int len) {
                mnet_t *ss = _gmnet();
                mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno = %d\n", n, n->fd, errno);
                _chann_disconnect_socket(ss, n);
-               _chann_close_socket(ss, n);
+               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, errno);
             }
          } else if (ret < len) {
             mm_log(n, MNET_LOG_INFO, "------------ fd:%d cache %d of %d!\n", n->fd, len - ret, len);
