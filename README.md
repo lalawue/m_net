@@ -25,7 +25,7 @@ It's very convenience for use, an echo server example:
 
 ```cpp
    Chann echoSvr("tcp");
-   echoSvr.listen(argv[1]);
+   echoSvr.listen("127.0.0.1:1080");
    
    echoSvr.setEventHandler([](Chann *self, Chann *accept, mnet_event_type_t event) {
          if (event == MNET_EVENT_ACCEPT) {
