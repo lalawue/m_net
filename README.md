@@ -21,7 +21,7 @@ Support MacOS/Linux/Windows, using kqueue/epoll/select underlying.
 
 # Usage & Example
 
-It's very convenience for use, an echo server below:
+It's very convenience for use, an echo server example:
 
 ```cpp
    Chann echoSvr("tcp");
