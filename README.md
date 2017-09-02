@@ -23,7 +23,7 @@ Support MacOS/Linux/Windows, using kqueue/epoll/select underlying.
 
 It's very convenience for use, an echo server below:
 
-```
+```cpp
    Chann echoSvr("tcp");
    echoSvr.listen(argv[1]);
    
