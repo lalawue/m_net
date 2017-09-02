@@ -128,7 +128,7 @@ namespace mnet {
          c->dispatchEvent(e);
       }
 
-      virtual void dispatchEvent(chann_event_t *e) {
+      void dispatchEvent(chann_event_t *e) {
          if (m_handler) {
             if (e->event == MNET_EVENT_ACCEPT) {
                Chann *nc = new Chann(e->r);
