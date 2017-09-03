@@ -20,6 +20,10 @@ namespace mnet {
    
    class ChannAddr {
      public:
+      ChannAddr() {
+         strncpy(ip, "0.0.0.0", 7);
+         port = 8972;
+      }
       ChannAddr(string ipPort) {
          int f = ipPort.find(":");
          if (f > 0) {
@@ -39,6 +43,9 @@ namespace mnet {
 
    class Chann {
      public:
+
+      /* chann creation 
+       */
       Chann() {}
 
       Chann(string streamType) {
@@ -58,20 +65,32 @@ namespace mnet {
          m_handler = NULL;
       }
 
+      // update self then clear fromChann
+      void updateChann(Chann *fromChann, channEventHandler handler) {
+         m_chann = fromChann->m_chann;
+         m_handler = handler;
+         mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
+         fromChann->m_chann = NULL;
+         fromChann->m_handler = NULL;
+      }
+
+
+      /* build network 
+       */
       bool listen(string ipPort) {
          if (m_chann && ipPort.length()>0) {
-            ChannAddr addr(ipPort);
+            m_addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_listen_ex(m_chann, addr.ip, addr.port, 1);
+            return mnet_chann_listen_ex(m_chann, m_addr.ip, m_addr.port, 1);
          }
          return false;
       }
    
       bool connect(string ipPort) {
          if (m_chann && ipPort.length()>0) {
-            ChannAddr addr(ipPort);
+            m_addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_connect(m_chann, addr.ip, addr.port);
+            return mnet_chann_connect(m_chann, m_addr.ip, m_addr.port);
          }
          return false;
       }
@@ -82,6 +101,9 @@ namespace mnet {
          }
       }
 
+
+      /* data mantipulation
+       */
       int recv(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_recv(m_chann, buf, len);
@@ -96,33 +118,43 @@ namespace mnet {
          return -1;
       }
 
-      // external event handler
+
+      /* event handler
+       */
+
+      // only support MNET_EVENT_SEND, event send while send buffer emtpy
+      void activeEvent(mnet_event_type_t event) {
+         mnet_chann_active_event(m_chann, event, 1);
+      }
+      void inActiveEvent(mnet_event_type_t event) {
+         mnet_chann_active_event(m_chann, event, 0);
+      }
+
+      // external event handler, overide defaultEventHandler
       void setEventHandler(channEventHandler handler) {
          m_handler = handler;
       }
       
-      // if no external handler then use default, subclass and re-implement
+      // use default if no external event handler, for subclass internal
       virtual void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
          if ( accept ) {
             delete accept;
          }
       }
 
-      // update this and clear nc
-      void updateChann(Chann *fromChann, channEventHandler handler) {
-         m_chann = fromChann->m_chann;
-         m_handler = handler;
-         mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-         fromChann->m_chann = NULL;
-         fromChann->m_handler = NULL;
-      }
 
+      /* misc
+       */
+      ChannAddr address(void) { return m_addr; };
+      int dataCached(void) { return mnet_chann_cached(m_chann); }
 
 
      private:
 
       Chann(chann_t *c) { m_chann = c; }
 
+      /* event process
+       */
       static void channDispatchEvent(chann_event_t *e) {
          Chann *c = (Chann*)e->opaque;
          c->dispatchEvent(e);
@@ -149,6 +181,7 @@ namespace mnet {
       }
 
       chann_t *m_chann;
+      ChannAddr m_addr;
       channEventHandler m_handler; // external event handler
    };
 
