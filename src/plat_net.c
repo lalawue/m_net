@@ -1020,6 +1020,7 @@ int mnet_chann_state(chann_t *n) {
 
 static void
 _chann_fill_addr(chann_t *n, const char *host, int port) {
+   memset(&n->addr, 0, sizeof(n->addr));
    n->addr.sin_family = AF_INET;
    n->addr.sin_port = htons(port);
    n->addr.sin_addr.s_addr = 

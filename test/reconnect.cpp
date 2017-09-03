@@ -7,189 +7,162 @@
 // 
 // 
 
-#include <iostream>
-#include <vector>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include "plat_net.h"
-
 #ifdef TEST_RECONNECT
 
-using namespace std;
+#include <iostream>
+#include <vector>
+#include <string>
+#include <unistd.h>
+#include "mnet_wrapper.h"
 
-static void _tcpChannEvent(chann_event_t *e);
+using std::cout;
+using std::endl;
 
-class BaseChann {
+using std::vector;
+using std::string;
+
+using mnet::Chann;
+using mnet::ChannAddr;
+using mnet::ChannDispatcher;
+
+
+class SvrChann : public Chann {
 public:
-   BaseChann() { m_tcp = NULL; }
-   ~BaseChann() { mnet_chann_close(m_tcp); }
-   virtual void tcpChannEvent(chann_event_t *e) {}
-   chann_t *m_tcp;   
-};
-
-class SvrChann : BaseChann {
-public:
-   bool startListen(char *ipAddr, int port) {
-      if (m_tcp) {
-         return true;
-      }
-
-      if ( (m_tcp = mnet_chann_open(CHANN_TYPE_STREAM)) ) {
-
-         mnet_chann_set_cb(m_tcp, _tcpChannEvent, this);
-
-         if ( mnet_chann_listen_ex(m_tcp, ipAddr, port, 1) ) {
-            cout << "start to listen " << ipAddr << ":" << port << endl;
-            return true;
-         } else {
-            cerr << "fail to listen " << endl;
-            mnet_chann_close(m_tcp);
-         }
-      }
-
-      return false;
+   SvrChann(Chann *nc) {
+      updateChann(nc, NULL);
    }
-
-   void tcpChannEvent(chann_event_t *e) {
-      if (e->event == MNET_EVENT_ACCEPT) {
-         cout << "------ accept client " << e->r << ", count " << (mnet_report(0)-1) << endl;
-         mnet_chann_set_cb(e->r, _tcpChannEvent, this);
-      }
-      else if (e->event == MNET_EVENT_RECV) {
-         char buf[64] = { 0 };
-         if ( mnet_chann_recv(e->n, buf, 64) ) {
-            cout << "recv <" << buf << ">" << endl;
-            int ret = snprintf(buf, 64, "hello, stranger");
-            mnet_chann_active_event(e->n, MNET_EVENT_SEND, 1);
-            mnet_chann_send(e->n, buf, ret);
-         } else {
-            cerr << "fail to recv" << endl;
-         }
-      }
-      else if (e->event == MNET_EVENT_DISCONNECT) {
-         if (e->n == m_tcp) {
-            m_tcp = NULL;
-         }
-      }
-      else if (e->event == MNET_EVENT_SEND) {
-         cout << "disconnect client " << e->n << endl << endl;
-         mnet_chann_close(e->n);
-      }
-   }
-};
-
-class CntChann : BaseChann {
-public:
-   bool connectSvr(char *ipAddr, int port, int mark) {
-      if (m_tcp) {
-         return true;
-      }
-
-      m_ipAddr = ipAddr;
-      m_port = port;
-      m_mark = mark;
-
-      if ( (m_tcp = mnet_chann_open(CHANN_TYPE_STREAM)) ) {
-
-         mnet_chann_set_cb(m_tcp, _tcpChannEvent, this);
-
-         if ( mnet_chann_connect(m_tcp, ipAddr, port) ) {
-            cout << m_mark << "---- try connect server " << ipAddr << ":" << port << endl;
-            return true;
-         } else {
-            cout << m_mark << ": fail to connect server" << endl;
-            mnet_chann_close(m_tcp);
-         }
-      }
-      return false;
-   }
-
-   void tcpChannEvent(chann_event_t *e) {
-      if (e->event == MNET_EVENT_CONNECTED) {
-         cout << m_mark << ": connected." << endl;
+   
+   void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
+      if (event == MNET_EVENT_RECV) {
          char buf[64] = {0};
-         int ret = snprintf(buf, 64, "hello, server");
-         if ( mnet_chann_send(e->n, buf, ret) ) {
-            cout << m_mark << ": send server <" << buf << ">" << endl;
+         int ret = recv(buf, 64);
+         if (ret > 0) {
+            activeEvent(MNET_EVENT_SEND);
+            send(buf, ret);
+            cout << "recv from cnt: " << buf << endl;
          } else {
-            cerr << m_mark << ": fail to send server data" << endl;
+            cout << "fail to recv" << endl;
          }
       }
-      else if (e->event == MNET_EVENT_RECV) {
-         char buf[64] = {0};
-         if ( mnet_chann_recv(e->n, buf, 64) ) {
-            cout << m_mark << ": recv from server <" << buf << ">" << endl;
-         }
-      }
-      else if (e->event == MNET_EVENT_DISCONNECT) {
-         cout << m_mark << ": server disconnect" << endl;
-         m_tcp = NULL;
-
-         //usleep(50000);
-
-         if ( !this->connectSvr(m_ipAddr, m_port, m_mark) ) {
-            cerr << m_mark << ": fail to connect server" << endl;
-         }
+      else if (event == MNET_EVENT_SEND ||
+               event == MNET_EVENT_DISCONNECT)
+      {
+         cout << "cnt " << this << " disconnect" << endl;
+         delete this;
       }
    }
-
-private:
-   char *m_ipAddr;
-   int m_port;
-   int m_mark;
 };
 
-void _tcpChannEvent(chann_event_t *e) {
-   BaseChann *c = (BaseChann*)e->opaque;
-   if (c) {
-      c->tcpChannEvent(e);
+
+class CntChann : public Chann {
+public:
+   CntChann(string streamType) {
+      Chann c(streamType);
+      updateChann(&c, NULL);
    }
-}
+
+   void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
+      switch (event) {
+         case MNET_EVENT_CONNECTED: {
+            cout << "cnt " << m_idx << " connected !" << endl;
+            char data[64] = {0};
+            int ret = snprintf(data, 64, "HelloServ %d", m_idx);
+            if (ret == send((void*)data, ret)) {
+               cout << "send " << data << endl;
+            } else {
+               cout << "Fail to send !" << endl;
+               delete this;
+            }
+            break;
+         }
+
+         case MNET_EVENT_RECV: {
+            char buf[64] = {0};
+            int ret = recv(buf, 64);
+            if (ret > 0) {
+               cout << "recv from svr: " << buf << endl;
+            } else {
+               cout << "fail to recv" << endl;
+               delete this;
+            }
+            break;
+         }
+
+         case MNET_EVENT_DISCONNECT: {
+            cout << "chann disconnect !" << endl;
+
+            usleep(50*1000);
+
+            if ( connect( remoteAddr().addr ) ) {
+               cout << "try to connect " << remoteAddr().addr << endl;
+            } else {
+               cout << "fail to connect !" << endl;
+               delete this;
+            }
+            break;
+         }
+
+         default: {
+            break;
+         }
+      }
+   }
+
+   int m_idx;
+};
 
 int main(int argc, char *argv[]) {
-   bool isServer = false;
-   bool isRunning = false;
-   SvrChann *sc = NULL;
-   vector<CntChann*> channsVec;
 
    if (argc < 3) {
-      cout << "Usage: .out [-s|-c] server_ip" << endl;
+      cout << "Usage: " << argv[0] << " [-s|-c] server_ip:port" << endl;
       return 0;
    }
 
-   // get model
-   if (strncmp(argv[1], "-s", 2) == 0) {
-      isServer = true;
+   string option = argv[1];
+   string ipaddr = argv[2];
+
+
+   if (option == "-s") {
+      // server side
+
+      Chann svrListen("tcp");
+      svrListen.listen(ipaddr);
+
+      cout << "svr listen " << ipaddr << endl;
+
+      svrListen.setEventHandler([](Chann *self, Chann *accept, mnet_event_type_t event){
+            if (event == MNET_EVENT_ACCEPT) {
+               SvrChann *nc = new SvrChann(accept);
+               cout << "accept cnt " << nc << endl;
+               delete accept;
+            }
+         });
+
+      ChannDispatcher::startEventLoop();
    }
+   else if (option == "-c") {
+      // client side
 
-   mnet_init();
-
-   if (isServer) {
-      sc = new SvrChann;
-      if ( sc->startListen(argv[2], 8299) ) {
-         isRunning = true;
-      }
-   } else {
-      for (int i=0; i<1024; i++) {
-         CntChann *cc = new CntChann;
-         if ( cc->connectSvr(argv[2], 8299, i++) ) {
-            isRunning = true;
+      for (int i=0; i<1; i++) {
+         CntChann *cnt = new CntChann("tcp");
+         cnt->m_idx = i;
+         if ( cnt->connect(ipaddr) ) {
+            cout << "try connect " << ipaddr << endl;
+         } else {
+            break;
          }
-         channsVec.push_back(cc);
+      }
+
+      while (true) {
+         int ret = mnet_poll(50*1000);
+         if (ret <= 0) {
+            break;
+         }
+         usleep(50*1000);
       }
    }
-
-   while (isRunning) {
-      mnet_poll(-1);
-   }
-
-   mnet_fini();
-
-   cout << "sc " << sc << ", channs vec " << channsVec.size() << endl;
 
    return 0;
 }
-
 
 #endif // TEST_RECONNECT

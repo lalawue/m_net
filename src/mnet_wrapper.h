@@ -20,13 +20,11 @@ namespace mnet {
    
    class ChannAddr {
      public:
-      ChannAddr() {
-         strncpy(ip, "0.0.0.0", 7);
-         port = 8972;
-      }
+      ChannAddr() { ChannAddr("0.0.0.0:8972"); }
       ChannAddr(string ipPort) {
          int f = ipPort.find(":");
          if (f > 0) {
+            addr = ipPort;
             strncpy(ip, ipPort.substr(0, f).c_str(), 16);
             port = atoi(ipPort.substr(f+1, ipPort.length() - f).c_str());
          }
@@ -34,6 +32,7 @@ namespace mnet {
       ~ChannAddr() { }
       char ip[16];
       int port;
+      string addr;
    };
 
 
@@ -145,8 +144,9 @@ namespace mnet {
 
       /* misc
        */
-      ChannAddr address(void) { return m_addr; };
+      ChannAddr remoteAddr(void) { return m_addr; };
       int dataCached(void) { return mnet_chann_cached(m_chann); }
+      bool isConnected(void) { return mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED; }
 
 
      private:
