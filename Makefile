@@ -36,7 +36,7 @@ _debug_c: $(LIB_SRCS) $(C_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
 
 _debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/multichann.out $^ $(LIBS) -DTEST_MULTICHANNS
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/multichann.out $^ $(LIBS) -DTEST_MULTICHANNS
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/reconnect.out $^ $(LIBS) -DTEST_RECONNECT
 
 _lib: $(LIB_SRCS)

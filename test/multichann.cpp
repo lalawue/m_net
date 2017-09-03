@@ -7,201 +7,142 @@
 // 
 // 
 
-#include <iostream>
-#include <vector>
-#include <string.h>
-#include "plat_net.h"
-
 #ifdef TEST_MULTICHANNS
 
-using namespace std;
+#include <iostream>
+#include <list>
+#include <string>
+#include <stdio.h>
+#include "mnet_wrapper.h"
 
-static void _tcpChannEvent(chann_event_t*);
-static unsigned const kMaxClientCount = 4096;
+using std::cout;
+using std::endl;
+
+using std::list;
+using std::string;
+
+using mnet::Chann;
+using mnet::ChannDispatcher;
 
 
-class TestChanns {
-
+class SvrChann : public Chann {
 public:
-   TestChanns() {
-      m_isServer = -1;
-      m_value = 0;
-      m_tcp = NULL;
+   SvrChann(Chann *nc) {
+      updateChann(nc, NULL);
    }
-
-   ~TestChanns() { 
-      mnet_chann_set_cb(m_tcp, NULL, NULL);
-      mnet_chann_close(m_tcp);
-   }
-
-
-   void tcpChannEvent(chann_event_t *e) {
-      switch (e->event) {
-
-         case MNET_EVENT_ACCEPT: {
-            m_value += 1;
-            cout << "client connected count " << m_value << endl;
-            mnet_chann_set_cb(e->r, _tcpChannEvent, this);
-            break;
+   
+   void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
+      if (event == MNET_EVENT_RECV) {
+         char buf[64] = {0};
+         int ret = recv(buf, 64);
+         if (ret > 0) {
+            send(buf, ret);
+            cout << "recv from cnt: " << buf << endl;
+         } else {
+            cout << "fail to recv" << endl;
          }
+      }
+      else if (event == MNET_EVENT_DISCONNECT) {
+         cout << "cnt " << this << " disconnect" << endl;
+         delete this;
+      }
+   }
+};
 
+
+class CntChann : public Chann {
+public:
+   CntChann(string streamType) {
+      Chann c(streamType);
+      updateChann(&c, NULL);
+   }
+
+   void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
+      switch (event) {
          case MNET_EVENT_CONNECTED: {
-            if (mnet_chann_send(e->n, &m_value, sizeof(m_value)) > 0) {
-               cout << m_value << ": send data " << m_value << endl;
-            } else {
-               cerr << m_value << ": fail to send data !" << endl;
-            }
+            cout << "cnt " << m_idx << " connected !" << endl;
+            char data[64] = {0};
+            int ret = snprintf(data, 64, "HelloServ %d", m_idx);
+            send((void*)data, ret);
             break;
          }
 
          case MNET_EVENT_RECV: {
-            int value = 0;
-            if (m_isServer == 1) {
-               if (mnet_chann_recv(e->n, &value, sizeof(value)) > 0) {
-                  cout << "recv client value " << value << endl;
-               } else {
-                  cerr << "fail to recv data !" << endl;
-               }
-
-               value += 10;
-               if (mnet_chann_send(e->n, &value, sizeof(value)) <= 0) {
-                  cerr << "fail to send Thanks" << endl;
-               }
+            char buf[64] = {0};
+            int ret = recv(buf, 64);
+            if (ret > 0) {
+               cout << "recv from svr: " << buf << endl;
             } else {
-               if (mnet_chann_recv(e->n, &value, sizeof(value)) > 0) {
-                  cout << m_value << ": recv server data " << value << endl;
-               } else {
-                  cerr << m_value << ": fail to recv server data !" << endl;
-               }
-               mnet_chann_close(m_tcp);
-               m_tcp = NULL;
+               cout << "fail to recv" << endl;
             }
+            delete this;
             break;
          }
 
-         case MNET_EVENT_DISCONNECT: {
-            cout << m_value << ": disconnect." << endl;
-            mnet_chann_close(e->n);
-            m_tcp = NULL;
-            break;
-         }
-
-         default: {
+         default: {             // MNET_EVENT_DISCONNECT
+            delete this;
             break;
          }
       }
    }
 
-
-   bool serverListen(const char *ipAddr, int port) {
-      if (m_isServer >= 0) {
-         return false;
-      }
-      m_isServer = 1;
-
-      m_tcp = mnet_chann_open(CHANN_TYPE_STREAM);
-      if (m_tcp == NULL) {
-         cerr << "Fail to create listen chann !" << endl;
-         return false;
-      }
-
-      mnet_chann_set_cb(m_tcp, _tcpChannEvent, this);
-
-      if (mnet_chann_listen(m_tcp, port) <= 0) {
-         cerr << "Fail to listen !" << endl;
-         return false;
-      }
-
-      cout << "start listen: " << ipAddr << ":" << port << endl;
-      return true;
-   }
-
-
-   bool clientConnect(const char *ipAddr, int port, int value) {
-      if (m_isServer >= 0) {
-         return false;
-      }
-      m_isServer = 0;
-      m_value = value;
-
-      m_tcp = mnet_chann_open(CHANN_TYPE_STREAM);
-      if (m_tcp == NULL) {
-         cerr << "Fail to create listen chann !" << endl;
-         return false;
-      }
-
-      mnet_chann_set_cb(m_tcp, _tcpChannEvent, this);
-
-      if (mnet_chann_connect(m_tcp, ipAddr, port) <= 0) {
-         cerr << "Fail to connect !" << endl;
-         return false;
-      }
-
-      cout << m_value << ":try connect " << ipAddr << ":" << port << " with value " << m_value << endl;
-      return true;
-   }
-
-private:
-   int m_isServer;
-   int m_value;
-   chann_t *m_tcp;
+   int m_idx;
 };
 
-void _tcpChannEvent(chann_event_t *e) {
-   TestChanns *tc = (TestChanns*)e->opaque;
-   tc->tcpChannEvent(e);
-}
-
 int main(int argc, char *argv[]) {
-   bool isServer = false;
-   vector<TestChanns*> channsVec;
-
 
    if (argc < 3) {
-      cout << "Usage: .out [-s|-c] server_ip" << endl;
+      cout << "Usage: " << argv[0] << " [-s|-c] server_ip:port" << endl;
       return 0;
    }
 
-
-   // get model
-   if (strncmp(argv[1], "-s", 2) == 0) {
-      isServer = true;
-   }
-   
-
-   // init mnet
-   mnet_init();
+   string option = argv[1];
+   string ipaddr = argv[2];
 
 
-   if (isServer) {
-      TestChanns *tc = new TestChanns;
-      if ( tc->serverListen(argv[2], 8099) ) {
-         channsVec.push_back(tc);
-      }
-   }
+   if (option == "-s") {
+      // server side
 
-   for (;;) {
+      Chann svrListen("tcp");
+      svrListen.listen(ipaddr);
 
-      if ( !isServer ) {
-         if (channsVec.size() < kMaxClientCount) {
-            TestChanns *tc = new TestChanns;
-            if ( tc->clientConnect((const char*)argv[2], 8099, channsVec.size()) ) {
-               channsVec.push_back(tc);
-            } else {
-               break;
+      cout << "svr listen " << ipaddr << endl;
+
+      static int cntCount = 0;
+
+      svrListen.setEventHandler([](Chann *self, Chann *accept, mnet_event_type_t event){
+            if (event == MNET_EVENT_ACCEPT) {
+               cntCount += 1;
+               SvrChann *nc = new SvrChann(accept);
+               cout << "accept cnt " << nc << ", count " << cntCount << endl;
+               delete accept;
             }
+         });
+
+      ChannDispatcher::startEventLoop();
+   }
+   else if (option == "-c") {
+      // client side
+      list<CntChann*> cntList;
+
+      for (int i=0; i<2048; i++) {
+         CntChann *cnt = new CntChann("tcp");
+         cnt->m_idx = i;
+         if ( cnt->connect(ipaddr) ) {
+            cntList.push_back(cnt);
          }
       }
 
-      int count = mnet_poll( 2000 );
-      if (count == 0) {
-         break;
+      for (int cntCount=0; ; ) {
+         cntCount = mnet_poll(2000);
+         if (cntCount <= 0) {
+            break;
+         }
       }
+      
+      cout << "all cnt connect, send, recv done, exit !" << endl;
+      cntList.clear();
    }
-
-   mnet_fini();
-
-   cout << "channs vec " << channsVec.size() << endl;
 
    return 0;
 }
