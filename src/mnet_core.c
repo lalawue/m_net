@@ -356,7 +356,7 @@ _chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
    return n;
 }
 
-void
+static void
 _chann_destroy(mnet_t *ss, chann_t *n) {
    if (n->state >= CHANN_STATE_CLOSED) {
       if (n->next) { n->next->prev = n->prev; }
@@ -370,7 +370,15 @@ _chann_destroy(mnet_t *ss, chann_t *n) {
    }
 }
 
-chann_t*
+static inline char* _chann_addr(chann_t *n) {
+   return inet_ntoa(n->addr.sin_addr);
+}
+
+static inline int _chann_port(chann_t *n) {
+   return ntohs(n->addr.sin_port);
+}
+
+static chann_t*
 _chann_accept(mnet_t *ss, chann_t *n) {
    struct sockaddr_in addr;
    socklen_t addr_len = sizeof(addr);
@@ -382,14 +390,14 @@ _chann_accept(mnet_t *ss, chann_t *n) {
          c->addr = addr;
          c->addr_len = addr_len;
          mm_log(n, MNET_LOG_VERBOSE, "chann accept %p fd %d, from %s, count %d\n",
-                c, c->fd, mnet_chann_addr(c), ss->chann_count);
+                c, c->fd, _chann_addr(c), ss->chann_count);
          return c;
       }
    }
    return NULL;
 }
 
-int
+static int
 _chann_send(chann_t *n, void *buf, int len) {
    int ret = 0;
    if (n->type == CHANN_TYPE_STREAM) {
@@ -403,7 +411,7 @@ _chann_send(chann_t *n, void *buf, int len) {
    return ret;
 }
 
-int
+static int
 _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
    if (n->fd > 0) {
       n->state = CHANN_STATE_DISCONNECT;
@@ -416,7 +424,7 @@ _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
    return 0;
 }
 
-void
+static void
 _chann_close_socket(mnet_t *ss, chann_t *n) {
    if (n->state > CHANN_STATE_CLOSED) {
 #if (MNET_OS_MACOX | MNET_OS_LINUX)
@@ -433,7 +441,7 @@ _chann_close_socket(mnet_t *ss, chann_t *n) {
    }
 }
 
-void
+static void
 _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
    chann_msg_t e;
    e.event = event;
@@ -989,7 +997,7 @@ int mnet_report(int level) {
          chann_t *n = ss->channs, *nn = NULL;
          while (n) {
             nn = n->next;
-            mm_log(NULL, 0, "chann %p, %s:%d\n", n, mnet_chann_addr(n), mnet_chann_port(n));
+            mm_log(NULL, 0, "chann %p, %s:%d\n", n, _chann_addr(n), _chann_port(n));
             n = nn;
          }
          mm_log(NULL, 0, "------------------------\n");
@@ -997,6 +1005,48 @@ int mnet_report(int level) {
       return ss->chann_count;
    }
    return -1;
+}
+
+/* sync funciton will block thread */
+int
+mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t *addr) {
+   int ret = 0;
+   if (host && addr) {
+      struct sockaddr_in *valid_in = NULL;
+      struct addrinfo hints, *ai=NULL, *curr=NULL;
+      char buf[32] = {0};
+
+      memset(&hints, 0, sizeof(hints));
+      hints.ai_family = AF_INET;
+      hints.ai_socktype = (ctype == CHANN_TYPE_DGRAM) ? SOCK_DGRAM : SOCK_STREAM;
+      if (port > 0) { sprintf(buf, "%d", port); }
+      if ( getaddrinfo(host, (port>0 ? buf : NULL), &hints, &ai) ) {
+         mm_log(NULL, 0, "fail to resolve host !\n");
+         goto fail;
+      }
+
+      for ( curr=ai; curr!=NULL; curr=curr->ai_next) {
+         char ipstr[16] = {0};
+         inet_ntop(AF_INET, &(((struct sockaddr_in *)(curr->ai_addr))->sin_addr), ipstr, 16);
+         if (strlen(ipstr) > 7) { // '0.0.0.0'
+            valid_in = (struct sockaddr_in*)curr->ai_addr;
+            break;
+         }
+      }
+
+      if (valid_in) {
+         if (0 == getnameinfo((struct sockaddr*)valid_in, sizeof(*valid_in),
+                              (char*)addr->ip, 16,NULL, 0, NI_NUMERICHOST))
+         {
+            ret = 1;
+            addr->port = port;
+         }
+      }
+
+     fail:
+      freeaddrinfo(ai);
+   }
+   return ret;
 }
 
 chann_t*
@@ -1215,16 +1265,11 @@ int mnet_chann_cached(chann_t *n) {
    return 0;
 }
 
-char* mnet_chann_addr(chann_t *n) {
-   if ( n ) {
-      return inet_ntoa(n->addr.sin_addr);
-   }
-   return NULL;
-}
-
-int mnet_chann_port(chann_t *n) {
-   if (n) {
-      return ntohs(n->addr.sin_port);
+int mnet_chann_addr(chann_t *n, chann_addr_t *addr) {
+   if (n && addr) {
+      strncpy(addr->ip, _chann_addr(n), 16);
+      addr->port = _chann_port(n);
+      return 1;
    }
    return 0;
 }

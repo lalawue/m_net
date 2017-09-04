@@ -93,8 +93,8 @@ public:
 
             usleep(50*1000);
 
-            if ( channConnect( peerAddr().addr ) ) {
-               cout << "try to connect " << peerAddr().addr << endl;
+            if ( channConnect( peerAddr().addrString ) ) {
+               cout << "try to connect " << peerAddr().addrString << endl;
             } else {
                cout << "fail to connect !" << endl;
                delete this;

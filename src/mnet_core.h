@@ -35,6 +35,7 @@ typedef enum {
 } chann_event_t;
 
 typedef struct s_mchann chann_t;
+
 typedef struct {
    chann_event_t event;         /* event type */
    int err;                     /* errno */
@@ -42,6 +43,11 @@ typedef struct {
    chann_t *r;                  /* chann accept from remote */
    void *opaque;                /* opaque in set_cb */
 } chann_msg_t;
+
+typedef struct {
+   char ip[16];
+   int port;
+} chann_addr_t;
 
 typedef void (*chann_msg_cb)(chann_msg_t*);
 typedef void (*mnet_log_cb)(chann_t*, int, const char *log_string);
@@ -62,6 +68,10 @@ int mnet_report(int level);     /* 0:chann_count 1:chann_detail */
 #define MNET_ONE_SECOND_BIT 20   /* 1 seconds == (1<<20) microseconds */
 int mnet_poll(int microseconds); /* dispatch chann event */
 
+/* sync method will block thread */
+int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
+
+
 
 /* channel */
 chann_t* mnet_chann_open(chann_type_t type);
@@ -81,8 +91,7 @@ int mnet_chann_send(chann_t *n, void *buf, int len);
 int mnet_chann_set_bufsize(chann_t *n, int bufsize);
 int mnet_chann_cached(chann_t *n);
 
-char* mnet_chann_addr(chann_t *n);
-int mnet_chann_port(chann_t *n);
+int mnet_chann_addr(chann_t *n, chann_addr_t*);
 
 int mnet_chann_state(chann_t *n);
 long long mnet_chann_bytes(chann_t *n, int be_send);

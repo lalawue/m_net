@@ -54,7 +54,7 @@ struct ntpPacket {
 
 typedef struct {
    int second_left;
-   char ip_addr[16];
+   chann_addr_t addr;
    struct ntpPacket packet;
 } ntp_ctx_t;
 
@@ -141,10 +141,10 @@ _ntp_loop(ntp_ctx_t *ctx) {
    mnet_chann_set_cb(udp, _ntp_event_cb, ctx);
 
    // try connect ntp server
-   if ( mnet_chann_connect(udp, ctx->ip_addr, 123) ) {
-      printf("ntp: try connect to '%s:123'\n", ctx->ip_addr);
+   if ( mnet_chann_connect(udp, ctx->addr.ip, ctx->addr.port) ) {
+      printf("ntp: try connect to '%s:123'\n", ctx->addr.ip);
    } else {
-      printf("ntp: fail to connect to '%s:123'\n", ctx->ip_addr);
+      printf("ntp: fail to connect to '%s:123'\n", ctx->addr.ip);
       return;
    }
 
@@ -180,21 +180,21 @@ _ntp_loop(ntp_ctx_t *ctx) {
 
 int main(int argc, char *argv[]) {
    ntp_ctx_t ctx;
+   chann_addr_t addr;
 
-   if (argc < 2) {
-      printf("Usage:\n\n%s ntp_ip\n\ntry ping 'cn.ntp.org.cn' to get IP ?\n\n", argv[0]);
-      return 0;
+   printf("\n%s try resolve 'cn.ntp.org.cn' \n\n", argv[0]);
+
+   if ( mnet_resolve("cn.ntp.org.cn", 123, CHANN_TYPE_DGRAM, &addr) ) {
+
+      memset(&ctx, 0, sizeof(ctx));
+      ctx.addr = addr;
+
+      mnet_init();
+
+      _ntp_loop(&ctx);
+
+      mnet_fini();
    }
-
-   // get ntp server ip
-   memset(&ctx, 0, sizeof(ctx));
-   strncpy(ctx.ip_addr, argv[1], 16);
-
-   mnet_init();
-
-   _ntp_loop(&ctx);
-
-   mnet_fini();
 
    return 0;
 }

@@ -16,7 +16,15 @@
 
 namespace mnet {
 
+   class Chann;
    using std::string;
+   typedef void(*channEventHandler)(Chann *self, Chann *accept, chann_event_t);
+
+   static chann_type_t channType(string streamType) {
+      if (streamType == "tcp") return CHANN_TYPE_STREAM;
+      if (streamType == "udp") return CHANN_TYPE_DGRAM;
+      return CHANN_TYPE_BROADCAST;
+   }
    
    class ChannAddr {
      public:
@@ -24,20 +32,37 @@ namespace mnet {
       ChannAddr(string ipPort) {
          int f = ipPort.find(":");
          if (f > 0) {
-            addr = ipPort;
-            strncpy(ip, ipPort.substr(0, f).c_str(), 16);
-            port = atoi(ipPort.substr(f+1, ipPort.length() - f).c_str());
+            addrString = ipPort;
+            strncpy(addr.ip, ipPort.substr(0, f).c_str(), 16);
+            addr.port = atoi(ipPort.substr(f+1, ipPort.length() - f).c_str());
          }
       }
+      ChannAddr(chann_addr_t *naddr) {
+         char str[32];
+         sprintf(str, "%s:%d", naddr->ip, naddr->port);
+         addrString = str;
+         strncpy(addr.ip, naddr->ip, 16);
+         addr.port = naddr->port;
+      }
       ~ChannAddr() { }
-      char ip[16];
-      int port;
-      string addr;
+      static ChannAddr resolveHost(string hostPort, string streamType) {
+         if (hostPort.length()>0 && streamType.length()>0) {
+            chann_addr_t addr;
+            int port = 0;
+            int f = hostPort.find(":");
+            if (f > 0) {
+               port = atoi(hostPort.substr(f+1, hostPort.length() - f).c_str());
+               hostPort = hostPort.substr(0,f);
+            }
+            if ( mnet_resolve((char*)hostPort.c_str(), port, channType(streamType), &addr) ) {
+               return ChannAddr(&addr);
+            }
+         }
+         return ChannAddr();
+      }
+      chann_addr_t addr;
+      string addrString;
    };
-
-
-   class Chann;
-   typedef void(*channEventHandler)(Chann *self, Chann *accept, chann_event_t);
 
 
    class Chann {
@@ -48,14 +73,8 @@ namespace mnet {
       Chann() {}
 
       Chann(string streamType) {
-         chann_type_t ctype = CHANN_TYPE_STREAM;
-         if (streamType == "udp") {
-            ctype = CHANN_TYPE_DGRAM;
-         } else if (streamType == "broadcast") {
-            ctype = CHANN_TYPE_BROADCAST;
-         }
          mnet_init();
-         m_chann = mnet_chann_open( ctype );
+         m_chann = mnet_chann_open( channType(streamType) );
       }
 
       virtual ~Chann() {
@@ -80,7 +99,7 @@ namespace mnet {
          if (m_chann && ipPort.length()>0) {
             m_addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_listen_ex(m_chann, m_addr.ip, m_addr.port, 1);
+            return mnet_chann_listen_ex(m_chann, m_addr.addr.ip, m_addr.addr.port, 1);
          }
          return false;
       }
@@ -89,7 +108,7 @@ namespace mnet {
          if (m_chann && ipPort.length()>0) {
             m_addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_connect(m_chann, m_addr.ip, m_addr.port);
+            return mnet_chann_connect(m_chann, m_addr.addr.ip, m_addr.addr.port);
          }
          return false;
       }
@@ -147,6 +166,7 @@ namespace mnet {
       ChannAddr peerAddr(void) { return m_addr; };
       int dataCached(void) { return mnet_chann_cached(m_chann); }
       bool isConnected(void) { return mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED; } /*  */
+
 
 
      private:
