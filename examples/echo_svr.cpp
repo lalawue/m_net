@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
       echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event) {
             if (event == CHANN_EVENT_ACCEPT) {
                CntChann *cnt = new CntChann(accept);
-               cnt->channSend((void*)("Welcome to echoServ"), 20);
+               cnt->channSend((void*)("Welcome to echoServ\n"), 20);
                delete accept;
             }
          });

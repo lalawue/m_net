@@ -18,6 +18,7 @@ namespace mnet {
 
    class Chann;
    using std::string;
+
    typedef void(*channEventHandler)(Chann *self, Chann *accept, chann_event_t);
 
    static chann_type_t channType(string streamType) {
@@ -25,37 +26,27 @@ namespace mnet {
       if (streamType == "udp") return CHANN_TYPE_DGRAM;
       return CHANN_TYPE_BROADCAST;
    }
-   
+
+
    class ChannAddr {
      public:
       ChannAddr() { ChannAddr("0.0.0.0:8972"); }
       ChannAddr(string ipPort) {
-         int f = ipPort.find(":");
-         if (f > 0) {
-            addrString = ipPort;
-            strncpy(addr.ip, ipPort.substr(0, f).c_str(), 16);
-            addr.port = atoi(ipPort.substr(f+1, ipPort.length() - f).c_str());
-         }
-      }
-      ChannAddr(chann_addr_t *naddr) {
-         char str[32];
-         sprintf(str, "%s:%d", naddr->ip, naddr->port);
-         addrString = str;
-         strncpy(addr.ip, naddr->ip, 16);
-         addr.port = naddr->port;
+         addrString = ipPort;
+         mnet_parse_ipport((char*)ipPort.c_str(), &addr);
       }
       ~ChannAddr() { }
       static ChannAddr resolveHost(string hostPort, string streamType) {
          if (hostPort.length()>0 && streamType.length()>0) {
             chann_addr_t addr;
-            int port = 0;
-            int f = hostPort.find(":");
+            int port=0, f=hostPort.find(":");
             if (f > 0) {
                port = atoi(hostPort.substr(f+1, hostPort.length() - f).c_str());
                hostPort = hostPort.substr(0,f);
             }
             if ( mnet_resolve((char*)hostPort.c_str(), port, channType(streamType), &addr) ) {
-               return ChannAddr(&addr);
+               char buf[32]; sprintf(buf, "%s:%d", addr.ip, addr.port);
+               return ChannAddr(buf);
             }
          }
          return ChannAddr();

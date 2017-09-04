@@ -21,7 +21,7 @@ Support MacOS/Linux/Windows, using kqueue/epoll/select underlying.
 
 # Usage & Example
 
-It's very convenience for use, an echo server example:
+It's very convenience for use, an echo server example, with CPP wrapper:
 
 ```cpp
 // subclass Chann to handle event
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
       echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event) {
             if (event == CHANN_EVENT_ACCEPT) {
                CntChann *cnt = new CntChann(accept);
-               cnt->channSend((void*)("Welcome to echoServ"), 20);
+               cnt->channSend((void*)("Welcome to echoServ\n"), 20);
                delete accept;
             }
          });
@@ -72,30 +72,24 @@ the nested code need Closure support, with environment:
 - g++ (Ubuntu/Linaro 4.6.3-1ubuntu5) 4.6.3
 
 
-and the client side example:
+and the client side example, with bare C:
 
-```cpp
+```c
 static void
-_getUserInputThenSend(Chann *self) {
-   string input; cin >> input;
-   if (input.length() > 0) {
-      self->channSend((void*)input.c_str(), input.length());
-   }
-}
-
-// external event handler
-static void
-_cntEventHandler(Chann *self, Chann *accept, chann_event_t event) {
-   if (event==CHANN_EVENT_CONNECTED || event==CHANN_EVENT_RECV) {
+_on_cnt_event(chann_msg_t *msg) {
+   if (msg->event == CHANN_EVENT_RECV) {
       char buf[256] = {0};
-      int ret = self->channRecv(buf, 256);
-      if (ret > 0) {
-         cout << buf << endl;
-         _getUserInputThenSend(self);
+      if (mnet_chann_recv(msg->n, buf, 256) > 0) {
+         printf("%s", buf);;
+         if ( fgets(buf, 256, stdin) ) {
+            mnet_chann_send(msg->n, buf, strlen(buf));
+         } else {
+            mnet_chann_close(msg->n);
+         }
       }
    }
-   if (event == CHANN_EVENT_DISCONNECT) {
-      ChannDispatcher::stopEventLoop();
+   if (msg->event == CHANN_EVENT_DISCONNECT) {
+      mnet_chann_close(msg->n);
    }
 }
 
@@ -103,19 +97,22 @@ int
 main(int argc, char *argv[]) {
 
    if (argc < 2) {
-      cout << argv[0] << ": 'cnt_ip:port'" << endl;
+      printf("%s 'cnt_ip:port'\n", argv[0]);
    } else {
-      cout << "cnt try connect " << argv[1] << "..." << endl;
+      chann_addr_t addr;
+      if (mnet_parse_ipport(argv[1], &addr) > 0)  {
+         mnet_init();
+         chann_t *cnt = mnet_chann_open(CHANN_TYPE_STREAM);
+         mnet_chann_set_cb(cnt, _on_cnt_event, NULL);
 
-      Chann cnt("tcp");
-      cnt.setEventHandler(_cntEventHandler);
-      cnt.channConnect(argv[1]);
+         printf("cnt try connect %s:%d...\n", addr.ip, addr.port);
+         mnet_chann_connect(cnt, addr.ip, addr.port);
 
-      ChannDispatcher::startEventLoop();
-
-      cnt.channDisconnect();
+         while (mnet_poll(-1) > 0) {
+         }
+         mnet_fini();
+      }
    }
-
    return 0;
 }
 ```

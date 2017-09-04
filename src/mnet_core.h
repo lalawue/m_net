@@ -60,16 +60,13 @@ void mnet_allocator(void* (*new_malloc)(int),
 void mnet_setlog(int level, mnet_log_cb); /* 0:disable, 1:error, 2:info, 3:verbose */
 
 
-/* init before use */
+/* init before use chann */
 int mnet_init(void);
 void mnet_fini(void);
 int mnet_report(int level);     /* 0:chann_count 1:chann_detail */
 
 #define MNET_ONE_SECOND_BIT 20   /* 1 seconds == (1<<20) microseconds */
 int mnet_poll(int microseconds); /* dispatch chann event */
-
-/* sync method will block thread */
-int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
 
 
 
@@ -95,6 +92,13 @@ int mnet_chann_addr(chann_t *n, chann_addr_t*);
 
 int mnet_chann_state(chann_t *n);
 long long mnet_chann_bytes(chann_t *n, int be_send);
+
+
+
+/* tools without init */
+int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
+int mnet_parse_ipport(char *ipport, chann_addr_t *addr);
+
 
 #ifdef __cplusplus
 }

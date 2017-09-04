@@ -1049,6 +1049,20 @@ mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t *addr) {
    return ret;
 }
 
+int
+mnet_parse_ipport(char *ipport, chann_addr_t *addr) {
+   if (ipport && addr) {
+      char *p = strchr(ipport, ':');
+      if (p > ipport) {
+         addr->ip[p - ipport] = 0;
+         strncpy(addr->ip, ipport, p - ipport);
+         addr->port = atoi(p+1);
+         return 1;
+      }
+   }
+   return 0;
+}
+
 chann_t*
 mnet_chann_open(chann_type_t type) {
    return _chann_create(_gmnet(), type, CHANN_STATE_CLOSED);
