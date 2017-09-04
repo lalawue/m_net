@@ -65,7 +65,7 @@ namespace mnet {
       }
 
       // update self then clear fromChann
-      void updateChann(Chann *fromChann, channEventHandler handler) {
+      void channUpdate(Chann *fromChann, channEventHandler handler) {
          m_chann = fromChann->m_chann;
          m_handler = handler;
          mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
@@ -76,7 +76,7 @@ namespace mnet {
 
       /* build network 
        */
-      bool listen(string ipPort) {
+      bool channListen(string ipPort) {
          if (m_chann && ipPort.length()>0) {
             m_addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
@@ -85,7 +85,7 @@ namespace mnet {
          return false;
       }
    
-      bool connect(string ipPort) {
+      bool channConnect(string ipPort) {
          if (m_chann && ipPort.length()>0) {
             m_addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
@@ -94,7 +94,7 @@ namespace mnet {
          return false;
       }
 
-      void disconnect(void) {
+      void channDisconnect(void) {
          if (m_chann) {
             mnet_chann_disconnect(m_chann);
          }
@@ -103,14 +103,14 @@ namespace mnet {
 
       /* data mantipulation
        */
-      int recv(void *buf, int len) {
+      int channRecv(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_recv(m_chann, buf, len);
          }
          return -1;
       }
 
-      int send(void *buf, int len) {
+      int channSend(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_send(m_chann, buf, len);
          }
@@ -122,10 +122,10 @@ namespace mnet {
        */
 
       // only support MNET_EVENT_SEND, event send while send buffer emtpy
-      void activeEvent(chann_event_t event) {
+      void channEnableEvent(chann_event_t event) {
          mnet_chann_active_event(m_chann, event, 1);
       }
-      void inActiveEvent(chann_event_t event) {
+      void channDisableEvent(chann_event_t event) {
          mnet_chann_active_event(m_chann, event, 0);
       }
 
@@ -144,9 +144,9 @@ namespace mnet {
 
       /* misc
        */
-      ChannAddr remoteAddr(void) { return m_addr; };
+      ChannAddr peerAddr(void) { return m_addr; };
       int dataCached(void) { return mnet_chann_cached(m_chann); }
-      bool isConnected(void) { return mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED; }
+      bool isConnected(void) { return mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED; } /*  */
 
 
      private:

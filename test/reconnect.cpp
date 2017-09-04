@@ -29,16 +29,16 @@ using mnet::ChannDispatcher;
 class SvrChann : public Chann {
 public:
    SvrChann(Chann *nc) {
-      updateChann(nc, NULL);
+      channUpdate(nc, NULL);
    }
    
    void defaultEventHandler(Chann *accept, chann_event_t event) {
       if (event == CHANN_EVENT_RECV) {
          char buf[64] = {0};
-         int ret = recv(buf, 64);
+         int ret = channRecv(buf, 64);
          if (ret > 0) {
-            activeEvent(CHANN_EVENT_SEND);
-            send(buf, ret);
+            channEnableEvent(CHANN_EVENT_SEND);
+            channSend(buf, ret);
             cout << "recv from cnt: " << buf << endl;
          } else {
             cout << "fail to recv" << endl;
@@ -58,7 +58,7 @@ class CntChann : public Chann {
 public:
    CntChann(string streamType) {
       Chann c(streamType);
-      updateChann(&c, NULL);
+      channUpdate(&c, NULL);
    }
 
    void defaultEventHandler(Chann *accept, chann_event_t event) {
@@ -67,7 +67,7 @@ public:
             cout << "cnt " << m_idx << " connected !" << endl;
             char data[64] = {0};
             int ret = snprintf(data, 64, "HelloServ %d", m_idx);
-            if (ret == send((void*)data, ret)) {
+            if (ret == channSend((void*)data, ret)) {
                cout << "send " << data << endl;
             } else {
                cout << "Fail to send !" << endl;
@@ -78,7 +78,7 @@ public:
 
          case CHANN_EVENT_RECV: {
             char buf[64] = {0};
-            int ret = recv(buf, 64);
+            int ret = channRecv(buf, 64);
             if (ret > 0) {
                cout << "recv from svr: " << buf << endl;
             } else {
@@ -93,8 +93,8 @@ public:
 
             usleep(50*1000);
 
-            if ( connect( remoteAddr().addr ) ) {
-               cout << "try to connect " << remoteAddr().addr << endl;
+            if ( channConnect( peerAddr().addr ) ) {
+               cout << "try to connect " << peerAddr().addr << endl;
             } else {
                cout << "fail to connect !" << endl;
                delete this;
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
       // server side
 
       Chann svrListen("tcp");
-      svrListen.listen(ipaddr);
+      svrListen.channListen(ipaddr);
 
       cout << "svr listen " << ipaddr << endl;
 
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
       for (int i=0; i<1; i++) {
          CntChann *cnt = new CntChann("tcp");
          cnt->m_idx = i;
-         if ( cnt->connect(ipaddr) ) {
+         if ( cnt->channConnect(ipaddr) ) {
             cout << "try connect " << ipaddr << endl;
          } else {
             break;

@@ -22,7 +22,7 @@ _getUserInputThenSend(Chann *self) {
    string input;
    cin >> input;
    if (input.length() > 0) {
-      self->send((void*)input.c_str(), input.length());
+      self->channSend((void*)input.c_str(), input.length());
    }
 }
 
@@ -36,7 +36,7 @@ _senderEventHandler(Chann *self, Chann *accept, chann_event_t event) {
    else if (event == CHANN_EVENT_RECV) {
       char buf[256] = { 0 };
       memset(buf, 0, 256);
-      int ret = self->recv(buf, 256);
+      int ret = self->channRecv(buf, 256);
       if (ret > 0) {
          cout << "cnt_recv: " << buf << endl;
          _getUserInputThenSend(self);
@@ -62,11 +62,11 @@ main(int argc, char *argv[]) {
 
       Chann sender("tcp");
       sender.setEventHandler(_senderEventHandler);
-      sender.connect(argv[1]);
+      sender.channConnect(argv[1]);
 
       ChannDispatcher::startEventLoop();
 
-      sender.disconnect();
+      sender.channDisconnect();
    }
 
    return 0;

@@ -21,7 +21,7 @@ using mnet::ChannDispatcher;
 class CntChann : public Chann {
 public:
    CntChann(Chann *c) {
-      updateChann(c, NULL);
+      channUpdate(c, NULL);
    }
 
    // implement virtual defaultEventHandler
@@ -32,10 +32,10 @@ public:
          char buf[256] = { 0 };
          memset(buf, 0, 256);
 
-         int ret = recv(buf, 256);
+         int ret = channRecv(buf, 256);
          if (ret > 0) {
             cout << "svr_recv: " << buf << endl;
-            send(buf, ret);
+            channSend(buf, ret);
          } else {
             delete this;
          }
@@ -59,7 +59,7 @@ main(int argc, char *argv[]) {
    }
 
    Chann echoSvr("tcp");
-   echoSvr.listen(argv[1]);
+   echoSvr.channListen(argv[1]);
    
    echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event) {
          if (event == CHANN_EVENT_ACCEPT) {
