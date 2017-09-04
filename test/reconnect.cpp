@@ -32,20 +32,20 @@ public:
       updateChann(nc, NULL);
    }
    
-   void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
-      if (event == MNET_EVENT_RECV) {
+   void defaultEventHandler(Chann *accept, chann_event_t event) {
+      if (event == CHANN_EVENT_RECV) {
          char buf[64] = {0};
          int ret = recv(buf, 64);
          if (ret > 0) {
-            activeEvent(MNET_EVENT_SEND);
+            activeEvent(CHANN_EVENT_SEND);
             send(buf, ret);
             cout << "recv from cnt: " << buf << endl;
          } else {
             cout << "fail to recv" << endl;
          }
       }
-      else if (event == MNET_EVENT_SEND ||
-               event == MNET_EVENT_DISCONNECT)
+      else if (event == CHANN_EVENT_SEND ||
+               event == CHANN_EVENT_DISCONNECT)
       {
          cout << "cnt " << this << " disconnect" << endl;
          delete this;
@@ -61,9 +61,9 @@ public:
       updateChann(&c, NULL);
    }
 
-   void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event) {
       switch (event) {
-         case MNET_EVENT_CONNECTED: {
+         case CHANN_EVENT_CONNECTED: {
             cout << "cnt " << m_idx << " connected !" << endl;
             char data[64] = {0};
             int ret = snprintf(data, 64, "HelloServ %d", m_idx);
@@ -76,7 +76,7 @@ public:
             break;
          }
 
-         case MNET_EVENT_RECV: {
+         case CHANN_EVENT_RECV: {
             char buf[64] = {0};
             int ret = recv(buf, 64);
             if (ret > 0) {
@@ -88,7 +88,7 @@ public:
             break;
          }
 
-         case MNET_EVENT_DISCONNECT: {
+         case CHANN_EVENT_DISCONNECT: {
             cout << "chann disconnect !" << endl;
 
             usleep(50*1000);
@@ -130,8 +130,8 @@ int main(int argc, char *argv[]) {
 
       cout << "svr listen " << ipaddr << endl;
 
-      svrListen.setEventHandler([](Chann *self, Chann *accept, mnet_event_type_t event){
-            if (event == MNET_EVENT_ACCEPT) {
+      svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event){
+            if (event == CHANN_EVENT_ACCEPT) {
                SvrChann *nc = new SvrChann(accept);
                cout << "accept cnt " << nc << endl;
                delete accept;

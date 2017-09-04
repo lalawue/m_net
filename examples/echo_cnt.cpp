@@ -28,12 +28,12 @@ _getUserInputThenSend(Chann *self) {
 
 // external event handler
 static void
-_senderEventHandler(Chann *self, Chann *accept, mnet_event_type_t event) {
-   if (event == MNET_EVENT_CONNECTED) {
+_senderEventHandler(Chann *self, Chann *accept, chann_event_t event) {
+   if (event == CHANN_EVENT_CONNECTED) {
       cout << "cnt connected !" << endl;
       _getUserInputThenSend(self);
    }
-   else if (event == MNET_EVENT_RECV) {
+   else if (event == CHANN_EVENT_RECV) {
       char buf[256] = { 0 };
       memset(buf, 0, 256);
       int ret = self->recv(buf, 256);
@@ -45,7 +45,7 @@ _senderEventHandler(Chann *self, Chann *accept, mnet_event_type_t event) {
          ChannDispatcher::stopEventLoop();
       }
    }
-   else if (event == MNET_EVENT_DISCONNECT) {
+   else if (event == CHANN_EVENT_DISCONNECT) {
       ChannDispatcher::stopEventLoop();
    }
 }

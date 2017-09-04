@@ -27,23 +27,23 @@ typedef enum {
 } chann_state_t;
 
 typedef enum {
-   MNET_EVENT_RECV = 1,     /* socket has data to read */
-   MNET_EVENT_SEND,         /* socket send buf empty, inactive default */
-   MNET_EVENT_ACCEPT,       /* socket accept */
-   MNET_EVENT_CONNECTED,    /* socket connected */
-   MNET_EVENT_DISCONNECT,   /* socket disconnect when got EOF or error */
-} mnet_event_type_t;
+   CHANN_EVENT_RECV = 1,     /* socket has data to read */
+   CHANN_EVENT_SEND,         /* socket send buf empty, inactive default */
+   CHANN_EVENT_ACCEPT,       /* socket accept */
+   CHANN_EVENT_CONNECTED,    /* socket connected */
+   CHANN_EVENT_DISCONNECT,   /* socket disconnect when EOF or error */
+} chann_event_t;
 
 typedef struct s_mchann chann_t;
 typedef struct {
-   mnet_event_type_t event;     /* event type */
+   chann_event_t event;         /* event type */
    int err;                     /* errno */
    chann_t *n;                  /* chann to emit event */
    chann_t *r;                  /* chann accept from remote */
    void *opaque;                /* opaque in set_cb */
-} chann_event_t;
+} chann_msg_t;
 
-typedef void (*chann_cb)(chann_event_t*);
+typedef void (*chann_msg_cb)(chann_msg_t*);
 typedef void (*mnet_log_cb)(chann_t*, int, const char *log_string);
 
 
@@ -67,18 +67,13 @@ int mnet_poll(int microseconds); /* dispatch chann event */
 chann_t* mnet_chann_open(chann_type_t type);
 void mnet_chann_close(chann_t *n);
 
-int mnet_chann_state(chann_t *n);
+int mnet_chann_listen_ex(chann_t *n, const char *host, int port, int backlog);
 
 int mnet_chann_connect(chann_t *n, const char *host, int port);
-#define mnet_chann_to(n,h,p) mnet_chann_connect(n,h,p) /* for UDP */
-
 void mnet_chann_disconnect(chann_t *n);
 
-int mnet_chann_listen_ex(chann_t *n, const char *host, int port, int backlog);
-#define mnet_chann_listen(n, p) mnet_chann_listen_ex(n, NULL, p, 5)
-
-void mnet_chann_set_cb(chann_t *n, chann_cb cb, void *opaque);
-void mnet_chann_active_event(chann_t *n, mnet_event_type_t et, int active);
+void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb, void *opaque);
+void mnet_chann_active_event(chann_t *n, chann_event_t et, int active);
 
 int mnet_chann_recv(chann_t *n, void *buf, int len);
 int mnet_chann_send(chann_t *n, void *buf, int len);
@@ -89,6 +84,7 @@ int mnet_chann_cached(chann_t *n);
 char* mnet_chann_addr(chann_t *n);
 int mnet_chann_port(chann_t *n);
 
+int mnet_chann_state(chann_t *n);
 long long mnet_chann_bytes(chann_t *n, int be_send);
 
 #ifdef __cplusplus

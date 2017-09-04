@@ -37,7 +37,7 @@ namespace mnet {
 
 
    class Chann;
-   typedef void(*channEventHandler)(Chann *self, Chann *accept, mnet_event_type_t);
+   typedef void(*channEventHandler)(Chann *self, Chann *accept, chann_event_t);
 
 
    class Chann {
@@ -122,10 +122,10 @@ namespace mnet {
        */
 
       // only support MNET_EVENT_SEND, event send while send buffer emtpy
-      void activeEvent(mnet_event_type_t event) {
+      void activeEvent(chann_event_t event) {
          mnet_chann_active_event(m_chann, event, 1);
       }
-      void inActiveEvent(mnet_event_type_t event) {
+      void inActiveEvent(chann_event_t event) {
          mnet_chann_active_event(m_chann, event, 0);
       }
 
@@ -135,7 +135,7 @@ namespace mnet {
       }
       
       // use default if no external event handler, for subclass internal
-      virtual void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
+      virtual void defaultEventHandler(Chann *accept, chann_event_t event) {
          if ( accept ) {
             delete accept;
          }
@@ -155,27 +155,27 @@ namespace mnet {
 
       /* event process
        */
-      static void channDispatchEvent(chann_event_t *e) {
-         Chann *c = (Chann*)e->opaque;
-         c->dispatchEvent(e);
+      static void channDispatchEvent(chann_msg_t *m) {
+         Chann *c = (Chann*)m->opaque;
+         c->dispatchEvent(m);
       }
 
-      void dispatchEvent(chann_event_t *e) {
+      void dispatchEvent(chann_msg_t *m) {
          if (m_handler) {
-            if (e->event == MNET_EVENT_ACCEPT) {
-               Chann *nc = new Chann(e->r);
-               mnet_chann_set_cb(e->r, Chann::channDispatchEvent, nc);
-               m_handler(this, nc, e->event);
+            if (m->event == CHANN_EVENT_ACCEPT) {
+               Chann *nc = new Chann(m->r);
+               mnet_chann_set_cb(m->r, Chann::channDispatchEvent, nc);
+               m_handler(this, nc, m->event);
             } else {
-               m_handler(this, NULL, e->event);
+               m_handler(this, NULL, m->event);
             }
          } else {
-            if (e->event == MNET_EVENT_ACCEPT) {
-               Chann *nc = new Chann(e->r);
-               mnet_chann_set_cb(e->r, Chann::channDispatchEvent, nc);
-               defaultEventHandler(nc, e->event);
+            if (m->event == CHANN_EVENT_ACCEPT) {
+               Chann *nc = new Chann(m->r);
+               mnet_chann_set_cb(m->r, Chann::channDispatchEvent, nc);
+               defaultEventHandler(nc, m->event);
             } else {
-               defaultEventHandler(NULL, e->event);
+               defaultEventHandler(NULL, m->event);
             }
          }
       }

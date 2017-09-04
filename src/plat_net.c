@@ -54,7 +54,6 @@ typedef struct epoll_event mevent_t;
 #include <string.h>
 
 #include "plat_net.h"
-#include <assert.h>
 
 #define MNET_BUF_SIZE (64*1024) /* 64kb default */
 
@@ -109,7 +108,7 @@ struct s_mchann {
    void *opaque;
    chann_state_t state;
    chann_type_t type;
-   chann_cb cb;
+   chann_msg_cb cb;
    struct sockaddr_in addr;
    socklen_t addr_len;
    rwb_head_t rwb_send;         /* fifo */
@@ -157,12 +156,12 @@ _gmnet() {
 
 /* declares
  */
-static chann_t* _chann_accept(mnet_t *ss, chann_t *n);
-static void _chann_destroy(mnet_t *ss, chann_t *n);
-static int _chann_disconnect_socket(mnet_t *ss, chann_t *n);
-static void _chann_close_socket(mnet_t *ss, chann_t *n);
-static void _chann_event(chann_t *n, mnet_event_type_t event, chann_t *r, int err);
-static int _chann_send(chann_t *n, void *buf, int len);
+//static chann_t* _chann_accept(mnet_t *ss, chann_t *n);
+//static void _chann_destroy(mnet_t *ss, chann_t *n);
+//static int _chann_disconnect_socket(mnet_t *ss, chann_t *n);
+//static void _chann_close_socket(mnet_t *ss, chann_t *n);
+//static void _chann_msg((chann_t *n, chann_event_t event, chann_t *r, int err);
+//static int _chann_send(chann_t *n, void *buf, int len);
 static inline void mnet_log_default(chann_t *n, int level, const char *log_string);
 
 /* basic
@@ -340,6 +339,114 @@ _listen(int fd, int backlog) {
    return listen(fd, backlog > 0 ? backlog : 3);
 }
 
+/* channel op
+ */
+static chann_t*
+_chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
+   chann_t *n = (chann_t*)mm_malloc(sizeof(*n));
+   n->state = state;
+   n->type = type;
+   n->next = ss->channs;
+   if (ss->channs) {
+      ss->channs->prev = n;
+   }
+   ss->channs = n;
+   ss->chann_count++;
+   mm_log(n, MNET_LOG_VERBOSE, "chann create, type:%d, count %d\n", type, ss->chann_count);
+   return n;
+}
+
+void
+_chann_destroy(mnet_t *ss, chann_t *n) {
+   if (n->state >= CHANN_STATE_CLOSED) {
+      if (n->next) { n->next->prev = n->prev; }
+      if (n->prev) { n->prev->next = n->next; }
+      else { ss->channs = n->next; }
+      _rwb_destroy(&n->rwb_send);
+      ss->chann_count--;
+      mm_log(n, MNET_LOG_VERBOSE, "chann destroy, count %d\n", ss->chann_count);
+      n->state = (chann_state_t)-1;
+      mm_free(n);
+   }
+}
+
+chann_t*
+_chann_accept(mnet_t *ss, chann_t *n) {
+   struct sockaddr_in addr;
+   socklen_t addr_len = sizeof(addr);
+   int fd = accept(n->fd, (struct sockaddr*)&addr, &addr_len);
+   if (fd > 0) {
+      if (_set_nonblocking(fd) >= 0) {
+         chann_t *c = _chann_create(ss, n->type, CHANN_STATE_CONNECTED);
+         c->fd = fd;
+         c->addr = addr;
+         c->addr_len = addr_len;
+         mm_log(n, MNET_LOG_VERBOSE, "chann accept %p fd %d, from %s, count %d\n",
+                c, c->fd, mnet_chann_addr(c), ss->chann_count);
+         return c;
+      }
+   }
+   return NULL;
+}
+
+int
+_chann_send(chann_t *n, void *buf, int len) {
+   int ret = 0;
+   if (n->type == CHANN_TYPE_STREAM) {
+      ret = (int)send(n->fd, buf, len, 0);
+   } else {
+      ret = (int)sendto(n->fd, buf, len, 0, (struct sockaddr*)&n->addr, n->addr_len);
+   }
+   if (ret > 0) {
+      n->bytes_send += ret;
+   }
+   return ret;
+}
+
+int
+_chann_disconnect_socket(mnet_t *ss, chann_t *n) {
+   if (n->fd > 0) {
+      n->state = CHANN_STATE_DISCONNECT;
+      close(n->fd);
+      _rwb_destroy(&n->rwb_send);
+      mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd %d\n", n->fd);
+      n->fd = -1;
+      return 1;
+   }
+   return 0;
+}
+
+void
+_chann_close_socket(mnet_t *ss, chann_t *n) {
+   if (n->state > CHANN_STATE_CLOSED) {
+#if (MNET_OS_MACOX | MNET_OS_LINUX)
+      n->del_next = ss->del_channs;
+      if (ss->del_channs) {
+         ss->del_channs->del_prev = n;
+      }
+      ss->del_channs = n;
+#endif
+      n->state = CHANN_STATE_CLOSED;
+      n->cb = NULL;
+      n->opaque = NULL;
+      mm_log(n, MNET_LOG_VERBOSE, "chann close fd %d\n", n->fd);
+   }
+}
+
+void
+_chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
+   chann_msg_t e;
+   e.event = event;
+   e.err = err;
+   e.n = n;
+   e.r = r;
+   e.opaque = n->opaque;
+   if ( n->cb ) {
+      n->cb( &e );
+   } else {
+      mm_log(n, MNET_LOG_ERR, "chann fd %d no callback\n", n->fd);
+   }
+}
 
 #if MNET_OS_WIN
 
@@ -418,9 +525,9 @@ _select_poll(int microseconds) {
             if ( _select_isset(sr, n->fd) ) {
                if (n->type == CHANN_TYPE_STREAM) {
                   chann_t *c = _chann_accept(ss, n);
-                  if (c) _chann_event(n, MNET_EVENT_ACCEPT, c, 0);
+                  if (c) _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0);
                } else {
-                  _chann_event(n, MNET_EVENT_RECV, NULL, 0);
+                  _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                }
             }
             break;
@@ -431,25 +538,25 @@ _select_poll(int microseconds) {
                getsockopt(n->fd, SOL_SOCKET, SO_ERROR, &opt, &opt_len);
                if (opt == 0) {
                   n->state = CHANN_STATE_CONNECTED;
-                  _chann_event(n, MNET_EVENT_CONNECTED, NULL, 0);
+                  _chann_msg(n, CHANN_EVENT_CONNECTED, NULL, 0);
                } else {
                   _chann_disconnect_socket(ss, n);
-                  _chann_event(n, MNET_EVENT_DISCONNECT, NULL, opt);
+                  _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, opt);
                }
             }
             if ( _select_isset(se, n->fd) ) {
                _chann_disconnect_socket(ss, n);
-               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, 0);
+               _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
             }
             break;
 
          case CHANN_STATE_CONNECTED:
             if ( _select_isset(se, n->fd) ) {
                _chann_disconnect_socket(ss, n);
-               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, 0);
+               _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
             } else {
                if ( _select_isset(sr, n->fd) ) {
-                  _chann_event(n, MNET_EVENT_RECV, NULL, 0);
+                  _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                }
                if ( _select_isset(sw, n->fd) ) {
                   rwb_head_t *prh = &n->rwb_send;
@@ -461,7 +568,7 @@ _select_poll(int microseconds) {
                         _rwb_drain(prh, ret);
                      } while (ret>=len && _rwb_count(prh)>0);
                   } else if ( n->active_send_event ) {
-                     _chann_event(n, MNET_EVENT_SEND, NULL, 0);
+                     _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
                   }
                }
             }
@@ -733,11 +840,11 @@ _evt_poll(int microseconds) {
             if (_kev_flags(kev, _KEV_FLAG_ERROR)) {
                mm_log(n, MNET_LOG_ERR, "chann got error: %d\n", err);
                _chann_disconnect_socket(ss, n);
-               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, err);
+               _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, err);
             } else {
                mm_log(n, MNET_LOG_VERBOSE, "chann got eof: %d\n", err);
                _chann_disconnect_socket(ss, n);
-               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, err);
+               _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, err);
             }
          }
 
@@ -746,11 +853,11 @@ _evt_poll(int microseconds) {
                if (n->type == CHANN_TYPE_STREAM) {
                   chann_t *c = _chann_accept(ss, n);
                   if (c) {
-                     _chann_event(n, MNET_EVENT_ACCEPT, c, 0);
+                     _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0);
                      _evt_add(c, MNET_SET_READ);
                   }
                } else {
-                  _chann_event(n, MNET_EVENT_RECV, NULL, 0);
+                  _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                }
                break;
             }
@@ -762,18 +869,18 @@ _evt_poll(int microseconds) {
                   _evt_del(n, MNET_SET_WRITE);
                   _evt_add(n, MNET_SET_READ);
                   n->state = CHANN_STATE_CONNECTED;
-                  _chann_event(n, MNET_EVENT_CONNECTED, NULL, 0);
+                  _chann_msg(n, CHANN_EVENT_CONNECTED, NULL, 0);
                } else {
                   mm_log(n, MNET_LOG_ERR, "chann fd:%d getsockopt %d\n", n->fd, opt);
                   _chann_disconnect_socket(ss, n);
-                  _chann_event(n, MNET_EVENT_DISCONNECT, NULL, opt);
+                  _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, opt);
                }
                break;
             }
 
             case CHANN_STATE_CONNECTED: {
                if ( _kev_events(kev, _KEV_EVENT_READ) ) {
-                  _chann_event(n, MNET_EVENT_RECV, NULL, 0);
+                  _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                } else if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
                   rwb_head_t *prh = &n->rwb_send;
                   if (_rwb_count(prh) > 0) {
@@ -784,7 +891,7 @@ _evt_poll(int microseconds) {
                         _rwb_drain(prh, ret);
                      } while (ret>=len && _rwb_count(prh)>0);
                   } else if ( n->active_send_event ) {
-                     _chann_event(n, MNET_EVENT_SEND, NULL, 0);
+                     _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
                   } else {
                      _evt_del(n, MNET_SET_WRITE);
                   }
@@ -809,115 +916,6 @@ _evt_poll(int microseconds) {
    return ss->chann_count;
 }
 #endif /* WIN */
-
-/* channel op
- */
-static chann_t*
-_chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
-   chann_t *n = (chann_t*)mm_malloc(sizeof(*n));
-   n->state = state;
-   n->type = type;
-   n->next = ss->channs;
-   if (ss->channs) {
-      ss->channs->prev = n;
-   }
-   ss->channs = n;
-   ss->chann_count++;
-   mm_log(n, MNET_LOG_VERBOSE, "chann create, type:%d, count %d\n", type, ss->chann_count);
-   return n;
-}
-
-void
-_chann_destroy(mnet_t *ss, chann_t *n) {
-   if (n->state >= CHANN_STATE_CLOSED) {
-      if (n->next) { n->next->prev = n->prev; }
-      if (n->prev) { n->prev->next = n->next; }
-      else { ss->channs = n->next; }
-      _rwb_destroy(&n->rwb_send);
-      ss->chann_count--;
-      mm_log(n, MNET_LOG_VERBOSE, "chann destroy, count %d\n", ss->chann_count);
-      n->state = (chann_state_t)-1;
-      mm_free(n);
-   }
-}
-
-chann_t*
-_chann_accept(mnet_t *ss, chann_t *n) {
-   struct sockaddr_in addr;
-   socklen_t addr_len = sizeof(addr);
-   int fd = accept(n->fd, (struct sockaddr*)&addr, &addr_len);
-   if (fd > 0) {
-      if (_set_nonblocking(fd) >= 0) {
-         chann_t *c = _chann_create(ss, n->type, CHANN_STATE_CONNECTED);
-         c->fd = fd;
-         c->addr = addr;
-         c->addr_len = addr_len;
-         mm_log(n, MNET_LOG_VERBOSE, "chann accept %p fd %d, from %s, count %d\n",
-                c, c->fd, mnet_chann_addr(c), ss->chann_count);
-         return c;
-      }
-   }
-   return NULL;
-}
-
-int
-_chann_send(chann_t *n, void *buf, int len) {
-   int ret = 0;
-   if (n->type == CHANN_TYPE_STREAM) {
-      ret = (int)send(n->fd, buf, len, 0);
-   } else {
-      ret = (int)sendto(n->fd, buf, len, 0, (struct sockaddr*)&n->addr, n->addr_len);
-   }
-   if (ret > 0) {
-      n->bytes_send += ret;
-   }
-   return ret;
-}
-
-int
-_chann_disconnect_socket(mnet_t *ss, chann_t *n) {
-   if (n->fd > 0) {
-      n->state = CHANN_STATE_DISCONNECT;
-      close(n->fd);
-      _rwb_destroy(&n->rwb_send);
-      mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd %d\n", n->fd);
-      n->fd = -1;
-      return 1;
-   }
-   return 0;
-}
-
-void
-_chann_close_socket(mnet_t *ss, chann_t *n) {
-   if (n->state > CHANN_STATE_CLOSED) {
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
-      n->del_next = ss->del_channs;
-      if (ss->del_channs) {
-         ss->del_channs->del_prev = n;
-      }
-      ss->del_channs = n;
-#endif
-      n->state = CHANN_STATE_CLOSED;
-      n->cb = NULL;
-      n->opaque = NULL;
-      mm_log(n, MNET_LOG_VERBOSE, "chann close fd %d\n", n->fd);
-   }
-}
-
-void
-_chann_event(chann_t *n, mnet_event_type_t event, chann_t *r, int err) {
-   chann_event_t e;
-   e.event = event;
-   e.err = err;
-   e.n = n;
-   e.r = r;
-   e.opaque = n->opaque;
-   if ( n->cb ) {
-      n->cb( &e );
-   } else {
-      mm_log(n, MNET_LOG_ERR, "chann fd %d no callback\n", n->fd);
-   }
-}
 
 /* mnet api
  */
@@ -1120,16 +1118,16 @@ mnet_chann_listen_ex(chann_t *n, const char *host, int port, int backlog) {
 
 /* mnet channel api
  */
-void mnet_chann_set_cb(chann_t *n, chann_cb cb, void *opaque) {
+void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb, void *opaque) {
    if ( n ) {
       n->cb = cb;
       n->opaque = opaque;
    }
 }
 
-void mnet_chann_active_event(chann_t *n, mnet_event_type_t et, int active) {
+void mnet_chann_active_event(chann_t *n, chann_event_t et, int active) {
    if ( n ) {
-      if (et == MNET_EVENT_SEND) {
+      if (et == CHANN_EVENT_SEND) {
          n->active_send_event = active;
          if (active) {
             _evt_add(n, MNET_SET_WRITE);
@@ -1154,14 +1152,13 @@ int mnet_chann_recv(chann_t *n, void *buf, int len) {
             mnet_t *ss = _gmnet();
             mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, recv errno = %d\n", n, n->fd, errno);
             _chann_disconnect_socket(ss, n);
-            _chann_event(n, MNET_EVENT_DISCONNECT, NULL, errno);
+            _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
          }
       } else {
          n->bytes_recv += ret;
       }
       return ret;
    }
-   assert(n);
    return -1;
 }
 
@@ -1182,7 +1179,7 @@ int mnet_chann_send(chann_t *n, void *buf, int len) {
                mnet_t *ss = _gmnet();
                mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno = %d\n", n, n->fd, errno);
                _chann_disconnect_socket(ss, n);
-               _chann_event(n, MNET_EVENT_DISCONNECT, NULL, errno);
+               _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
             }
          } else if (ret < len) {
             mm_log(n, MNET_LOG_INFO, "------------ fd:%d cache %d of %d!\n", n->fd, len - ret, len);
@@ -1193,7 +1190,6 @@ int mnet_chann_send(chann_t *n, void *buf, int len) {
       }
       return ret;
    }
-   assert(n);
    return -1;
 }
 

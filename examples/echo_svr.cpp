@@ -25,9 +25,9 @@ public:
    }
 
    // implement virtual defaultEventHandler
-   void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event) {
 
-      if (event == MNET_EVENT_RECV) {
+      if (event == CHANN_EVENT_RECV) {
 
          char buf[256] = { 0 };
          memset(buf, 0, 256);
@@ -40,7 +40,7 @@ public:
             delete this;
          }
       }
-      else if (event == MNET_EVENT_DISCONNECT) {
+      else if (event == CHANN_EVENT_DISCONNECT) {
          cout << "cnt disconnect " << this << endl;
          delete this;              // release accepted chann
       }
@@ -61,8 +61,8 @@ main(int argc, char *argv[]) {
    Chann echoSvr("tcp");
    echoSvr.listen(argv[1]);
    
-   echoSvr.setEventHandler([](Chann *self, Chann *accept, mnet_event_type_t event) {
-         if (event == MNET_EVENT_ACCEPT) {
+   echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event) {
+         if (event == CHANN_EVENT_ACCEPT) {
             CntChann *cnt = new CntChann(accept);
             cout << "svr accept cnt " << cnt << endl;
             delete accept;

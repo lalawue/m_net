@@ -111,10 +111,10 @@ _ntp_parse_response(ntp_ctx_t *ctx) {
 
 
 static void
-_ntp_event_cb(chann_event_t *e) {
+_ntp_event_cb(chann_msg_t *e) {
    ntp_ctx_t *ctx = (ntp_ctx_t*)e->opaque;
 
-   if (e->event == MNET_EVENT_RECV) {
+   if (e->event == CHANN_EVENT_RECV) {
       int ret = mnet_chann_recv(e->n, &ctx->packet, sizeof(ctx->packet));
       if (ret == sizeof(ctx->packet)) {
          printf("ntp: get response from ntp server:\n\n");
