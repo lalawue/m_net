@@ -53,7 +53,7 @@ typedef struct epoll_event mevent_t;
 #include <stdarg.h>
 #include <string.h>
 
-#include "plat_net.h"
+#include "mnet_core.h"
 
 #define MNET_BUF_SIZE (64*1024) /* 64kb default */
 

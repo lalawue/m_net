@@ -17,7 +17,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
-#include "plat_net.h"
+#include "mnet_core.h"
 
 #ifdef EXAMPLE_NTP
 

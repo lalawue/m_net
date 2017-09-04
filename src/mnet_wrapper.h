@@ -10,7 +10,7 @@
 #include <string>
 #include <stdlib.h>
 #include <string.h>
-#include "plat_net.h"
+#include "mnet_core.h"
 
 #ifdef __cplusplus
 
