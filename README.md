@@ -27,57 +27,41 @@ It's very convenience for use, an echo server example:
 // subclass Chann to handle event
 class CntChann : public Chann {
 public:
-   CntChann(Chann *c) {
-      updateChann(c, NULL);
-   }
+   CntChann(Chann *c) { channUpdate(c, NULL); }
 
    // implement virtual defaultEventHandler
-   void defaultEventHandler(Chann *accept, mnet_event_type_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event) {
 
-      if (event == MNET_EVENT_RECV) {
-
-         char buf[256] = { 0 };
-         memset(buf, 0, 256);
-
-         int ret = recv(buf, 256);
-         if (ret > 0) {
-            cout << "svr_recv: " << buf << endl;
-            send(buf, ret);
-         } else {
-            delete this;
-         }
+      if (event == CHANN_EVENT_RECV) {
+         memset(m_buf, 0, 256);
+         int ret = channRecv(m_buf, 256);
+         channSend(m_buf, ret);
       }
-      else if (event == MNET_EVENT_DISCONNECT) {
-         cout << "cnt disconnect " << this << endl;
-         delete this;              // release accepted chann
+      if (event == CHANN_EVENT_DISCONNECT) {
+         delete this;           // release chann
       }
    }
+   char m_buf[256];
 };
 
-
-int
-main(int argc, char *argv[]) {
-
+int main(int argc, char *argv[]) {
    if (argc < 2) {
       cout << argv[0] << ": 'svr_ip:port'" << endl;
-      return 0;
    } else {
       cout << "svr start listen: " << argv[1] << endl;
-   }
 
-   Chann echoSvr("tcp");
-   echoSvr.listen(argv[1]);
+      Chann echoSvr("tcp");
+      echoSvr.channListen(argv[1]);
    
-   echoSvr.setEventHandler([](Chann *self, Chann *accept, mnet_event_type_t event) {
-         if (event == MNET_EVENT_ACCEPT) {
-            CntChann *cnt = new CntChann(accept);
-            cout << "svr accept cnt " << cnt << endl;
-            delete accept;
-         }
-      });
-
-   ChannDispatcher::startEventLoop();
-
+      echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event) {
+            if (event == CHANN_EVENT_ACCEPT) {
+               CntChann *cnt = new CntChann(accept);
+               cnt->channSend((void*)("Welcome to echoServ"), 20);
+               delete accept;
+            }
+         });
+      ChannDispatcher::startEventLoop();
+   }
    return 0;
 }
 ```
@@ -93,54 +77,43 @@ and the client side example:
 ```cpp
 static void
 _getUserInputThenSend(Chann *self) {
-   string input;
-   cin >> input;
+   string input; cin >> input;
    if (input.length() > 0) {
-      self->send((void*)input.c_str(), input.length());
+      self->channSend((void*)input.c_str(), input.length());
    }
 }
 
 // external event handler
 static void
-_senderEventHandler(Chann *self, Chann *accept, mnet_event_type_t event) {
-   if (event == MNET_EVENT_CONNECTED) {
-      cout << "cnt connected !" << endl;
-      _getUserInputThenSend(self);
-   }
-   else if (event == MNET_EVENT_RECV) {
-      char buf[256] = { 0 };
-      memset(buf, 0, 256);
-      int ret = self->recv(buf, 256);
+_cntEventHandler(Chann *self, Chann *accept, chann_event_t event) {
+   if (event==CHANN_EVENT_CONNECTED || event==CHANN_EVENT_RECV) {
+      char buf[256] = {0};
+      int ret = self->channRecv(buf, 256);
       if (ret > 0) {
-         cout << "cnt_recv: " << buf << endl;
+         cout << buf << endl;
          _getUserInputThenSend(self);
       }
-      else {
-         ChannDispatcher::stopEventLoop();
-      }
    }
-   else if (event == MNET_EVENT_DISCONNECT) {
+   if (event == CHANN_EVENT_DISCONNECT) {
       ChannDispatcher::stopEventLoop();
    }
 }
 
 int
 main(int argc, char *argv[]) {
+
    if (argc < 2) {
-
       cout << argv[0] << ": 'cnt_ip:port'" << endl;
-
    } else {
-
       cout << "cnt try connect " << argv[1] << "..." << endl;
 
-      Chann sender("tcp");
-      sender.setEventHandler(_senderEventHandler);
-      sender.connect(argv[1]);
+      Chann cnt("tcp");
+      cnt.setEventHandler(_cntEventHandler);
+      cnt.channConnect(argv[1]);
 
       ChannDispatcher::startEventLoop();
 
-      sender.disconnect();
+      cnt.channDisconnect();
    }
 
    return 0;

@@ -19,8 +19,7 @@ using mnet::ChannDispatcher;
 
 static void
 _getUserInputThenSend(Chann *self) {
-   string input;
-   cin >> input;
+   string input; cin >> input;
    if (input.length() > 0) {
       self->channSend((void*)input.c_str(), input.length());
    }
@@ -28,45 +27,35 @@ _getUserInputThenSend(Chann *self) {
 
 // external event handler
 static void
-_senderEventHandler(Chann *self, Chann *accept, chann_event_t event) {
-   if (event == CHANN_EVENT_CONNECTED) {
-      cout << "cnt connected !" << endl;
-      _getUserInputThenSend(self);
-   }
-   else if (event == CHANN_EVENT_RECV) {
-      char buf[256] = { 0 };
-      memset(buf, 0, 256);
+_cntEventHandler(Chann *self, Chann *accept, chann_event_t event) {
+   if (event==CHANN_EVENT_CONNECTED || event==CHANN_EVENT_RECV) {
+      char buf[256] = {0};
       int ret = self->channRecv(buf, 256);
       if (ret > 0) {
-         cout << "cnt_recv: " << buf << endl;
+         cout << buf << endl;
          _getUserInputThenSend(self);
       }
-      else {
-         ChannDispatcher::stopEventLoop();
-      }
    }
-   else if (event == CHANN_EVENT_DISCONNECT) {
+   if (event == CHANN_EVENT_DISCONNECT) {
       ChannDispatcher::stopEventLoop();
    }
 }
 
 int
 main(int argc, char *argv[]) {
+
    if (argc < 2) {
-
       cout << argv[0] << ": 'cnt_ip:port'" << endl;
-
    } else {
-
       cout << "cnt try connect " << argv[1] << "..." << endl;
 
-      Chann sender("tcp");
-      sender.setEventHandler(_senderEventHandler);
-      sender.channConnect(argv[1]);
+      Chann cnt("tcp");
+      cnt.setEventHandler(_cntEventHandler);
+      cnt.channConnect(argv[1]);
 
       ChannDispatcher::startEventLoop();
 
-      sender.channDisconnect();
+      cnt.channDisconnect();
    }
 
    return 0;
