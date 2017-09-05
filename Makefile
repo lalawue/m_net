@@ -40,6 +40,7 @@ _debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/echo_cnt.out $^ $(LIBS) -DEXAMPLE_ECHO_CNT
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/multichann.out $^ $(LIBS) -DTEST_MULTICHANNS
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/reconnect.out $^ $(LIBS) -DTEST_RECONNECT
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/rwdata.out $^ $(LIBS) -DTEST_RWDATA
 
 _lib: $(LIB_SRCS)
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/libmnet.dylib $^ $(LIBS) -shared -fPIC
