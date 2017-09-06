@@ -154,9 +154,9 @@ namespace mnet {
 
       /* misc
        */
-      ChannAddr peerAddr(void) { return m_addr; };
-      int dataCached(void) { return mnet_chann_cached(m_chann); }
-      bool isConnected(void) { return mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED; } /*  */
+      inline ChannAddr peerAddr(void) { return m_addr; };
+      inline int dataCached(void) { return mnet_chann_cached(m_chann); }
+      inline bool isConnected(void) { return mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED; } /*  */
 
 
 

@@ -81,6 +81,7 @@ public:
       Chann c(streamType);
       channUpdate(&c, NULL);
    }
+
    void sendBatchData() {
       for (int ret=1; ret>0 && (dataCached() < kCachedSize); ) {
          fillDataBuf();
@@ -90,6 +91,7 @@ public:
          }
       }
    }
+
    bool recvBatchData() {
       int ret = 0;
       do {
@@ -101,6 +103,7 @@ public:
       cout << "c recved " << m_recved << endl;
       return ret >= 0;
    }
+
    void defaultEventHandler(Chann *accept, chann_event_t event) {
       if (event == CHANN_EVENT_CONNECTED) {
          sendBatchData();
