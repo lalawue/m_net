@@ -187,7 +187,7 @@ static inline void mm_free(void *p) {
    mnet_free(p);
 }
 
-static int _log_level = MNET_LOG_ERR;
+static int _log_level = MNET_LOG_INFO;
 static inline void mm_log(chann_t *n, int level, const char *fmt, ...) {
    if (level <= _log_level) {
       char buf[192];

@@ -19,29 +19,12 @@ using std::string;
 using mnet::Chann;
 using mnet::ChannDispatcher;
 
-static const int kBufSize = 32*1024; // even number
-static const int kCachedSize = 1024*1024;
-static const int kSendedPoint = 1024*1024*1024;
+static const int kBufSize = 128*1024; // even number
+static const int kSendedPoint = 200*1024*1024;
 
 class BaseChann : public Chann {
 public:
    BaseChann() { m_sended = m_recved = 0; }
-   void fillDataBuf () {
-      for (int i=0; i<kBufSize; i++) {
-         m_buf[i] = (m_sended + i) & 0xff;
-      }
-   }
-   bool checkDataBuf(int len) {
-      if (len < 0) {
-         return false;
-      }
-      for (int i=0; i<len; i++) {
-         if (m_buf[i] != ((m_recved + i) & 0xff)) {
-            return false;
-         }
-      }
-      return true;
-   }
    void releaseSelf() {
       cout << "recved " << m_recved << endl;
       cout << "sended " << m_sended << endl;
@@ -59,15 +42,11 @@ public:
    }
    void defaultEventHandler(Chann *accept, chann_event_t event) {
       if (event == CHANN_EVENT_RECV) {
-         int ret = 0;
-         do {
-            ret = channRecv(m_buf, kBufSize);
-            m_recved += ret > 0 ? ret : 0;
-
-            ret = channSend(m_buf, ret);
-            m_sended += ret > 0 ? ret : 0;
-
-         } while (ret > 0);
+         int ret = channRecv(m_buf, kBufSize);
+         if (ret > 0) {
+            m_recved += ret;
+            m_sended += channSend(m_buf, ret);
+         }
       }
       if (event == CHANN_EVENT_DISCONNECT) {
          releaseSelf();
@@ -82,26 +61,37 @@ public:
       channUpdate(&c, NULL);
    }
 
-   void sendBatchData() {
-      for (int ret=1; ret>0 && (dataCached() < kCachedSize); ) {
-         fillDataBuf();
-         ret = channSend(m_buf, kBufSize);
-         if (ret > 0) {
-            m_sended += ret;
-         }
+   void fillDataBuf () {
+      for (int i=0; i<kBufSize; i++) {
+         m_buf[i] = (m_sended + i) & 0xff;
       }
    }
 
-   bool recvBatchData() {
-      int ret = 0;
-      do {
-         ret = channRecv(m_buf, kBufSize);
-         if ( checkDataBuf(ret) ) {
-            m_recved += ret;
+   void sendBatchData() {
+      fillDataBuf();
+      int ret = channSend(m_buf, kBufSize);
+      if (ret > 0) {
+         m_sended += ret;
+      }
+   }
+
+   bool checkDataBuf(int len) {
+      for (int i=0; len>0 && i<len; i++) {
+         if (m_buf[i] != ((m_recved + i) & 0xff)) {
+            return false;
          }
-      } while (ret > 0);
-      cout << "c recved " << m_recved << endl;
-      return ret >= 0;
+      }
+      return true;
+   }
+
+   bool recvBatchData() {
+      int ret = channRecv(m_buf, kBufSize);
+      if (ret>0 && checkDataBuf(ret)) {
+         m_recved += ret;
+         cout << "c recved " << m_recved << endl;
+         return true;
+      }
+      return false;
    }
 
    void defaultEventHandler(Chann *accept, chann_event_t event) {
@@ -112,15 +102,11 @@ public:
       if (event == CHANN_EVENT_RECV) {
          if ( !recvBatchData() ) {
             cout << "fail to recv !" << endl;
-            releaseSelf();            
+            releaseSelf();
          }         
             
          if (m_sended < kSendedPoint) {
             sendBatchData();
-         } else if ( !m_sendByteData ){
-            cout << "send bye data" << endl;
-            channSend((m_buf[0]=0x88, m_buf), 1);
-            m_sendByteData = true;
          }
       }
 
@@ -128,7 +114,6 @@ public:
          releaseSelf();
       }
    }
-   bool m_sendByteData;
 };
 
 int main(int argc, char *argv[]) {
