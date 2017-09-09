@@ -108,7 +108,9 @@ public:
 
          if (m_sended < kSendedPoint) {
             sendBatchData();
-         } else {
+         }
+         
+         if (m_recved >= kSendedPoint ) {
             releaseSelf();
          }
       }
