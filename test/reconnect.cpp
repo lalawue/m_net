@@ -29,7 +29,7 @@ public:
       channUpdate(nc, NULL);
    }
    
-   void defaultEventHandler(Chann *accept, chann_event_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
          int ret = channRecv(m_buf, sizeof(m_buf));
          channEnableEvent(CHANN_EVENT_SEND);
@@ -53,7 +53,7 @@ public:
       channUpdate(&c, NULL);
    }
 
-   void defaultEventHandler(Chann *accept, chann_event_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       switch (event) {
          case CHANN_EVENT_CONNECTED: {
             int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ %d", m_idx);
@@ -68,7 +68,7 @@ public:
 
          case CHANN_EVENT_DISCONNECT: {
 
-            usleep(50000);
+            usleep(1000);
 
             cout << m_idx << ": disconnect, try to connect " << peerAddr().addrString << endl;
             if ( !channConnect( peerAddr().addrString ) ) {
@@ -103,29 +103,34 @@ int main(int argc, char *argv[]) {
       // server side
 
       Chann svrListen("tcp");
-      svrListen.channListen(ipaddr);
 
-      cout << "svr listen " << ipaddr << endl;
+      if ( svrListen.channListen(ipaddr) ) {
 
-      svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event){
-            if (event == CHANN_EVENT_ACCEPT) {
-               SvrChann *nc = new SvrChann(accept);
-               cout << "accept cnt " << nc << endl;
-               delete accept;
-            }
-         });
+         cout << "svr listen " << ipaddr << endl;
 
-      ChannDispatcher::startEventLoop();
+         svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err){
+               if (event == CHANN_EVENT_ACCEPT) {
+                  SvrChann *nc = new SvrChann(accept);
+                  cout << "accept cnt " << nc << endl;
+                  delete accept;
+               }
+            });
+
+         ChannDispatcher::startEventLoop();
+      }
    }
    else if (option == "-c") {
       // client side
 
-      CntChann *cnt = new CntChann("tcp");
-      if ( cnt->channConnect(ipaddr) ) {
-         cout << "begin try connect " << ipaddr << endl;
-      } else {
-         delete cnt;
-      }
+      for (int i=0; i<32; i++) {
+         CntChann *cnt = new CntChann("tcp");
+         cnt->m_idx = i;
+         if ( cnt->channConnect(ipaddr) ) {
+            cout << "begin try connect " << ipaddr << endl;
+         } else {
+            delete cnt;
+         }
+      } 
 
       ChannDispatcher::startEventLoop();
    }

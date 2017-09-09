@@ -30,7 +30,7 @@ public:
    CntChann(Chann *c) { channUpdate(c, NULL); }
 
    // implement virtual defaultEventHandler
-   void defaultEventHandler(Chann *accept, chann_event_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
 
       if (event == CHANN_EVENT_RECV) {
          memset(m_buf, 0, 256);
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
       Chann echoSvr("tcp");
       echoSvr.channListen(argv[1]);
    
-      echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event) {
+      echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err) {
             if (event == CHANN_EVENT_ACCEPT) {
                CntChann *cnt = new CntChann(accept);
                cnt->channSend((void*)("Welcome to echoServ\n"), 20);

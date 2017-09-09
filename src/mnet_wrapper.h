@@ -20,7 +20,7 @@ namespace mnet {
    class Chann;
    using std::string;
 
-   typedef void(*channEventHandler)(Chann *self, Chann *accept, chann_event_t);
+   typedef void(*channEventHandler)(Chann *self, Chann *accept, chann_event_t, int err);
 
    static chann_type_t channType(string streamType) {
       if (streamType == "tcp") return CHANN_TYPE_STREAM;
@@ -91,7 +91,7 @@ namespace mnet {
          if (m_chann && ipPort.length()>0) {
             m_addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_listen_ex(m_chann, m_addr.addr.ip, m_addr.addr.port, 1);
+            return mnet_chann_listen_ex(m_chann, m_addr.addr.ip, m_addr.addr.port, 1024);
          }
          return false;
       }
@@ -146,7 +146,7 @@ namespace mnet {
       }
       
       // use default if no external event handler, for subclass internal
-      virtual void defaultEventHandler(Chann *accept, chann_event_t event) {
+      virtual void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
          if ( accept ) {
             delete accept;
          }
@@ -177,17 +177,17 @@ namespace mnet {
             if (m->event == CHANN_EVENT_ACCEPT) {
                Chann *nc = new Chann(m->r);
                mnet_chann_set_cb(m->r, Chann::channDispatchEvent, nc);
-               m_handler(this, nc, m->event);
+               m_handler(this, nc, m->event, 0);
             } else {
-               m_handler(this, NULL, m->event);
+               m_handler(this, NULL, m->event, m->err);
             }
          } else {
             if (m->event == CHANN_EVENT_ACCEPT) {
                Chann *nc = new Chann(m->r);
                mnet_chann_set_cb(m->r, Chann::channDispatchEvent, nc);
-               defaultEventHandler(nc, m->event);
+               defaultEventHandler(nc, m->event, m->err);
             } else {
-               defaultEventHandler(NULL, m->event);
+               defaultEventHandler(NULL, m->event, m->err);
             }
          }
       }

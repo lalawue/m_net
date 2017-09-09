@@ -10,15 +10,12 @@
 #ifdef TEST_MULTICHANNS
 
 #include <iostream>
-#include <list>
 #include <string>
-#include <stdio.h>
+#include <unistd.h>
 #include "mnet_wrapper.h"
 
 using std::cout;
 using std::endl;
-
-using std::list;
 using std::string;
 
 using mnet::Chann;
@@ -31,22 +28,18 @@ public:
       channUpdate(nc, NULL);
    }
    
-   void defaultEventHandler(Chann *accept, chann_event_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         char buf[64] = {0};
-         int ret = channRecv(buf, 64);
-         if (ret > 0) {
-            channSend(buf, ret);
-            cout << "recv from cnt: " << buf << endl;
-         } else {
-            cout << "fail to recv" << endl;
-         }
+         int ret = channRecv(m_buf, sizeof(m_buf));
+         ret = snprintf(&m_buf[ret-1], sizeof(m_buf)-ret, ". Echo.");
+         channSend(m_buf, ret);
       }
       else if (event == CHANN_EVENT_DISCONNECT) {
          cout << "cnt " << this << " disconnect" << endl;
          delete this;
       }
    }
+   char m_buf[64];
 };
 
 
@@ -57,29 +50,21 @@ public:
       channUpdate(&c, NULL);
    }
 
-   void defaultEventHandler(Chann *accept, chann_event_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       switch (event) {
          case CHANN_EVENT_CONNECTED: {
-            cout << "cnt " << m_idx << " connected !" << endl;
-            char data[64] = {0};
-            int ret = snprintf(data, 64, "HelloServ %d", m_idx);
-            channSend((void*)data, ret);
+            int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ %d", m_idx);
+            cout << m_idx << ": connected, send '" << m_buf << "'" << endl;
+            channSend(m_buf, ret);
             break;
          }
 
          case CHANN_EVENT_RECV: {
-            char buf[64] = {0};
-            int ret = channRecv(buf, 64);
-            if (ret > 0) {
-               cout << "recv from svr: " << buf << endl;
-            } else {
-               cout << "fail to recv" << endl;
-            }
-            delete this;
-            break;
+            channRecv(m_buf, sizeof(m_buf));
+            cout << m_idx << ": recv '" << m_buf << "'" << endl;
          }
 
-         default: {             // MNET_EVENT_DISCONNECT
+         default: {             // disconnect
             delete this;
             break;
          }
@@ -87,6 +72,7 @@ public:
    }
 
    int m_idx;
+   char m_buf[64];
 };
 
 int main(int argc, char *argv[]) {
@@ -104,45 +90,44 @@ int main(int argc, char *argv[]) {
       // server side
 
       Chann svrListen("tcp");
-      svrListen.channListen(ipaddr);
 
-      cout << "svr listen " << ipaddr << endl;
+      if ( svrListen.channListen(ipaddr) ) {
+         cout << "svr listen " << ipaddr << endl;
 
-      static int cntCount = 0;
+         static int cntCount = 0;
+         svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err){
+               if (event == CHANN_EVENT_ACCEPT) {
+                  cntCount += 1;
+                  SvrChann *nc = new SvrChann(accept);
+                  cout << "accept cnt " << nc << ", count " << cntCount << endl;
+                  delete accept;
+               }
+            });
 
-      svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event){
-            if (event == CHANN_EVENT_ACCEPT) {
-               cntCount += 1;
-               SvrChann *nc = new SvrChann(accept);
-               cout << "accept cnt " << nc << ", count " << cntCount << endl;
-               delete accept;
-            }
-         });
-
-      ChannDispatcher::startEventLoop();
+         ChannDispatcher::startEventLoop();
+      }
    }
    else if (option == "-c") {
       // client side
-      list<CntChann*> cntList;
 
-      for (int i=0; i<2048; i++) {
+      for (int i=0; i<4096; i++) {
          CntChann *cnt = new CntChann("tcp");
          cnt->m_idx = i;
          if ( cnt->channConnect(ipaddr) ) {
-            cntList.push_back(cnt);
+            usleep(10);            // for system resources busy
+         } else {
+            delete cnt;
          }
       }
 
-      for (int cntCount=0; ; ) {
-         cntCount = mnet_poll(2000);
-         if (cntCount <= 0) {
-            break;
-         }
+      while (mnet_poll(1000) > 0) {
+         cout << mnet_report(0) << endl;
       }
-      
-      cout << "all cnt connect, send, recv done, exit !" << endl;
-      cntList.clear();
+
+      cout << "\nall cnt connected, send, recv done, exit !" << endl;
    }
+
+   mnet_fini();
 
    return 0;
 }

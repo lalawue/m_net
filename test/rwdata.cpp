@@ -41,7 +41,7 @@ public:
    SvrChann(Chann *nc) {
       channUpdate(nc, NULL);
    }
-   void defaultEventHandler(Chann *accept, chann_event_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
          int ret = channRecv(m_buf, kBufSize);
          if (ret > 0) {
@@ -95,7 +95,7 @@ public:
       return false;
    }
 
-   void defaultEventHandler(Chann *accept, chann_event_t event) {
+   void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_CONNECTED) {
          sendBatchData();
       }
@@ -135,24 +135,28 @@ int main(int argc, char *argv[]) {
    if (option == "-s") {
 
       Chann svrListen("tcp");
-      svrListen.channListen(ipaddr);
 
-      cout << "svr listen " << ipaddr << endl;
+      if ( svrListen.channListen(ipaddr) ) {
 
-      svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event){
-            if (event == CHANN_EVENT_ACCEPT) {
-               new SvrChann(accept);
-               delete accept;
-            }
-         });
+         cout << "svr listen " << ipaddr << endl;
 
-      ChannDispatcher::startEventLoop();
-      ChannDispatcher::stopEventLoop();
+         svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err){
+               if (event == CHANN_EVENT_ACCEPT) {
+                  new SvrChann(accept);
+                  delete accept;
+               }
+            });
+
+         ChannDispatcher::startEventLoop();
+      }
    }
    else if (option == "-c") {
 
       CntChann *cnt = new CntChann("tcp");
-      cnt->channConnect(ipaddr);
+      if ( !cnt->channConnect(ipaddr) ) {
+         delete cnt;
+      }
+
       while (mnet_poll(-1) > 0) {
       }
    }
