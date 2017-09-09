@@ -5,21 +5,25 @@
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifdef _WIN32
+#include "mnet_core.h"
+
+#if MNET_OS_WIN
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <stdint.h>
 #pragma comment(lib, "ws2_32.lib")
-#define MNET_OS_WIN 1
+#endif  // WIN
 
-#else  // WIN
+#if MNET_OS_MACOX
+#include <sys/event.h>
+#include <sys/time.h>
+#endif  /* MACOSX */
 
-#ifdef __APPLE__
-#define MNET_OS_MACOX 1
-#else
-#define MNET_OS_LINUX 1
-#endif  // __APPLE__
+#if MNET_OS_LINUX
+#define _POSIX_SOURCE
+#include <sys/epoll.h>
+#endif  /* LINUX */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -30,30 +34,15 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
-#include <sys/select.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <ctype.h>
 
-#if MNET_OS_MACOX
-#include <sys/types.h>
-#include <sys/event.h>
-#include <sys/time.h>
-typedef struct kevent mevent_t;
-#else
-#include <sys/epoll.h>
-typedef struct epoll_event mevent_t;
-#endif  /* MNET_OS_MACOX */
-
-#endif  /* WIN */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-
-#include "mnet_core.h"
 
 #define MNET_BUF_SIZE (64*1024) /* 64kb default */
 
@@ -126,6 +115,11 @@ struct s_mchann {
 };
 
 #if (MNET_OS_MACOX | MNET_OS_LINUX)
+#if MNET_OS_MACOX
+typedef struct kevent mevent_t;
+#else
+typedef struct epoll_event mevent_t;
+#endif
 struct s_event {
    int size;
    int count;
@@ -596,6 +590,7 @@ _select_poll(int microseconds) {
 /* kqueue/epoll op
  */
 #if MNET_OS_MACOX
+
 #define _KEV_CHG_ARRAY_SIZE 256
 #define _KEV_EVT_ARRAY_SIZE 256
 
@@ -613,6 +608,7 @@ _select_poll(int microseconds) {
 #define _KEV_FLAG_HUP    (EPOLLRDHUP | EPOLLHUP)
 #define _KEV_EVENT_READ  EPOLLIN
 #define _KEV_EVENT_WRITE EPOLLOUT
+
 #endif
 
 /* kev */
@@ -811,17 +807,17 @@ _evt_poll(int microseconds) {
    mnet_t *ss = _gmnet();
    struct s_event *evt = &ss->evt;
    struct s_event *chg = &ss->chg;
-   static const int second_mask = (1<<MNET_ONE_SECOND_BIT) - 1;
 
 #if MNET_OS_MACOX
    struct timespec tsp;
    if (microseconds > 0) {
+      static const int second_mask = (1<<MNET_ONE_SECOND_BIT) - 1;
       tsp.tv_sec = microseconds >> MNET_ONE_SECOND_BIT;
       tsp.tv_nsec = (uint64_t)(microseconds & second_mask) * 1000;
    }
    nfd = kevent(ss->kq, chg->array, chg->count, evt->array, evt->size, microseconds<=0 ? NULL : &tsp);
 #else  /* LINUX */
-   nfd = epoll_wait(ss->kq, evt->array, evt->size, (microseconds & second_mask));
+   nfd = epoll_wait(ss->kq, evt->array, evt->size, microseconds);
 #endif
 
    if (nfd<0 && errno!=EINTR) {
