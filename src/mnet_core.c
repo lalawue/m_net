@@ -403,11 +403,14 @@ _chann_send(chann_t *n, void *buf, int len) {
 static int
 _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
    if (n->fd > 0) {
-      n->state = CHANN_STATE_DISCONNECT;
+      mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd %d\n", n->fd);
       close(n->fd);
       _rwb_destroy(&n->rwb_send);
-      mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd %d\n", n->fd);
       n->fd = -1;
+      n->state = CHANN_STATE_DISCONNECT;
+#if (MNET_OS_MACOX | MNET_OS_LINUX)
+      n->epoll_events = 0;
+#endif
       return 1;
    }
    return 0;
