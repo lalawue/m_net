@@ -1061,7 +1061,7 @@ int
 mnet_parse_ipport(char *ipport, chann_addr_t *addr) {
    if (ipport && addr) {
       char *p = strchr(ipport, ':');
-      if (p > ipport) {
+      if (p >= ipport) {
          if ((p - ipport) >= 7) {
             addr->ip[p - ipport] = 0;
             strncpy(addr->ip, ipport, p - ipport);
