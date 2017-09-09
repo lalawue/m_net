@@ -19,15 +19,16 @@ using std::string;
 using mnet::Chann;
 using mnet::ChannDispatcher;
 
-static const int kBufSize = 128*1024; // even number
-static const int kSendedPoint = 200*1024*1024;
+static const int kBufSize = 256*1024; // even number
+static const int kSendedPoint = 1024*1024*1024;
 
 class BaseChann : public Chann {
 public:
    BaseChann() { m_sended = m_recved = 0; }
    void releaseSelf() {
-      cout << "recved " << m_recved << endl;
-      cout << "sended " << m_sended << endl;
+      cout << "recved " << m_recved << endl
+           << "sended " << m_sended << endl
+           << "release self" << endl;
       delete this;
    }
    int m_sended;
@@ -103,8 +104,12 @@ public:
          if ( !recvBatchData() ) {
             cout << "fail to recv !" << endl;
             releaseSelf();
-         }         
-            
+         }
+
+         if (m_recved >= kSendedPoint) {
+            releaseSelf();
+         }
+
          if (m_sended < kSendedPoint) {
             sendBatchData();
          }
