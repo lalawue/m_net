@@ -1066,7 +1066,7 @@ mnet_parse_ipport(char *ipport, chann_addr_t *addr) {
             addr->ip[p - ipport] = 0;
             strncpy(addr->ip, ipport, p - ipport);
          } else {
-            strncpy(addr->ip, "0.0.0.0", 7);
+            strncpy(addr->ip, "0.0.0.0", 8);
          }
          addr->port = atoi(p+1);
          return 1;
