@@ -31,6 +31,7 @@ public:
 
    // implement virtual defaultEventHandler
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
+
       if (event == CHANN_EVENT_RECV) {
          int ret = channRecv(m_buf, 256);
          channSend(m_buf, ret);
@@ -47,8 +48,10 @@ int main(int argc, char *argv[]) {
       cout << argv[0] << ": 'svr_ip:port'" << endl;
    } else {
       Chann echoSvr("tcp");
+
       if ( echoSvr.channListen(argv[1]) ) {
          cout << "svr start listen: " << argv[1] << endl;
+
          echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err) {
                if (event == CHANN_EVENT_ACCEPT) {
                   CntChann *cnt = new CntChann(accept);
@@ -56,6 +59,7 @@ int main(int argc, char *argv[]) {
                   delete accept;
                }
             });
+
          ChannDispatcher::startEventLoop();
       }
    }
