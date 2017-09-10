@@ -25,6 +25,7 @@
 #include <sys/epoll.h>
 #endif  /* LINUX */
 
+#if (MNET_OS_MACOX || MNET_OS_LINUX)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -38,6 +39,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <ctype.h>
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
