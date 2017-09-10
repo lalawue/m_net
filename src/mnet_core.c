@@ -21,7 +21,6 @@
 #endif  /* MACOSX */
 
 #if MNET_OS_LINUX
-#define _POSIX_SOURCE
 #include <sys/epoll.h>
 #endif  /* LINUX */
 
