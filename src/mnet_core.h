@@ -82,7 +82,7 @@ int mnet_poll(int microseconds); /* dispatch chann event,  */
 chann_t* mnet_chann_open(chann_type_t type);
 void mnet_chann_close(chann_t *n);
 
-int mnet_chann_listen_ex(chann_t *n, const char *host, int port, int backlog);
+int mnet_chann_listen(chann_t *n, const char *host, int port, int backlog);
 
 int mnet_chann_connect(chann_t *n, const char *host, int port);
 void mnet_chann_disconnect(chann_t *n);

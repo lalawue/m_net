@@ -1179,7 +1179,7 @@ mnet_chann_disconnect(chann_t *n) {
 }
 
 int
-mnet_chann_listen_ex(chann_t *n, const char *host, int port, int backlog) {
+mnet_chann_listen(chann_t *n, const char *host, int port, int backlog) {
    if (n && port>0) {
       int fd = _chann_open_socket(n, host, port, backlog | 1);
       if (fd > 0) {

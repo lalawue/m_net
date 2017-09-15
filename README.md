@@ -19,7 +19,7 @@ Support MacOS/Linux/Windows, using kqueue/epoll/select underlying.
 
 
 
-# Usage & Example
+# Server 
 
 It's very convenience for use, an echo server example, with CPP wrapper:
 
@@ -73,7 +73,12 @@ the nested code need Closure support, with environment:
 - g++ (Ubuntu/Linaro 4.6.3-1ubuntu5) 4.6.3
 
 
-and the client side example, with bare C:
+
+
+
+# Client
+
+with bare C:
 
 ```c
 static void
@@ -119,12 +124,20 @@ main(int argc, char *argv[]) {
 
 In the other hand, the C interface with more flexible options.
 
-Feel free to drop plat_net.[ch] to your project, more example and test
+Feel free to drop mnet_core.[ch] to your project, more example and test
 case can be found in relative dir.
 
-A more complex demo, the [m_tunnel](https://github.com/lalawue/m_tunnel)
-project also using this library to provide a secure socks5 interface tcp
-connection between local <-> remote side.
+
+
+
+
+# Projects
+
+- [m_tunnel](https://github.com/lalawue/m_tunnel): provide a secure
+  socks5 interface tcp connection between local <-> remote side.
+
+- [m_kcptun](https://github.com/lalawue/m_kcptun): provide a TCP
+  interface with [KCP](https://github.com/skywind3000/kcp) underlying
 
 
 

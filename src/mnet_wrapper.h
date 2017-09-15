@@ -91,7 +91,7 @@ namespace mnet {
          if (m_chann && ipPort.length()>0) {
             m_addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_listen_ex(m_chann, m_addr.addr.ip, m_addr.addr.port, 1024);
+            return mnet_chann_listen(m_chann, m_addr.addr.ip, m_addr.addr.port, 16);
          }
          return false;
       }
