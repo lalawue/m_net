@@ -136,8 +136,8 @@ case can be found in relative dir.
 - [m_tunnel](https://github.com/lalawue/m_tunnel): provide a secure
   socks5 interface tcp connection between local <-> remote side.
 
-- [m_kcptun](https://github.com/lalawue/m_kcptun): provide a TCP
-  interface with [KCP](https://github.com/skywind3000/kcp) underlying
+- [m_kcptun](https://github.com/lalawue/m_kcptun): provide a speedup TCP
+  connection between local <-> remote, with UDP of ARQ protocol [KCP](https://github.com/skywind3000/kcp) underlying
 
 
 
