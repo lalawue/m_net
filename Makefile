@@ -16,9 +16,14 @@ CPP_SRCS := $(shell find test -name "*.cpp")
 CPP_SRCS += $(shell find examples -name "*.cpp")
 
 
+
 DIRS := $(shell find src -type d)
 
 INCS := $(foreach n, $(DIRS), -I$(n))
+
+LUA_SRCS := $(shell find extension/lua -name "*.c")
+LUA_INCS := -I/usr/local/include
+LUA_LIBS := -L/usr/local/lib -llua
 
 .PHONY : all
 .PHONY : dir
@@ -44,6 +49,10 @@ _debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
 
 _lib: $(LIB_SRCS)
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/libmnet.dylib $^ $(LIBS) -shared -fPIC
+
+lua: $(LUA_SRCS) $(LIB_SRCS)
+	mkdir -p build
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(LUA_INCS) $(LUA_LIBS) -o build/mnet.so $^ -shared -fPIC
 
 clean:
 	rm -rf build
