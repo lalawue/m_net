@@ -1283,6 +1283,8 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
    return -1;
 }
 
+
+/* set bufsize before connect or listen */
 int
 mnet_chann_set_bufsize(chann_t *n, int bufsize) {
    if (n && bufsize>0) {

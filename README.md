@@ -15,6 +15,7 @@ Support MacOS/Linux/Windows, using kqueue/epoll/select underlying.
 - with TCP/UDP support
 - nonblocking & event driven interface
 - using kqueue/epoll/select in MacOS/Linux/Windows
+- support Lua binding
 
 
 
@@ -126,6 +127,18 @@ In the other hand, the C interface with more flexible options.
 
 Feel free to drop mnet_core.[ch] to your project, more example and test
 case can be found in relative dir.
+
+
+
+# Lua interface
+
+try '$make lua' then run lua examples:
+
+```
+lua examples/api_chann_web.lua '127.0.0.1:1080'
+```
+
+use 'curl -i 127.0.0.1:8080' to get the HTTP request header
 
 
 

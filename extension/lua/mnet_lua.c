@@ -53,7 +53,7 @@ static int
 _check_type(lua_State *L, int *types, int count) {
    for (int i=0; i<count; i++) {
       if (lua_type(L, i+1) != types[i]) {
-         fprintf(stderr, "invalid type %d\n", i);
+         fprintf(stderr, "invalid type idx %d: %d, %d\n", i, lua_type(L, i+1), types[i]);
          return 0;
       }
    }
@@ -170,16 +170,13 @@ _chann_close(lua_State *L) {
 }
 
 
-/* .listen(n, "127.0.0.1:8080", 8080, 5) */
+/* .listen(n, "127.0.0.1:8080", 5) */
 static int
 _chann_listen(lua_State *L) {
-   int types[3] = {
-      LUA_TLIGHTUSERDATA,
-      LUA_TSTRING,
-      LUA_TNUMBER,
-   };
+   int types[3] = { LUA_TLIGHTUSERDATA, LUA_TSTRING, LUA_TNUMBER };
 
    if ( !_check_type(L, types, 3) ) {
+      fprintf(stderr, "invalid listen params !\n");
       return 0;
    }
 
