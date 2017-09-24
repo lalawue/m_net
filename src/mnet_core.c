@@ -1059,7 +1059,7 @@ mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t *addr) {
 }
 
 int
-mnet_parse_ipport(char *ipport, chann_addr_t *addr) {
+mnet_parse_ipport(const char *ipport, chann_addr_t *addr) {
    if (ipport && addr) {
       char *p = strchr(ipport, ':');
       if (p >= ipport) {

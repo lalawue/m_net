@@ -105,7 +105,7 @@ long long mnet_chann_bytes(chann_t *n, int be_send);
 
 /* tools without init */
 int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
-int mnet_parse_ipport(char *ipport, chann_addr_t *addr);
+int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 
 
 #ifdef __cplusplus
