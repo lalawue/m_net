@@ -130,7 +130,7 @@ case can be found in relative dir.
 
 
 
-# Lua interface
+# Lua
 
 try '$make lua' then run lua examples:
 
