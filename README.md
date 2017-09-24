@@ -150,7 +150,7 @@ use 'curl -i 127.0.0.1:8080' to get the HTTP request header
   socks5 interface tcp connection between local <-> remote side.
 
 - [m_kcptun](https://github.com/lalawue/m_kcptun): provide a speedup TCP
-  connection between local <-> remote, with UDP of ARQ protocol [KCP](https://github.com/skywind3000/kcp) underlying
+  connection between local <-> remote, with [KCP](https://github.com/skywind3000/kcp) underlying
 
 
 
