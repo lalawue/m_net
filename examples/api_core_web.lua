@@ -29,7 +29,7 @@ local function on_chann_msg(emsg, n, r)
          .. toast
 
       mnet.chann_active_event(n, "send", true)
-      mnet.chann_send(n, buf)
+      mnet.chann_send(n, data)
 
    elseif emsg == "disconnect" or emsg == "send" then
       mnet.chann_close(n)
