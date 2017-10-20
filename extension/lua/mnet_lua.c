@@ -111,7 +111,7 @@ static int
 _mnet_poll(lua_State *L) {
    _RETURN_NONE_NIL(L, 1);
 
-   int microseconds = luaL_checkint(L, 1);
+   int microseconds = luaL_checkinteger(L, 1);
    int ret = mnet_poll(microseconds);
 
    lua_pushinteger(L, ret);
