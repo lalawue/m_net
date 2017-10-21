@@ -1061,7 +1061,7 @@ mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t *addr) {
 int
 mnet_parse_ipport(const char *ipport, chann_addr_t *addr) {
    if (ipport && addr) {
-      char *p = strchr(ipport, ':');
+      const char *p = strchr(ipport, ':');
       if (p >= ipport) {
          if ((p - ipport) >= 7) {
             addr->ip[p - ipport] = 0;
