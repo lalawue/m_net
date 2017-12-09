@@ -1,6 +1,6 @@
 
 
-[![Powered][1]][2]  [![MIT licensed][3]][4]  [![Build Status][5]][6]
+[![Powered][1]][2]  [![MIT licensed][3]][4]  [![Build Status][5]][6]  [![Downloads][7]][8]
 
 [1]: https://img.shields.io/badge/KCP-Powered-blue.svg
 [2]: https://github.com/skywind3000/kcp
@@ -10,6 +10,9 @@
 
 [5]: https://travis-ci.org/lalawue/m_net.svg?branch=master
 [6]: https://travis-ci.org/lalawue/m_net
+
+[7]: https://img.shields.io/github/downloads/lalawue/m_kcptun/total.svg?maxAge=1800
+[8]: https://github.com/lalawue/m_kcptun/releases
 
 
 # About
