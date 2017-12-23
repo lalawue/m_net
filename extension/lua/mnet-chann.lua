@@ -77,6 +77,7 @@ function Chann:close()
       ChannTable[self.chann] = nil
       self.chann = nil
       self.stremType = nil
+      self = nil
    end
 end
 
