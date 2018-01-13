@@ -51,5 +51,5 @@ if ipport then
    end
    Chann:globalDispatch( 100000 )
 else
-   print("run as '127.0.0.1:8080'")
+   print("run with '127.0.0.1:8080'")
 end
