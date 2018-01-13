@@ -19,35 +19,46 @@ local function on_chann_msg(emsg, n, r)
          mnet.chann_set_cb(r, on_chann_msg)
       end
 
-   elseif emsg == "recv" then 
+   elseif emsg == "recv" then
+      
       local str = mnet.chann_recv(n)        -- recv anything
       print(str)
 
-      local toast = "hello, world !\n" 
-      local data = 'Content-Type: text/plain\r\n'
+      local toast = "hello, world !\n"
+      
+      local data = 'HTTP/1.1 200 OK\r\n'
+         .. 'Server: MNetCoreWeb/0.0\r\n'
+         .. 'Content-Type: text/plain\r\n'
          .. string.format("Content-Length: %d\r\n\r\n", toast:len())
          .. toast
 
-      mnet.chann_active_event(n, "send", true)
+      mnet.chann_active_event(n, "send", true)      
       mnet.chann_send(n, data)
 
    elseif emsg == "disconnect" or emsg == "send" then
+      print(string.format("[D] close chann with emsg: %s\n", emsg))
       mnet.chann_close(n)
    end
 end
 
-mnet.init()
 
-local n = mnet.chann_open("tcp")
+-- params
+if ipport then
+   mnet.init()
 
-if n and mnet.chann_listen(n, ipport, 2) then
-   print("listen to ", ipport)
-   mnet.chann_set_cb(n, on_chann_msg);
-   while true do
-      mnet.poll( 1000 )
+   local n = mnet.chann_open("tcp")
+
+   if n and mnet.chann_listen(n, ipport, 2) then
+      print("[D] listen to ", ipport)
+      mnet.chann_set_cb(n, on_chann_msg);
+      while true do
+         mnet.poll( 10000 )
+      end
+   else
+      print("fail to create mnet chann !")
    end
-else
-   print("fail to create mnet chann !")
-end
 
-mnet.fini()
+   mnet.fini()
+else
+   print("run as 127.0.0.1:8080")
+end

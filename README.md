@@ -147,10 +147,11 @@ case can be found in relative dir.
 try '$make lua' then run lua examples:
 
 ```
-lua examples/api_chann_web.lua '127.0.0.1:1080'
+lua examples/api_chann_web.lua '127.0.0.1:8080'
+lua examples/api_core_web.lua '127.0.0.1:8080'
 ```
 
-use 'curl -i 127.0.0.1:8080' to get the HTTP request header
+open your browser to visit '127.0.0.1:8080'.
 
 
 
