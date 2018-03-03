@@ -18,7 +18,7 @@ efficient interface for covenient use.
 
 Support Linux/MacOS/FreeBSD/Windows, using epoll/kqueue/select underlying.
 
-use gmake under FreeBSD.
+Please use gmake to build demo under FreeBSD.
 
 
 
