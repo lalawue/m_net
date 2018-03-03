@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
    ntp_ctx_t ctx;
    chann_addr_t addr;
 
-   printf("\n%s try resolve 'cn.ntp.org.cn' \n\n", argv[0]);
+   printf("\n try resolve 'cn.ntp.org.cn' ...\n\n");
 
    if ( mnet_resolve("cn.ntp.org.cn", 123, CHANN_TYPE_DGRAM, &addr) ) {
 

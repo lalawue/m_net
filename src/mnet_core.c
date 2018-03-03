@@ -16,20 +16,21 @@
 #pragma comment(lib, "ws2_32.lib")
 #endif  // WIN
 
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
+#include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
-#endif  /* MACOSX */
+#endif  /* MACOSX, FreeBSD */
 
 #if MNET_OS_LINUX
+#include <sys/types.h>
 #include <sys/epoll.h>
 #endif  /* LINUX */
 
-#if (MNET_OS_MACOX || MNET_OS_LINUX)
-#include <sys/types.h>
+#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-/* #include <netinet/in.h> */
+#include <netinet/in.h>
 #include <net/if.h>
 //#include <net/if_arp.h>
 #include <arpa/inet.h>
@@ -109,15 +110,15 @@ struct s_mchann {
    int64_t bytes_recv;
    int active_send_event;
    int buf_size;
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
+#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
    struct s_mchann *del_prev;   /* for delete */
    struct s_mchann *del_next;   /* for delete */
    uint32_t epoll_events;
 #endif
 };
 
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
 typedef struct kevent mevent_t;
 #else
 typedef struct epoll_event mevent_t;
@@ -410,7 +411,7 @@ _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
       _rwb_destroy(&n->rwb_send);
       n->fd = -1;
       n->state = CHANN_STATE_DISCONNECT;
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
+#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
       n->epoll_events = 0;
 #endif
       return 1;
@@ -421,7 +422,7 @@ _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
 static void
 _chann_close_socket(mnet_t *ss, chann_t *n) {
    if (n->state > CHANN_STATE_CLOSED) {
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
+#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
       n->del_next = ss->del_channs;
       if (ss->del_channs) {
          ss->del_channs->del_prev = n;
@@ -594,7 +595,7 @@ _select_poll(int microseconds) {
 
 /* kqueue/epoll op
  */
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
 
 #define _KEV_CHG_ARRAY_SIZE 8
 #define _KEV_EVT_ARRAY_SIZE 256
@@ -619,7 +620,7 @@ _select_poll(int microseconds) {
 /* kev */
 static inline void*
 _kev_opaque(mevent_t *kev) {
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    return kev->udata;
 #else
    return kev->data.ptr;
@@ -628,7 +629,7 @@ _kev_opaque(mevent_t *kev) {
 
 static inline int
 _kev_flags(mevent_t *kev, int flags) {
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    return (kev->flags & flags);
 #else
    return (kev->events & flags);
@@ -637,7 +638,7 @@ _kev_flags(mevent_t *kev, int flags) {
 
 static inline int
 _kev_events(mevent_t *kev, int events) {
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    return (kev->filter == events);
 #else
    return (kev->events & events);
@@ -647,7 +648,7 @@ _kev_events(mevent_t *kev, int events) {
 static inline int
 _kev_get_flags(mevent_t *kev) {
    if (kev) {
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
       return kev->flags;
 #else
       return kev->events;
@@ -659,7 +660,7 @@ _kev_get_flags(mevent_t *kev) {
 static inline int
 _kev_get_events(mevent_t *kev) {
    if (kev) {
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
       return kev->filter;
 #else
       return kev->events;
@@ -670,7 +671,7 @@ _kev_get_events(mevent_t *kev) {
 
 static inline int
 _kev_errno(mevent_t *kev) {
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    return kev->data;
 #else
    return kev->events;
@@ -682,7 +683,7 @@ static int
 _evt_init(void) {
    mnet_t *ss = _gmnet();
    if (ss->kq <= 0) {
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
       ss->kq = kqueue();
       mm_log(NULL, MNET_LOG_VERBOSE, "evt init with kqueue %d\n", ss->kq);
 #else
@@ -734,7 +735,7 @@ _evt_add(chann_t *n, int set) {
    if ( _evt_check_expand(chg) ) {
       mevent_t *kev = chg->array;
       memset(kev, 0, sizeof(mevent_t));
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
       kev->ident = n->fd;
       if (set == MNET_SET_READ) {
          kev->filter = EVFILT_READ;
@@ -777,7 +778,7 @@ _evt_del(chann_t *n, int set) {
    if ( _evt_check_expand(chg) ) {
       mevent_t *kev = chg->array;
       memset(kev, 0, sizeof(mevent_t));
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
       kev->ident = n->fd;
       if (set == MNET_SET_READ) {
          kev->filter = EVFILT_READ;
@@ -821,7 +822,7 @@ _evt_poll(int microseconds) {
    struct s_event *evt = &ss->evt;
    struct s_event *chg = &ss->chg;
 
-#if MNET_OS_MACOX
+#if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    struct timespec tsp;
    if (microseconds > 0) {
       static const int second_mask = (1<<MNET_ONE_SECOND_BIT) - 1;
@@ -1123,7 +1124,7 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
          if (istcp && _set_keepalive(fd)<0) goto fail;
          if (isbc && _set_broadcast(fd)<0) goto fail;
          if (_set_bufsize(fd, buf_size) < 0) goto fail;
-#if (MNET_OS_MACOX | MNET_OS_LINUX)
+#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
          {
             mnet_t *ss = _gmnet();
             if (n->del_next) { n->del_next->prev = n->del_prev; }

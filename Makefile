@@ -1,8 +1,15 @@
 
-CC=gcc
-CFLAGS= -Wall -std=gnu99 -Wdeprecated-declarations
+UNAME_S := $(shell uname -s)
 
+ifeq ($(UNAME_S), FreeBSD)
+CC=cc
+CPP=c++
+else
+CC=gcc
 CPP=g++
+endif
+
+CFLAGS= -Wall -std=gnu99 -Wdeprecated-declarations
 CPPFLAGS= -Wall -Wdeprecated-declarations -Wno-deprecated
 
 DEBUG= -g

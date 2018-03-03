@@ -16,7 +16,9 @@
 m_net was a cross platform network library, provide a simple and
 efficient interface for covenient use.
 
-Support MacOS/Linux/Windows, using kqueue/epoll/select underlying.
+Support Linux/MacOS/FreeBSD/Windows, using epoll/kqueue/select underlying.
+
+use gmake under FreeBSD.
 
 
 
@@ -26,7 +28,7 @@ Support MacOS/Linux/Windows, using kqueue/epoll/select underlying.
 - simple API in C++ wrapper
 - with TCP/UDP support
 - nonblocking & event driven interface
-- using kqueue/epoll/select in MacOS/Linux/Windows
+- using epoll/kqueue/select in Linux/MacOS/FreeBSD/Windows
 - support Lua binding
 
 
@@ -142,7 +144,8 @@ case can be found in relative dir.
 
 
 
-# Lua
+
+# Lua Wrapper
 
 try '$make lua' then run lua examples:
 
@@ -152,6 +155,9 @@ lua examples/api_core_web.lua '127.0.0.1:8080'
 ```
 
 open your browser to visit '127.0.0.1:8080'.
+
+
+in FreeBSD, modify Makefile to include/link to proper lua lib version.
 
 
 
