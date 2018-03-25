@@ -12,11 +12,13 @@ local ipport = ...
 
 local Chann = require("mnet-chann")
 
-local TcpServ = Chann:extend()     -- create lua structure
+local TcpServ = Chann:extend()  -- create new class base on Chann
 local TcpAgent = Chann:extend()
+
 
 -- agent
 function TcpAgent:onEvent(emsg, remote)
+   
    if emsg == "recv" then
       
       local buf = self:recv()
@@ -33,23 +35,37 @@ function TcpAgent:onEvent(emsg, remote)
       self:send( data )
 
    elseif emsg == "disconnect" then
+      
       self:close()
+      
    end
 end
+
 
 -- server
 function TcpServ:onEvent(emsg, remote)
    if emsg == "accept" then
+      -- 
+      -- mnet-chann stored 'remote' instance intenal, here only replace
+      -- onEvent implement as TcpAgent's
+      -- 
       remote.onEvent = TcpAgent.onEvent
    end
 end
 
+
 if ipport then
-   TcpServ:open("tcp")
-   if TcpServ:listen( ipport ) then
+   
+   local svr = TcpServ()        -- create an instance
+   
+   svr:open("tcp")
+   if svr:listen( ipport ) then
       print("listen to", ipport)
    end
-   Chann:globalDispatch( 100000 )
+
+   while true do
+      svr:poll( 100000 )        -- one poll enough
+   end
 else
    print("run with '127.0.0.1:8080'")
 end

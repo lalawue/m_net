@@ -8,7 +8,6 @@
 local mnet = require("mnet.core")
 mnet.init()                  -- init mnet
 
-local ChannTable = {}        -- all channs for C level callback dispatch
 
 local Chann = {
    -- .chann: chann of mnet.core
@@ -16,57 +15,85 @@ local Chann = {
 }
 Chann.__index = Chann
 
--- global dispatcher from C level
-local function onChannEvent(emsg, n, r)
 
-   local chann = ChannTable[n]
+-- all channs for C level callback dispatch
+local MNetChannInstance = {
+   -- [ c_insteance ] = lua_instance   
+}
+
+
+-- register to instance table
+local function MNetChannRegister(lua_chann, c_chann)
+   if lua_chann and c_chann then
+      lua_chann.chann = c_chann
+      MNetChannInstance[ c_chann ] = lua_chann
+   end
+end
+
+
+
+-- from rxi 'classic', https://github.com/rxi/classic/blob/master/classic.lua
+function Chann:extend()
+  local cls = {}
+  for k, v in pairs(self) do
+    if k:find("__") == 1 then
+      cls[k] = v
+    end
+  end
+  cls.__index = cls
+  cls.super = self
+  setmetatable(cls, self)
+  return cls
+end
+
+
+local RemoteChann = Chann:extend()
+
+
+-- global event dispatcher for C level
+function MNetChannDispatchEvent(emsg, n, r)
+
+   local chann = MNetChannInstance[n]
    if chann then
 
       local remote = nil
       if r then
-         remote = Chann:extend()
-         remote:setupCoreInfo(r, chann.streamType)
+         remote = RemoteChann()
+         remote.streamType = chann.streamType
+         MNetChannRegister(remote, r)
       end
 
       chann:onEvent(emsg, remote)
    end
 end
 
--- register chann to global chann table, for later dispatch
-function Chann:setupCoreInfo(n, streamType)
-   if n and streamType then
-      self.chann = n
-      self.streamType = streamType
-      ChannTable[n] = self
-      mnet.chann_set_cb(n, onChannEvent)
-   end
+
+-- create a chann instance
+function Chann:__call(...)
+   local obj = setmetatable({}, self)
+   return obj
 end
 
 
-
--- 
--- Public Interface
--- 
-
--- from 'rxi's classic.lua'
-function Chann:extend()
-   local cls = {}
-   for k, v in pairs(self) do
-      if k:find("__") == 1 then
-         cls[k] = v
-      end
-   end
-   cls.__index = cls
-   cls.super = self
-   setmetatable(cls, self)
-   return cls
+-- mnet poll, only need one poll in one process
+function Chann:poll( microseconds )
+   return mnet.poll( microseconds )
 end
 
+
+-- create mnet instance, register to global table,
 -- streamType: 'tcp', 'udp', 'broadcast'
 function Chann:open( streamType )
-   if not self.chann then
-      local n = mnet.chann_open( streamType )
-      self:setupCoreInfo(n, streamType)
+   if streamType == "tcp" or
+      streamType == "udp" or
+      streamType == "broadcast"   
+   then
+      self.streamType = streamType
+      if not self.chann then
+         local n = mnet.chann_open( self.streamType )
+         MNetChannRegister(self, n)
+      end
+      
    end
 end
 
@@ -74,7 +101,7 @@ end
 function Chann:close()
    if self.chann then
       mnet.chann_close(self.chann)
-      ChannTable[self.chann] = nil
+      MNetChannInstance[self.chann] = nil
       self.chann = nil
       self.stremType = nil
       self = nil
@@ -142,15 +169,6 @@ end
 -- active 'send' event when send buffer empty
 function Chann:activeEvent( emsg, isActive )
    mnet.chann_active_event(self.chann, emsg, isActive)
-end
-
--- global dispatch channs
-function Chann:globalDispatch( microseconds )
-   if self == Chann then
-      while true do
-         mnet.poll( microseconds )
-      end
-   end
 end
 
 return Chann

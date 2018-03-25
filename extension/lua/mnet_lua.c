@@ -22,7 +22,6 @@
 
 typedef struct {
    chann_t *n;                  /* chann pointer */
-   int ref;                     /* chann lua event callback ref */
    lua_State *L;                /* lua_State */
    unsigned char *buf;
    int buf_len;
@@ -43,8 +42,6 @@ _create_lua_chann(lua_State *L, chann_t *n) {
 
 static void
 _destroy_lua_chann(lua_chann_t *lc) {
-   luaL_unref(lc->L, LUA_REGISTRYINDEX, lc->ref);
-   lc->ref = 0;
    free(lc);
 }
 
@@ -89,7 +86,7 @@ static int
 _mnet_init(lua_State *L) {
    int ret = mnet_init();
    lua_pushboolean(L, ret);
-   if (!g_buf) {
+   if (ret && !g_buf) {
       g_buf = malloc(LUA_CHANN_BUF_LEN);
    }
    return 1;
@@ -127,6 +124,38 @@ _chann_count(lua_State *L) {
 }
 
 
+/* c level event callbacl function */
+static void
+_chann_msg_cb(chann_msg_t *msg) {
+   lua_chann_t *lc = msg->opaque;
+
+   lua_settop(lc->L, 0);
+   lua_getglobal(lc->L, "MNetChannDispatchEvent");
+
+   if (lua_gettop(lc->L)==1 && lua_isfunction(lc->L, -1)) {
+
+      const char *emsg = _event_msg(msg->event);
+
+      lua_pushstring(lc->L, emsg);
+      lua_pushlightuserdata(lc->L, lc);
+      if (msg->r) {
+         lua_chann_t *rc = _create_lua_chann(lc->L, msg->r);
+         lua_pushlightuserdata(lc->L, rc);
+         mnet_chann_set_cb(msg->r, _chann_msg_cb, rc);
+      } else {
+         lua_pushnil(lc->L);
+      }
+
+      if (lua_pcall(lc->L, 3, 0, 0) != 0) {
+         fprintf(stderr, "%s\n", "fail to pcall");
+         luaL_error (lc->L, "%s\n", "fail to pcall !");
+      }
+   } else {
+      fprintf(stderr, "%s\n", "fail to pcall 2");      
+   }
+}
+
+
 /* open chann with type */
 static int
 _chann_open(lua_State *L) {
@@ -147,6 +176,7 @@ _chann_open(lua_State *L) {
    if ( n ) {
       lua_chann_t *lc = _create_lua_chann(L, n);
       lua_pushlightuserdata(L, lc);
+      mnet_chann_set_cb(n, _chann_msg_cb, lc);
    } else {
       lua_pushnil(L);
    }
@@ -343,53 +373,6 @@ _chann_bytes(lua_State *L) {
    return 1;
 }
 
-/* c level event callbacl function */
-static void
-_chann_msg_cb(chann_msg_t *msg) {
-   lua_chann_t *lc = msg->opaque;
-
-   if ( lc->ref ) {
-
-      lua_settop(lc->L, 0);
-      lua_rawgeti(lc->L, LUA_REGISTRYINDEX, lc->ref);
-
-      if (lua_gettop(lc->L)==1 && lua_isfunction(lc->L, -1)) {
-
-         const char *emsg = _event_msg(msg->event);
-
-         lua_pushstring(lc->L, emsg);
-         lua_pushlightuserdata(lc->L, lc);
-         if (msg->r) {
-            lua_chann_t *rc = _create_lua_chann(lc->L, msg->r);
-            lua_pushlightuserdata(lc->L, rc);
-         } else {
-            lua_pushnil(lc->L);
-         }
-
-         if (lua_pcall(lc->L, 3, 0, 0) != 0) {
-            fprintf(stderr, "%s\n", "fail to pcall");
-            luaL_error (lc->L, "%s\n", "fail to pcall !");
-         }
-      } else {
-         fprintf(stderr, "%s\n", "fail to pcall 2");      
-      }
-   } 
-}
-
-/* set chann event callback function */
-static int
-_chann_set_cb(lua_State *L) {
-   int types[2] = { LUA_TLIGHTUSERDATA, LUA_TFUNCTION };
-   if ( !_check_type(L, types, 2) ) {
-      return 0;
-   }
-
-   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
-   lc->ref = luaL_ref(L, LUA_REGISTRYINDEX);
-   mnet_chann_set_cb(lc->n, _chann_msg_cb, lc);
-   return 0;
-}
-
 static int
 _chann_active_event(lua_State *L) {
    int types[3] = { LUA_TLIGHTUSERDATA, LUA_TSTRING, LUA_TBOOLEAN };
@@ -418,7 +401,6 @@ static const luaL_Reg mnet_core_lib[] = {
     { "chann_connect", _chann_connect },
     { "chann_disconnect", _chann_disconnect },
 
-    { "chann_set_cb", _chann_set_cb },
     { "chann_active_event", _chann_active_event },
 
     { "chann_recv", _chann_recv},
