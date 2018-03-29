@@ -8,16 +8,6 @@
 #ifndef MNET_H
 #define MNET_H
 
-#if defined(_WIN32) || defined(_WIN64)
-   #define MNET_OS_WIN 1
-#elif defined(__APPLE__)
-   #define MNET_OS_MACOX 1
-#elif defined(__FreeBSD__)
-   #define MNET_OS_FreeBSD 1
-#else
-   #define MNET_OS_LINUX 1
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -7,6 +7,16 @@
 
 #include "mnet_core.h"
 
+#if defined(_WIN32) || defined(_WIN64)
+   #define MNET_OS_WIN 1
+#elif defined(__APPLE__)
+   #define MNET_OS_MACOX 1
+#elif defined(__FreeBSD__)
+   #define MNET_OS_FreeBSD 1
+#else
+   #define MNET_OS_LINUX 1
+#endif
+
 #if MNET_OS_WIN
 #define _CRT_SECURE_NO_WARNINGS
 #include <winsock2.h>
