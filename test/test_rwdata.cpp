@@ -24,7 +24,8 @@ static const int kSendedPoint = 1024*1024*1024;
 
 class BaseChann : public Chann {
 public:
-   BaseChann() { m_sended = m_recved = 0; }
+   BaseChann(Chann *c) : Chann(c) { m_sended = m_recved = 0; }
+   BaseChann(string streamType) : Chann(streamType) {}
    void releaseSelf() {
       cout << "recved " << m_recved << endl
            << "sended " << m_sended << endl
@@ -38,9 +39,8 @@ public:
 
 class SvrChann : public BaseChann {
 public:
-   SvrChann(Chann *nc) {
-      channUpdate(nc, NULL);
-   }
+   SvrChann(Chann *c) : BaseChann(c) {}
+
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
          int ret = channRecv(m_buf, kBufSize);
@@ -57,10 +57,7 @@ public:
 
 class CntChann : public BaseChann {
 public:
-   CntChann(string streamType) {
-      Chann c(streamType);
-      channUpdate(&c, NULL);
-   }
+   CntChann(string streamType) : BaseChann(streamType) {}
 
    void fillDataBuf () {
       for (int i=0; i<kBufSize; i++) {
@@ -157,7 +154,7 @@ int main(int argc, char *argv[]) {
          delete cnt;
       }
 
-      while (mnet_poll(-1) > 0) {
+      while (ChannDispatcher::pullEvent(-1) > 0) {
       }
    }
 

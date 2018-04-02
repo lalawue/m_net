@@ -19,7 +19,7 @@ using mnet::ChannDispatcher;
 // subclass Chann to handle event
 class CntChann : public Chann {
 public:
-   CntChann(Chann *c) { channUpdate(c, NULL); }
+   CntChann(Chann *c) : Chann(c) {}
 
    // implement virtual defaultEventHandler
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
@@ -47,7 +47,8 @@ int main(int argc, char *argv[]) {
          echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err) {
                if (event == CHANN_EVENT_ACCEPT) {
                   CntChann *cnt = new CntChann(accept);
-                  cnt->channSend((void*)("Welcome to echoServ\n"), 20);
+                  char welcome[] = "Welcome to echoServ\n";
+                  cnt->channSend((void*)welcome, sizeof(welcome));
                   delete accept;
                }
             });

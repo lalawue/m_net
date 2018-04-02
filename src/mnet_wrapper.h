@@ -65,23 +65,23 @@ namespace mnet {
       Chann() {}
 
       Chann(string streamType) {
-         mnet_init();
+         mnet_init();         
          m_chann = mnet_chann_open( channType(streamType) );
+         m_handler = NULL;
+      }
+
+      Chann(Chann *c) {
+         if (c) {
+            m_chann = c->m_chann;
+            m_handler = NULL;
+            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
+            c->m_chann = NULL;
+            c->m_handler = NULL;
+         }
       }
 
       virtual ~Chann() {
          mnet_chann_close(m_chann);
-         m_chann = NULL;
-         m_handler = NULL;
-      }
-
-      // update self then clear fromChann
-      void channUpdate(Chann *fromChann, channEventHandler handler) {
-         m_chann = fromChann->m_chann;
-         m_handler = handler;
-         mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-         fromChann->m_chann = NULL;
-         fromChann->m_handler = NULL;
       }
 
 
@@ -200,16 +200,23 @@ namespace mnet {
 
    class ChannDispatcher {
      public:
+      
+      // startEventLoop until user call stopEventLoop
       static void startEventLoop(void) {
          if ( !isRunning() ) {
             isRunning() = true;
             while ( isRunning() ) {
-               mnet_poll(-1);
+               mnet_poll(100000);
             }
          }
-      }
+      }      
       static void stopEventLoop(void) {
          isRunning() = false;
+      }
+      
+      // pullEvent with waiting microseconds at most
+      static int pullEvent(int microseconds) {
+         return mnet_poll(microseconds);
       }
 
      private:

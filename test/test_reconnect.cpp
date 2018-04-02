@@ -25,9 +25,7 @@ using mnet::ChannDispatcher;
 
 class SvrChann : public Chann {
 public:
-   SvrChann(Chann *nc) {
-      channUpdate(nc, NULL);
-   }
+   SvrChann(Chann *c) : Chann(c) {}
    
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
@@ -48,10 +46,7 @@ public:
 
 class CntChann : public Chann {
 public:
-   CntChann(string streamType) {
-      Chann c(streamType);
-      channUpdate(&c, NULL);
-   }
+   CntChann(string streamType, int idx) : Chann(streamType) { m_idx = idx; }
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       switch (event) {
@@ -110,8 +105,8 @@ int main(int argc, char *argv[]) {
 
          svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err){
                if (event == CHANN_EVENT_ACCEPT) {
-                  SvrChann *nc = new SvrChann(accept);
-                  cout << "accept cnt " << nc << endl;
+                  SvrChann *svr = new SvrChann(accept);
+                  cout << "accept cnt " << svr << endl;
                   delete accept;
                }
             });
@@ -122,9 +117,8 @@ int main(int argc, char *argv[]) {
    else if (option == "-c") {
       // client side
 
-      for (int i=0; i<32; i++) {
-         CntChann *cnt = new CntChann("tcp");
-         cnt->m_idx = i;
+      for (int i=0; i<512; i++) {
+         CntChann *cnt = new CntChann("tcp", i);
          if ( cnt->channConnect(ipaddr) ) {
             cout << "begin try connect " << ipaddr << endl;
          } else {

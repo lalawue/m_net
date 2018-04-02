@@ -24,9 +24,7 @@ using mnet::ChannDispatcher;
 
 class SvrChann : public Chann {
 public:
-   SvrChann(Chann *nc) {
-      channUpdate(nc, NULL);
-   }
+   SvrChann(Chann *c, int idx) : Chann(c) { m_idx = idx; }
    
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
@@ -35,20 +33,18 @@ public:
          channSend(m_buf, ret);
       }
       else if (event == CHANN_EVENT_DISCONNECT) {
-         cout << "cnt " << this << " disconnect" << endl;
+         cout << "cnt " << m_idx << " disconnect" << endl;
          delete this;
       }
    }
+   int m_idx;
    char m_buf[64];
 };
 
 
 class CntChann : public Chann {
 public:
-   CntChann(string streamType) {
-      Chann c(streamType);
-      channUpdate(&c, NULL);
-   }
+   CntChann(string streamType) : Chann(streamType) {}
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       switch (event) {
@@ -98,7 +94,7 @@ int main(int argc, char *argv[]) {
          svrListen.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err){
                if (event == CHANN_EVENT_ACCEPT) {
                   cntCount += 1;
-                  SvrChann *nc = new SvrChann(accept);
+                  SvrChann *nc = new SvrChann(accept, cntCount);
                   cout << "accept cnt " << nc << ", count " << cntCount << endl;
                   delete accept;
                }
@@ -120,7 +116,7 @@ int main(int argc, char *argv[]) {
          }
       }
 
-      while (mnet_poll(1000) > 0) {
+      while ( ChannDispatcher::pullEvent(1000) > 0 ) {
          cout << mnet_report(0) << endl;
       }
 
