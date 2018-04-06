@@ -829,7 +829,7 @@ _evt_poll(int microseconds) {
    struct timespec tsp;
    if (microseconds > 0) {
       tsp.tv_sec = microseconds / MNET_SECOND_MS;
-      tsp.tv_nsec = (uint64_t)(microseconds - tsp.tv_nsec * MNET_SECOND_MS) * 1000;
+      tsp.tv_nsec = (uint64_t)(microseconds - tsp.tv_sec * MNET_SECOND_MS) * 1000;
    }
    nfd = kevent(ss->kq, NULL, 0, evt->array, evt->size, microseconds<=0 ? NULL : &tsp);
 #else  /* LINUX */

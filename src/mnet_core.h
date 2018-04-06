@@ -75,7 +75,6 @@ int mnet_init(void);
 void mnet_fini(void);
 int mnet_report(int level);     /* 0:chann_count 1:chann_detail */
 
-#define MNET_ONE_SECOND_BIT 20   /* 1 seconds == (1<<20) microseconds, not for Linux */
 int mnet_poll(int microseconds); /* dispatch chann event,  */
 
 

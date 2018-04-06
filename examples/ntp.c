@@ -21,7 +21,7 @@
 
 #ifdef EXAMPLE_NTP
 
-#define K_ONE_SECOND (1<<MNET_ONE_SECOND_BIT)
+#define K_ONE_SECOND (1000000)
 
 #define NTP_VERSION 		0xe3
 #define UNIX_OFFSET 		2208988800L
