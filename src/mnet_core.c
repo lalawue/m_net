@@ -48,9 +48,7 @@
 #include <string.h>
 
 #define MNET_BUF_SIZE (64*1024) /* 64kb default */
-
-#define _MIN_OF(a, b) (((a) < (b)) ? (a) : (b))
-#define _MAX_OF(a, b) (((a) > (b)) ? (a) : (b))
+#define MNET_SECOND_MS (1000000) /* micro seconds */
 
 #if MNET_OS_WIN
 
@@ -193,6 +191,11 @@ void mnet_log_default(chann_t *n, int level, const char *log_string) {
    printf("[%c]%p: %s", slev[level], n, log_string);
 }
 
+static inline int
+_min_of(int a, int b) {
+   return a > b ? a : b;
+}
+
 /* buf op
  */
 static inline int
@@ -246,7 +249,7 @@ _rwb_cache(rwb_head_t *h, unsigned char *buf, int buf_len) {
    int buf_ptr = 0;
    while (buf_ptr < buf_len) {
       rwb_t *b = _rwb_create_tail(h);
-      int len = _MIN_OF((buf_len - buf_ptr), _rwb_available(b));
+      int len = _min_of((buf_len - buf_ptr), _rwb_available(b));
       memcpy(&b->buf[b->ptw], &buf[buf_ptr], len);
       b->ptw += len;
       buf_ptr += len;
@@ -264,7 +267,7 @@ static void
 _rwb_drain(rwb_head_t *h, int drain_len) {
    while ((h->count>0) && (drain_len>0)) {
       rwb_t *b = h->head;
-      int len = _MIN_OF(drain_len, _rwb_buffered(b));
+      int len = _min_of(drain_len, _rwb_buffered(b));
       drain_len -= len;
       b->ptr += len;
       _rwb_destroy_head(h);
@@ -510,8 +513,8 @@ _select_poll(int microseconds) {
    sw = &ss->fdset[MNET_SET_WRITE];
    se = &ss->fdset[MNET_SET_ERROR];
 
-   tv.tv_sec = microseconds >> MNET_ONE_SECOND_BIT;
-   tv.tv_usec = microseconds & ((1<<MNET_ONE_SECOND_BIT)-1);
+   tv.tv_sec = microseconds / MNET_SECOND_MS;
+   tv.tv_usec = microseconds - tv.tv_sec * MNET_SECOND_MS;
 
    if (select(nfds, sr, sw, se, microseconds >= 0 ? &tv : NULL) < 0) {
       if (errno != EINTR) {
@@ -825,9 +828,8 @@ _evt_poll(int microseconds) {
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    struct timespec tsp;
    if (microseconds > 0) {
-      static const int second_mask = (1<<MNET_ONE_SECOND_BIT) - 1;
-      tsp.tv_sec = microseconds >> MNET_ONE_SECOND_BIT;
-      tsp.tv_nsec = (uint64_t)(microseconds & second_mask) * 1000;
+      tsp.tv_sec = microseconds / MNET_SECOND_MS;
+      tsp.tv_nsec = (uint64_t)(microseconds - tsp.tv_nsec * MNET_SECOND_MS) * 1000;
    }
    nfd = kevent(ss->kq, NULL, 0, evt->array, evt->size, microseconds<=0 ? NULL : &tsp);
 #else  /* LINUX */
