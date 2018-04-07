@@ -193,7 +193,7 @@ void mnet_log_default(chann_t *n, int level, const char *log_string) {
 
 static inline int
 _min_of(int a, int b) {
-   return a > b ? a : b;
+   return a < b ? a : b;
 }
 
 /* buf op
