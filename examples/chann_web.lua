@@ -64,7 +64,7 @@ if ipport then
    end
 
    while true do
-      svr:globalPoll( 100000 )        -- one poll enough
+      Chann:pollEvent( 100000 ) -- one poll enough
    end
 else
    print("run with '127.0.0.1:8080'")

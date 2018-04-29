@@ -168,7 +168,7 @@ function Chann:activeEvent( emsg, isActive )
 end
 
 -- mnet poll, only need one poll in one process
-function Chann:globalPoll( microseconds )
+function Chann:pollEvent( microseconds )
    return mnet.poll( microseconds )
 end
 
