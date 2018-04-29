@@ -169,7 +169,7 @@ end
 
 -- mnet poll, only need one poll in one process
 function Chann:globalPoll( microseconds )
-   return mnet.globalPoll( microseconds )
+   return mnet.poll( microseconds )
 end
 
 -- finalize all chann instance
