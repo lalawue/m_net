@@ -150,8 +150,7 @@ case can be found in relative dir.
 try '$make lua' then run lua examples:
 
 ```
-lua examples/api_chann_web.lua '127.0.0.1:8080'
-lua examples/api_core_web.lua '127.0.0.1:8080'
+lua examples/chann_web.lua '127.0.0.1:8080'
 ```
 
 open your browser to visit '127.0.0.1:8080'.
