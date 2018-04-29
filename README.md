@@ -11,14 +11,17 @@
 
 
 
+
+
 # About
 
-m_net was a cross platform network library, provide a simple and
-efficient interface for covenient use.
+m_net was a [single file](https://github.com/lalawue/m_net/blob/master/src/mnet_core.c)
+cross platform network library, provide a simple and efficient interface for covenient use.
 
 Support Linux/MacOS/FreeBSD/Windows, using epoll/kqueue/select underlying.
 
 Please use gmake to build demo under FreeBSD.
+
 
 
 
@@ -34,6 +37,7 @@ Please use gmake to build demo under FreeBSD.
 
 
 
+
 # Server 
 
 It's very convenience for use, an echo server example, with CPP wrapper:
@@ -42,7 +46,7 @@ It's very convenience for use, an echo server example, with CPP wrapper:
 // subclass Chann to handle event
 class CntChann : public Chann {
 public:
-   CntChann(Chann *c) : Chann(c) {}
+   CntChann(Chann *c) { channUpdate(c, NULL); }
 
    // implement virtual defaultEventHandler
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
@@ -70,8 +74,7 @@ int main(int argc, char *argv[]) {
          echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err) {
                if (event == CHANN_EVENT_ACCEPT) {
                   CntChann *cnt = new CntChann(accept);
-                  char welcome[] = "Welcome to echoServ\n";
-                  cnt->channSend((void*)welcome, sizeof(welcome));
+                  cnt->channSend((void*)("Welcome to echoServ\n"), 20);
                   delete accept;
                }
             });
@@ -140,15 +143,13 @@ main(int argc, char *argv[]) {
 
 In the other hand, the C interface with more flexible options.
 
-Feel free to drop mnet_core.[ch] to your project, more example and test
-case can be found in relative dir.
 
 
 
 
 # Lua Wrapper
 
-try '$make lua' then run lua examples:
+try '$make lua' then run [lua example](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua):
 
 ```
 lua examples/chann_web.lua '127.0.0.1:8080'
@@ -163,6 +164,15 @@ in FreeBSD, modify Makefile to include/link to proper lua lib version.
 
 
 
+# Example & Tests
+
+in [examples](https://github.com/lalawue/m_net/tree/master/examples) and
+[test](https://github.com/lalawue/m_net/tree/master/test) dir.
+
+
+
+
+
 # Projects
 
 - [m_tunnel](https://github.com/lalawue/m_tunnel): provide a secure
@@ -170,6 +180,11 @@ in FreeBSD, modify Makefile to include/link to proper lua lib version.
 
 - [m_kcptun](https://github.com/lalawue/m_kcptun): provide a speedup TCP
   connection between local <-> remote, with [KCP](https://github.com/skywind3000/kcp) underlying
+
+- [m_dnscnt](https://github.com/lalawue/m_dnscnt): asynchronous DNS query client/library, query
+  every DNS server in list at one time.
+
+
 
 
 
