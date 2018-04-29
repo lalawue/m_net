@@ -14,6 +14,9 @@ local Chann = {
    -- .streamType: 'tcp', 'udp' or 'broadcast'
 }
 Chann.__index = Chann
+Chann.__gc = function(c)
+   c:close()
+end
 
 
 -- all channs for C level callback dispatch
@@ -74,13 +77,6 @@ function Chann:__call(...)
    return obj
 end
 
-
--- mnet poll, only need one poll in one process
-function Chann:poll( microseconds )
-   return mnet.poll( microseconds )
-end
-
-
 -- create mnet instance, register to global table,
 -- streamType: 'tcp', 'udp', 'broadcast'
 function Chann:open( streamType )
@@ -100,8 +96,8 @@ end
 -- close and release C level resources
 function Chann:close()
    if self.chann then
-      mnet.chann_close(self.chann)
       MNetChannInstance[self.chann] = nil
+      mnet.chann_close(self.chann)
       self.chann = nil
       self.stremType = nil
       self = nil
@@ -169,6 +165,19 @@ end
 -- active 'send' event when send buffer empty
 function Chann:activeEvent( emsg, isActive )
    mnet.chann_active_event(self.chann, emsg, isActive)
+end
+
+-- mnet poll, only need one poll in one process
+function Chann:globalPoll( microseconds )
+   return mnet.globalPoll( microseconds )
+end
+
+-- finalize all chann instance
+function Chann:finalizeAllChann()
+   mnet.fini()
+   MNetChannInstance = nil
+   RemoteChann = nil
+   Chann = nil
 end
 
 return Chann
