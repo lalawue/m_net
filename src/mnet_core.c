@@ -1130,7 +1130,7 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
          _chann_fill_addr(n, host, port);
 
          if (_set_reuseaddr(fd) < 0) goto fail;
-         if ((backlog || !istcp) && _bind(fd, &n->addr) < 0) goto fail;
+         if (backlog && _bind(fd, &n->addr) < 0) goto fail;
          if (backlog && istcp && _listen(fd,backlog) < 0) goto fail;
          if (_set_nonblocking(fd) < 0) goto fail;
          if (istcp && _set_keepalive(fd)<0) goto fail;
