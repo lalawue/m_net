@@ -466,11 +466,12 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
 }
 
 
-static int _chann_get_err(chann_t *n) {
-   int error = 0;
-   socklen_t errlen = sizeof(error);
-   if (getsockopt(n->fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errlen) == 0) {
-      return error;
+static int
+_chann_get_err(chann_t *n) {
+   int err = 0;
+   socklen_t len = sizeof(err);
+   if (getsockopt(n->fd, SOL_SOCKET, SO_ERROR, (void *)&err, &len) == 0) {
+      return err;
    }
    return -9999;
 }
@@ -591,7 +592,16 @@ _select_poll(int microseconds) {
                      do {
                         unsigned char *buf = _rwb_drain_param(prh, &len);
                         ret = _chann_send(n, buf, len);
-                        _rwb_drain(prh, ret);
+                        if (ret > 0) {
+                           _rwb_drain(prh, ret);
+                        }
+                        else if (ret < 0 && errno != EWOULDBLOCK) {
+                           mnet_t *ss = _gmnet();
+                           mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
+                                  n, n->fd, errno, strerror(errno));
+                           _chann_disconnect_socket(ss, n);
+                           _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
+                        }
                      } while (ret>=len && _rwb_count(prh)>0);
                   } else if ( n->active_send_event ) {
                      _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
@@ -927,7 +937,16 @@ _evt_poll(int microseconds) {
                      do {
                         unsigned char *buf = _rwb_drain_param(prh, &len);
                         ret = _chann_send(n, buf, len);
-                        _rwb_drain(prh, ret);
+                        if (ret > 0) {
+                           _rwb_drain(prh, ret);
+                        }
+                        else if (ret < 0 && errno != EWOULDBLOCK) {
+                           mnet_t *ss = _gmnet();
+                           mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
+                                  n, n->fd, errno, strerror(errno));
+                           _chann_disconnect_socket(ss, n);
+                           _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
+                        }
                      } while (ret>=len && _rwb_count(prh)>0);
                   } else if ( n->active_send_event ) {
                      _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
