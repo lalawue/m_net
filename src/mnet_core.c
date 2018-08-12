@@ -248,7 +248,8 @@ _rwb_destroy_head(rwb_head_t *h) {
       rwb_t *b = h->head;
       h->head = b->next;
       mm_free(b);
-      if ((--h->count) <= 0) {
+      h->count -= 1;
+      if (h->count <= 0) {
          h->head = h->tail = 0;
       }
    }
@@ -464,6 +465,16 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
    }
 }
 
+
+static int _chann_get_err(chann_t *n) {
+   int error = 0;
+   socklen_t errlen = sizeof(error);
+   if (getsockopt(n->fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errlen) == 0) {
+      return error;
+   }
+   return -9999;
+}
+
 #if MNET_OS_WIN
 
 /* select op
@@ -550,9 +561,8 @@ _select_poll(int microseconds) {
 
          case CHANN_STATE_CONNECTING:
             if ( _select_isset(sw, n->fd) ) {
-               int opt=0; socklen_t opt_len=sizeof(opt);
-               getsockopt(n->fd, SOL_SOCKET, SO_ERROR, &opt, &opt_len);
-               if (opt == 0) {
+               int err = _chann_get_err(n);
+               if (err == 0) {
                   n->state = CHANN_STATE_CONNECTED;
                   _chann_msg(n, CHANN_EVENT_CONNECTED, NULL, 0);
                } else {
@@ -862,12 +872,13 @@ _evt_poll(int microseconds) {
 
          /* check error first */
          if ( _kev_flags(kev, (_KEV_FLAG_ERROR | _KEV_FLAG_HUP)) ) {
-            int err = _kev_errno(kev);
             if (_kev_flags(kev, _KEV_FLAG_ERROR)) {
+               int err = _chann_get_err(n);
                mm_log(n, MNET_LOG_ERR, "chann got error: %d:%s\n", err, strerror(err));
                _chann_disconnect_socket(ss, n);
                _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, err);
             } else {
+               int err = _kev_errno(kev);
                mm_log(n, MNET_LOG_VERBOSE, "chann got eof: %d:%s\n", err, strerror(err));
                _chann_disconnect_socket(ss, n);
                _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, err);
@@ -908,7 +919,8 @@ _evt_poll(int microseconds) {
             case CHANN_STATE_CONNECTED: {
                if ( _kev_events(kev, _KEV_EVENT_READ) ) {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
-               } else if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
+               }
+               if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
                   rwb_head_t *prh = &n->rwb_send;
                   if (_rwb_count(prh) > 0) {
                      int ret=0, len=0;
