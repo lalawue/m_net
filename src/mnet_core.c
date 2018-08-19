@@ -476,6 +476,30 @@ _chann_get_err(chann_t *n) {
    return -9999;
 }
 
+static int
+_mnet_send_rwb(chann_t *n) {
+   rwb_head_t *prh = &n->rwb_send;
+   if (_rwb_count(prh) > 0) {
+      int ret=0, len=0;
+      do {
+         unsigned char *buf = _rwb_drain_param(prh, &len);
+         ret = _chann_send(n, buf, len);
+         if (ret > 0) {
+            _rwb_drain(prh, ret);
+         }
+         else if (ret < 0 && errno != EWOULDBLOCK) {
+            mnet_t *ss = _gmnet();
+            mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
+                   n, n->fd, errno, strerror(errno));
+            _chann_disconnect_socket(ss, n);
+            _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
+         }
+      } while (ret>=len && _rwb_count(prh)>0);
+      return 1;
+   }
+   return 0;
+}
+
 #if MNET_OS_WIN
 
 /* select op
@@ -586,24 +610,7 @@ _select_poll(int microseconds) {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                }
                if ( _select_isset(sw, n->fd) ) {
-                  rwb_head_t *prh = &n->rwb_send;
-                  if (_rwb_count(prh) > 0) {
-                     int ret=0, len=0;
-                     do {
-                        unsigned char *buf = _rwb_drain_param(prh, &len);
-                        ret = _chann_send(n, buf, len);
-                        if (ret > 0) {
-                           _rwb_drain(prh, ret);
-                        }
-                        else if (ret < 0 && errno != EWOULDBLOCK) {
-                           mnet_t *ss = _gmnet();
-                           mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
-                                  n, n->fd, errno, strerror(errno));
-                           _chann_disconnect_socket(ss, n);
-                           _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
-                        }
-                     } while (ret>=len && _rwb_count(prh)>0);
-                  } else if ( n->active_send_event ) {
+                  if (!_mnet_send_rwb(n) && n->active_send_event) {
                      _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
                   }
                }
@@ -931,24 +938,7 @@ _evt_poll(int microseconds) {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                }
                if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
-                  rwb_head_t *prh = &n->rwb_send;
-                  if (_rwb_count(prh) > 0) {
-                     int ret=0, len=0;
-                     do {
-                        unsigned char *buf = _rwb_drain_param(prh, &len);
-                        ret = _chann_send(n, buf, len);
-                        if (ret > 0) {
-                           _rwb_drain(prh, ret);
-                        }
-                        else if (ret < 0 && errno != EWOULDBLOCK) {
-                           mnet_t *ss = _gmnet();
-                           mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
-                                  n, n->fd, errno, strerror(errno));
-                           _chann_disconnect_socket(ss, n);
-                           _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
-                        }
-                     } while (ret>=len && _rwb_count(prh)>0);
-                  } else if ( n->active_send_event ) {
+                  if (!_mnet_send_rwb(n) && n->active_send_event) {
                      _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
                   } else {
                      _evt_del(n, MNET_SET_WRITE);
