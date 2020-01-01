@@ -19,7 +19,7 @@ local TcpAgent = Chann:extend()
 -- agent
 function TcpAgent:onEvent(emsg, remote)
    
-   if emsg == "recv" then
+   if emsg == "event_recv" then
       
       local buf = self:recv()
       print("recv:\n", buf)
@@ -34,7 +34,7 @@ function TcpAgent:onEvent(emsg, remote)
 
       self:send( data )
 
-   elseif emsg == "disconnect" then
+   elseif emsg == "event_disconnect" then
       
       self:close()
       
@@ -44,7 +44,7 @@ end
 
 -- server
 function TcpServ:onEvent(emsg, remote)
-   if emsg == "accept" then
+   if emsg == "event_accept" then
       -- 
       -- mnet-chann stored 'remote' instance intenal, here only replace
       -- onEvent implement as TcpAgent's

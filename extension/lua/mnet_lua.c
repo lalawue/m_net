@@ -60,11 +60,11 @@ _check_type(lua_State *L, int *types, int count) {
 static const char*
 _event_msg(chann_event_t event) {
    switch (event) {
-      case CHANN_EVENT_RECV: return "recv";
-      case CHANN_EVENT_SEND: return "send";
-      case CHANN_EVENT_ACCEPT:  return "accept";
-      case CHANN_EVENT_CONNECTED: return "connected";
-      case CHANN_EVENT_DISCONNECT: return "disconnect";
+      case CHANN_EVENT_RECV: return "event_recv";
+      case CHANN_EVENT_SEND: return "event_send";
+      case CHANN_EVENT_ACCEPT:  return "event_accept";
+      case CHANN_EVENT_CONNECTED: return "event_connected";
+      case CHANN_EVENT_DISCONNECT: return "event_disconnect";
       default: return "invalid";
    }
 }
@@ -72,7 +72,8 @@ _event_msg(chann_event_t event) {
 static int
 _msg_event(const char *emsg) {
    static const char *events[CHANN_EVENT_DISCONNECT + 1] = {
-      "invalid", "recv", "send", "accept", "connected", "disconnect",
+      "event_invalid", "event_recv", "event_send",
+      "event_accept", "event_connected", "event_disconnect",
    };
    for (int i=0; i<(CHANN_EVENT_DISCONNECT+1); i++) {
       if (strcmp(emsg, events[i]) == 0) {
@@ -84,7 +85,7 @@ _msg_event(const char *emsg) {
 
 static int
 _mnet_init(lua_State *L) {
-   int ret = mnet_init();
+   int ret = mnet_init(0);
    lua_pushboolean(L, ret);
    if (ret && !g_buf) {
       g_buf = malloc(LUA_CHANN_BUF_LEN);
@@ -109,9 +110,9 @@ _mnet_poll(lua_State *L) {
    _RETURN_NONE_NIL(L, 1);
 
    int microseconds = luaL_checkinteger(L, 1);
-   int ret = mnet_poll(microseconds);
+   poll_result_t *result = mnet_poll(microseconds);
 
-   lua_pushinteger(L, ret);
+   lua_pushinteger(L, result->chann_count);
    return 1;
 }
 
@@ -262,9 +263,9 @@ _chann_recv(lua_State *L) {
 
    lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
    if ( lc ) {
-      int ret = mnet_chann_recv(lc->n, lc->buf, lc->buf_len);
-      if (ret >= 0) {
-         lua_pushlstring(L, (const char*)lc->buf, ret);
+      rw_result_t *rw = mnet_chann_recv(lc->n, lc->buf, lc->buf_len);
+      if (rw->ret >= 0) {
+         lua_pushlstring(L, (const char*)lc->buf, rw->ret);
       } else {
          lua_pushnil(L);
       }
@@ -285,8 +286,8 @@ _chann_send(lua_State *L) {
    size_t buf_len = 0;
    const char *buf = lua_tolstring(L, 2, &buf_len);
    if (lc && buf_len>0) {
-      int ret = mnet_chann_send(lc->n, (void*)buf, buf_len);
-      lua_pushinteger(L, ret);
+      rw_result_t *rw = mnet_chann_send(lc->n, (void*)buf, buf_len);
+      lua_pushinteger(L, rw->ret);
       return 1;
    }
    return 0;
@@ -349,10 +350,10 @@ _chann_state(lua_State *L) {
    
    const char *state = "closed";
    switch (ret) {
-      case CHANN_STATE_DISCONNECT: state = "disconnect"; break;
-      case CHANN_STATE_CONNECTING: state = "connecting"; break;
-      case CHANN_STATE_CONNECTED: state = "connected"; break;
-      case CHANN_STATE_LISTENING: state = "listening"; break;
+      case CHANN_STATE_DISCONNECT: state = "state_disconnect"; break;
+      case CHANN_STATE_CONNECTING: state = "state_connecting"; break;
+      case CHANN_STATE_CONNECTED: state = "state_connected"; break;
+      case CHANN_STATE_LISTENING: state = "state_listening"; break;
       default: state = "closed"; break;
    }
    lua_pushstring(L, state);

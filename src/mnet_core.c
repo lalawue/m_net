@@ -1290,6 +1290,7 @@ mnet_chann_active_event(chann_t *n, chann_event_t et, int active) {
 
 rw_result_t*
 mnet_chann_recv(chann_t *n, void *buf, int len) {
+   printf("%p, %p, %d, %d\n", n, buf, len, n->state);
    mnet_t *ss = _gmnet();         
    if (n && buf && len>0 && n->state>=CHANN_STATE_CONNECTED) {
       int ret = 0;

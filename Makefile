@@ -12,9 +12,9 @@ else
 endif
 
 ifeq ($(UNAME_S), Darwin)
-	MNET_LIBNAME="libmnet.dylib"
+	MNET_LIBNAME=libmnet.dylib
 else
-	MNET_LIBNAME="libmnet.so"
+	MNET_LIBNAME=libmnet.so
 endif
 
 CFLAGS= -Wall -std=gnu99 -Wdeprecated-declarations
@@ -64,11 +64,12 @@ _debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_rwdata.out $^ $(LIBS) -DTEST_RWDATA
 
 _lib: $(LIB_SRCS)
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/libmnet.dylib $^ $(LIBS) -shared -fPIC
+	mkdir -p build
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $^ $(LIBS) -shared -fPIC
 
 lua: $(LUA_SRCS) $(LIB_SRCS)
 	mkdir -p build
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(LUA_INCS) $(LUA_LIBS) -o build/$(MNET_LIB_NAME) $^ -shared -fPIC
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(LUA_INCS) $(LUA_LIBS) -o build/mnet.so $^ -shared -fPIC
 
 luajit: $(LIB_SRCS)
 	mkdir -p build

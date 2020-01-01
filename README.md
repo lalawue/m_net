@@ -33,6 +33,7 @@ Please use gmake to build demo under FreeBSD.
 - nonblocking & event driven interface
 - using epoll/kqueue/select in Linux/MacOS/FreeBSD/Windows
 - support Lua binding
+- support LuaJIT with pull style API
 
 
 
@@ -160,6 +161,26 @@ open your browser to visit '127.0.0.1:8080'.
 
 
 in FreeBSD, modify Makefile to include/link to proper lua lib version.
+
+
+
+
+# LuaJIT Wrapper
+
+try 'make luajit' then run [luajit example][https://github.com/lalawue/m_net/blob/master/examples/echo_svr_luajit.lua]
+
+for LuaJIT's ffi.load() ignore package.cpath, first add 'build' directory into your system's library search path:
+
+```
+export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$PWD/build # in MacOS
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/build # in Linux
+```
+
+```
+lua examples/chann_web_jit.lua '127.0.0.1:8080'
+```
+
+open your browser to visit '127.0.0.1:8080'.
 
 
 
