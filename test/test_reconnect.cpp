@@ -29,7 +29,7 @@ public:
    
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         rw_result *rw = channRecv(m_buf, sizeof(m_buf));
+         rw_result_t *rw = channRecv(m_buf, sizeof(m_buf));
          channEnableEvent(CHANN_EVENT_SEND);
          channSend(m_buf, rw->ret);
       }

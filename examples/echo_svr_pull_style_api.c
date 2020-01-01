@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
    mnet_init(1);                /* use pull style api */
 
    chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
-   poll_result *results = NULL;
+   poll_result_t *results = NULL;
    char buf[256];
 
    mnet_chann_listen(svr, addr.ip, addr.port, 2);
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
                break;
             }
             case CHANN_EVENT_RECV: {
-               rw_result *rw = mnet_chann_recv(msg->n, buf, 256);
+               rw_result_t *rw = mnet_chann_recv(msg->n, buf, 256);
                mnet_chann_send(msg->n, buf, rw->ret);
                break;
             }

@@ -120,14 +120,14 @@ namespace mnet {
 
       /* data mantipulation
        */
-      rw_result* channRecv(void *buf, int len) {
+      rw_result_t* channRecv(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_recv(m_chann, buf, len);
          }
          return NULL;
       }
 
-      rw_result* channSend(void *buf, int len) {
+      rw_result_t* channSend(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_send(m_chann, buf, len);
          }
@@ -230,7 +230,7 @@ namespace mnet {
       }
       
       // pullEvent with waiting microseconds at most
-      static poll_result* pullEvent(int microseconds) {
+      static poll_result_t* pullEvent(int microseconds) {
          return mnet_poll(microseconds);
       }
 

@@ -152,8 +152,8 @@ typedef struct s_mnet {
    chann_t *del_channs;
 #endif
    int api_style;               // 0:callback 1:pull style
-   poll_result poll_result;
-   rw_result rw_result;
+   poll_result_t poll_result;
+   rw_result_t rw_result;
 } mnet_t;
 
 static mnet_t g_mnet;
@@ -530,7 +530,7 @@ _select_zero(mnet_t *ss, int set) {
    FD_ZERO(&ss->fdset[set]);
 }
 
-static poll_result*
+static poll_result_t*
 _select_poll(int microseconds) {
    int nfds = 0;
    chann_t *n = NULL;
@@ -872,7 +872,7 @@ _evt_del(chann_t *n, int set) {
 }
 
 
-static poll_result*
+static poll_result_t*
 _evt_poll(int microseconds) {
    int nfd = 0;
    mnet_t *ss = _gmnet();
@@ -1281,7 +1281,7 @@ mnet_chann_active_event(chann_t *n, chann_event_t et, int active) {
    }
 }
 
-rw_result*
+rw_result_t*
 mnet_chann_recv(chann_t *n, void *buf, int len) {
    mnet_t *ss = _gmnet();         
    if (n && buf && len>0 && n->state>=CHANN_STATE_CONNECTED) {
@@ -1311,7 +1311,7 @@ mnet_chann_recv(chann_t *n, void *buf, int len) {
    return &ss->rw_result;
 }
 
-rw_result*
+rw_result_t*
 mnet_chann_send(chann_t *n, void *buf, int len) {
    mnet_t *ss = _gmnet();   
    if (n && buf && len>0 && n->state>=CHANN_STATE_CONNECTED) {
@@ -1396,7 +1396,7 @@ mnet_chann_bytes(chann_t *n, int be_send) {
    return -1;
 }
 
-poll_result*
+poll_result_t*
 mnet_poll(int microseconds) {
 #if MNET_OS_WIN
    return _select_poll(microseconds);

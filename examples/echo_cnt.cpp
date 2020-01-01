@@ -15,7 +15,7 @@ static void
 _on_cnt_event(chann_msg_t *msg) {
    if (msg->event == CHANN_EVENT_RECV) {
       char buf[256] = {0};
-      rw_result *rw = mnet_chann_recv(msg->n, buf, 256);
+      rw_result_t *rw = mnet_chann_recv(msg->n, buf, 256);
       if (rw->ret > 0) {
          printf("%s", buf);;
          if ( fgets(buf, 256, stdin) ) {

@@ -28,7 +28,7 @@ public:
    
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         rw_result *rw = channRecv(m_buf, sizeof(m_buf));
+         rw_result_t *rw = channRecv(m_buf, sizeof(m_buf));
          int ret = snprintf(&m_buf[rw->ret-1], sizeof(m_buf)-rw->ret, ". Echo.");
          channSend(m_buf, ret);
       }

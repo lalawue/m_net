@@ -11,6 +11,12 @@ else
 	CPP=g++
 endif
 
+ifeq ($(UNAME_S), Darwin)
+	MNET_LIBNAME="libmnet.dylib"
+else
+	MNET_LIBNAME="libmnet.so"
+endif
+
 CFLAGS= -Wall -std=gnu99 -Wdeprecated-declarations
 CPPFLAGS= -Wall -Wdeprecated-declarations -Wno-deprecated
 
@@ -62,7 +68,11 @@ _lib: $(LIB_SRCS)
 
 lua: $(LUA_SRCS) $(LIB_SRCS)
 	mkdir -p build
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(LUA_INCS) $(LUA_LIBS) -o build/mnet.so $^ -shared -fPIC
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(LUA_INCS) $(LUA_LIBS) -o build/$(MNET_LIB_NAME) $^ -shared -fPIC
+
+luajit: $(LIB_SRCS)
+	mkdir -p build
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $^ -shared -fPIC
 
 clean:
 	rm -rf build
