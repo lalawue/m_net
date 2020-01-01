@@ -8,9 +8,7 @@
 // 
 
 #include <string>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <sstream>
 #include "mnet_core.h"
 
 #ifdef __cplusplus
@@ -55,7 +53,9 @@ namespace mnet {
       void copyAddr(chann_addr_t *a) {
          if (a) {
             addr = *a;
-            addrString = string(a->ip, sizeof(a->ip)) + ":" + std::to_string(a->port);
+            std::ostringstream os;
+            os << a->port;
+            addrString = string(a->ip, sizeof(a->ip)) + ":" + os.str();
          }
       }
       chann_addr_t addr;
