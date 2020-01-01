@@ -116,7 +116,7 @@ local mnet_chann_bytes = mnet_core.mnet_chann_bytes
 local ffinew = ffi.new
 local ffistring = ffi.string
 
-EventNamesTable = {
+local EventNamesTable = {
    "event_recv",
    "event_send",
    "event_accept",
@@ -124,7 +124,7 @@ EventNamesTable = {
    "event_disconnect",
 }
 
-StateNamesTable = {
+local StateNamesTable = {
    "state_closed",
    "state_disconnect",
    "state_connecting",
@@ -132,7 +132,7 @@ StateNamesTable = {
    "state_listening",
 }
 
-ChannTypesTable = {
+local ChannTypesTable = {
    "tcp", "udp", "broadcast"
 }
 
