@@ -169,7 +169,7 @@ in FreeBSD, modify Makefile to include/link to proper lua lib version.
 
 # LuaJIT Wrapper
 
-try 'make luajit' then run [luajit example][https://github.com/lalawue/m_net/blob/master/examples/echo_svr_luajit.lua]
+try 'make luajit' then run [luajit example](https://github.com/lalawue/m_net/blob/master/examples/echo_svr_luajit.lua)
 
 for LuaJIT's ffi.load() ignore package.cpath, first add 'build' directory into your system's library search path:
 
