@@ -9,6 +9,8 @@
 
 #include <string>
 #include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
 #include "mnet_core.h"
 
 #ifdef __cplusplus
