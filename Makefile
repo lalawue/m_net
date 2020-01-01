@@ -48,6 +48,7 @@ _dir:
 
 _debug_c: $(LIB_SRCS) $(C_SRCS)
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_pull_style_api.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_PULL_STYLE_API
 
 _debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_svr.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR

@@ -187,9 +187,6 @@ static inline void* mm_realloc(void *p, size_t n) {
 static inline void mm_free(void *p) {
    mnet_free(p);
 }
-static inline int _is_callback_style_api() {
-   return (_gmnet()->api_style == 0);
-}
 
 static int _log_level = MNET_LOG_INFO;
 static inline void mm_log(chann_t *n, int level, const char *fmt, ...) {
@@ -212,6 +209,12 @@ static inline int
 _min_of(int a, int b) {
    return a < b ? a : b;
 }
+
+static inline int
+_is_callback_style_api() {
+   return (_gmnet()->api_style == 0);
+}
+
 
 /* buf op
  */
@@ -363,14 +366,6 @@ _chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
    }
    ss->channs = n;
    ss->chann_count++;
-   if (!_is_callback_style_api()) {
-      chann_msg_t *msg = &n->msg;
-      msg->next = ss->poll_result.msg;
-      if (ss->poll_result.msg) {
-         ss->poll_result.msg->opaque = msg;
-      }
-      ss->poll_result.msg = msg;
-   }
    mm_log(n, MNET_LOG_VERBOSE, "chann create, type:%d, count %d\n", type, ss->chann_count);
    return n;
 }
@@ -383,17 +378,6 @@ _chann_destroy(mnet_t *ss, chann_t *n) {
       else { ss->channs = n->next; }
       _rwb_destroy(&n->rwb_send);
       ss->chann_count--;
-      if (!_is_callback_style_api()) {
-         chann_msg_t *msg = &n->msg;
-         if (msg->opaque) {
-            ((chann_msg_t *)msg->opaque)->next = msg->next;
-         } else {
-            _gmnet()->poll_result.msg = msg->next;
-         }
-         if (msg->next) {
-            ((chann_msg_t *)msg->next)->opaque = msg->opaque;
-         }
-      }
       mm_log(n, MNET_LOG_VERBOSE, "chann destroy, count %d\n", ss->chann_count);
       n->state = (chann_state_t)-1;
       mm_free(n);
@@ -598,14 +582,17 @@ _select_poll(int microseconds) {
    }
 
    n = ss->channs;
+   chann_msg_t *msg = &n->msg;
    while ( n ) {
       chann_t *nn = n->next;
+      memset(msg, 0, sizeof(*msg));
+      msg->opaque = nn ? (void *)&nn->msg : NULL;
       switch ( n->state ) {
          case CHANN_STATE_LISTENING:
             if ( _select_isset(sr, n->fd) ) {
                if (n->type == CHANN_TYPE_STREAM) {
                   chann_t *c = _chann_accept(ss, n);
-                  if (c) _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0);
+                  if (c) { _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0); }
                } else {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                }
@@ -654,6 +641,7 @@ _select_poll(int microseconds) {
       n = nn;
    }
    ss->poll_result.chann_count = ss->chann_count;
+   ss->poll_result.msg = &ss->channs.msg;
    return &ss->poll_result;
 }
 
@@ -902,6 +890,7 @@ _evt_poll(int microseconds) {
    nfd = epoll_wait(ss->kq, evt->array, evt->size, microseconds);
 #endif
 
+   ss->poll_result.msg = NULL;
    if (nfd<0 && errno!=EINTR) {
       mm_log(NULL, MNET_LOG_ERR, "kevent return %d, errno %d:%s\n", nfd, errno, strerror(errno));
       ss->poll_result.chann_count = -1;
@@ -912,6 +901,13 @@ _evt_poll(int microseconds) {
       for (int i=0; i<nfd; i++) {
          mevent_t *kev = &evt->array[i];
          chann_t *n = (chann_t*)_kev_opaque(kev);
+         memset(&n->msg, 0, sizeof(n->msg));
+         if (ss->poll_result.msg) {
+            n->msg.opaque = ss->poll_result.msg;
+            ss->poll_result.msg = &n->msg;
+         } else {
+            ss->poll_result.msg = &n->msg;
+         }
 
          mm_log(n, MNET_LOG_VERBOSE, "fd:%d,flags:%x,events:%x,state:%d (E:%x,H:%x,R:%x,W:%x)\n",
                 n->fd, _kev_get_flags(kev), _kev_get_events(kev), n->state,

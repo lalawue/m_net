@@ -36,13 +36,12 @@ typedef enum {
 
 typedef struct s_mchann chann_t;
 
-typedef struct s_chann_msg_t {
+typedef struct {
    chann_event_t event;         /* event type */
    int err;                     /* errno */
    chann_t *n;                  /* chann to emit event */
    chann_t *r;                  /* chann accept from remote */
-   void *opaque;                /* opaque in set_cb; prev msg for pull style */
-   struct s_chann_msg_t *next;  /* next msg for pull style */
+   void *opaque;                /* opaque in set_cb; next msg for pull style */
 } chann_msg_t;
 
 typedef struct {
