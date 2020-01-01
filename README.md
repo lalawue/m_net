@@ -18,6 +18,8 @@
 m_net was a [single file](https://github.com/lalawue/m_net/blob/master/src/mnet_core.c)
 cross platform network library, provide a simple and efficient interface for covenient use.
 
+Also support Lua/LuaJIT with pull style API interface.
+
 Support Linux/MacOS/FreeBSD/Windows, using epoll/kqueue/select underlying.
 
 Please use gmake to build demo under FreeBSD.
