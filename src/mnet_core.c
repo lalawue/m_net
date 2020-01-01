@@ -1152,6 +1152,13 @@ void mnet_chann_close(chann_t *n) {
    }
 }
 
+chann_type_t mnet_chann_type(chann_t *n) {
+   if (n) {
+      return n->type;
+   }
+   return (chann_type_t)0;
+}
+
 int mnet_chann_state(chann_t *n) {
    return n ? n->state : -1;
 }
