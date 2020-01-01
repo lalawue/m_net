@@ -28,8 +28,8 @@ public:
    
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         int ret = channRecv(m_buf, sizeof(m_buf));
-         ret = snprintf(&m_buf[ret-1], sizeof(m_buf)-ret, ". Echo.");
+         rw_result *rw = channRecv(m_buf, sizeof(m_buf));
+         int ret = snprintf(&m_buf[rw->ret-1], sizeof(m_buf)-rw->ret, ". Echo.");
          channSend(m_buf, ret);
       }
       else if (event == CHANN_EVENT_DISCONNECT) {
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
          }
       }
 
-      while ( ChannDispatcher::pullEvent(1000) > 0 ) {
+      while (ChannDispatcher::pullEvent(1000)->chann_count > 0) {
          cout << mnet_report(0) << endl;
       }
 

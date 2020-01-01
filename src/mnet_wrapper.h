@@ -31,7 +31,7 @@ namespace mnet {
 
    class ChannAddr {
      public:
-      ChannAddr() { ChannAddr("0.0.0.0:8972"); }
+      ChannAddr() { addr.port = 0; }
       ChannAddr(string ipPort) {
          addrString = ipPort;
          mnet_parse_ipport((char*)ipPort.c_str(), &addr);
@@ -52,6 +52,12 @@ namespace mnet {
          }
          return ChannAddr();
       }
+      void copyAddr(chann_addr_t *a) {
+         if (a) {
+            addr = *a;
+            addrString = string(a->ip, sizeof(a->ip)) + ":" + std::to_string(a->port);
+         }
+      }
       chann_addr_t addr;
       string addrString;
    };
@@ -65,7 +71,7 @@ namespace mnet {
       Chann() {}
 
       Chann(string streamType) {
-         mnet_init();         
+         mnet_init(0);
          m_chann = mnet_chann_open( channType(streamType) );
          m_handler = NULL;
       }
@@ -89,18 +95,18 @@ namespace mnet {
        */
       bool channListen(string ipPort) {
          if (m_chann && ipPort.length()>0) {
-            m_addr = ChannAddr(ipPort);
+            ChannAddr addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_listen(m_chann, m_addr.addr.ip, m_addr.addr.port, 16);
+            return mnet_chann_listen(m_chann, addr.addr.ip, addr.addr.port, 16);
          }
          return false;
       }
    
       bool channConnect(string ipPort) {
          if (m_chann && ipPort.length()>0) {
-            m_addr = ChannAddr(ipPort);
+            m_peer = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_connect(m_chann, m_addr.addr.ip, m_addr.addr.port);
+            return mnet_chann_connect(m_chann, m_peer.addr.ip, m_peer.addr.port);
          }
          return false;
       }
@@ -114,18 +120,18 @@ namespace mnet {
 
       /* data mantipulation
        */
-      int channRecv(void *buf, int len) {
+      rw_result* channRecv(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_recv(m_chann, buf, len);
          }
-         return -1;
+         return NULL;
       }
 
-      int channSend(void *buf, int len) {
+      rw_result* channSend(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_send(m_chann, buf, len);
          }
-         return -1;
+         return NULL;
       }
 
 
@@ -155,7 +161,15 @@ namespace mnet {
 
       /* misc
        */
-      inline ChannAddr peerAddr(void) { return m_addr; };
+      inline ChannAddr& myAddr(void) {
+         if (m_addr.addr.port <= 0) {
+            chann_addr_t addr;
+            mnet_chann_addr(m_chann, &addr);
+            m_addr.copyAddr(&addr);
+         }
+         return m_addr;
+      }
+      inline ChannAddr& peerAddr(void) { return m_peer; };
       inline int dataCached(void) { return mnet_chann_cached(m_chann); }
       inline bool isConnected(void) { return mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED; } /*  */
 
@@ -193,7 +207,8 @@ namespace mnet {
       }
 
       chann_t *m_chann;
-      ChannAddr m_addr;
+      ChannAddr m_peer;            // peer addr
+      ChannAddr m_addr;            // my addr
       channEventHandler m_handler; // external event handler
    };
 
@@ -215,7 +230,7 @@ namespace mnet {
       }
       
       // pullEvent with waiting microseconds at most
-      static int pullEvent(int microseconds) {
+      static poll_result* pullEvent(int microseconds) {
          return mnet_poll(microseconds);
       }
 

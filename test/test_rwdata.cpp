@@ -43,10 +43,10 @@ public:
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         int ret = channRecv(m_buf, kBufSize);
-         if (ret > 0) {
-            m_recved += ret;
-            m_sended += channSend(m_buf, ret);
+         rw_result *rw = channRecv(m_buf, kBufSize);
+         if (rw->ret > 0) {
+            m_recved += rw->ret;
+            m_sended += channSend(m_buf, rw->ret)->ret;
          }
       }
       if (event == CHANN_EVENT_DISCONNECT) {
@@ -67,9 +67,9 @@ public:
 
    void sendBatchData() {
       fillDataBuf();
-      int ret = channSend(m_buf, kBufSize);
-      if (ret > 0) {
-         m_sended += ret;
+      rw_result *rw = channSend(m_buf, kBufSize);
+      if (rw->ret > 0) {
+         m_sended += rw->ret;
       }
    }
 
@@ -83,9 +83,9 @@ public:
    }
 
    bool recvBatchData() {
-      int ret = channRecv(m_buf, kBufSize);
-      if (ret>0 && checkDataBuf(ret)) {
-         m_recved += ret;
+      rw_result *rw = channRecv(m_buf, kBufSize);
+      if (rw->ret>0 && checkDataBuf(rw->ret)) {
+         m_recved += rw->ret;
          cout << "c recved " << m_recved << endl;
          return true;
       }
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
          delete cnt;
       }
 
-      while (ChannDispatcher::pullEvent(-1) > 0) {
+      while (ChannDispatcher::pullEvent(-1)->chann_count > 0) {
       }
    }
 

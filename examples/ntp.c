@@ -115,8 +115,8 @@ _ntp_event_cb(chann_msg_t *e) {
    ntp_ctx_t *ctx = (ntp_ctx_t*)e->opaque;
 
    if (e->event == CHANN_EVENT_RECV) {
-      int ret = mnet_chann_recv(e->n, &ctx->packet, sizeof(ctx->packet));
-      if (ret == sizeof(ctx->packet)) {
+      rw_result *rw = mnet_chann_recv(e->n, &ctx->packet, sizeof(ctx->packet));
+      if (rw->ret == sizeof(ctx->packet)) {
          printf("ntp: get response from ntp server:\n\n");
          _ntp_parse_response(ctx);
       } else {
@@ -153,7 +153,8 @@ _ntp_loop(ntp_ctx_t *ctx) {
    ctx->packet.flags = NTP_VERSION;
 
    // send ntp request
-   if (mnet_chann_send(udp, &ctx->packet, sizeof(ctx->packet)) != sizeof(ctx->packet)) {
+   rw_result *rw = mnet_chann_send(udp, &ctx->packet, sizeof(ctx->packet));
+   if (rw->ret != sizeof(ctx->packet)) {
       printf("ntp: fail to send ntp request !\n");
       return;
    }
@@ -189,7 +190,7 @@ int main(int argc, char *argv[]) {
       memset(&ctx, 0, sizeof(ctx));
       ctx.addr = addr;
 
-      mnet_init();
+      mnet_init(0);
 
       _ntp_loop(&ctx);
 

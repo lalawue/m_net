@@ -36,13 +36,24 @@ typedef enum {
 
 typedef struct s_mchann chann_t;
 
-typedef struct {
+typedef struct s_chann_msg_t {
    chann_event_t event;         /* event type */
    int err;                     /* errno */
    chann_t *n;                  /* chann to emit event */
    chann_t *r;                  /* chann accept from remote */
-   void *opaque;                /* opaque in set_cb */
+   void *opaque;                /* opaque in set_cb; prev msg for pull style */
+   struct s_chann_msg_t *next;  /* next msg for pull style */
 } chann_msg_t;
+
+typedef struct {
+   int chann_count;             /* -1 for error */
+   chann_msg_t *msg;            /* msg for pull style result */
+} poll_result;
+
+typedef struct {
+   int ret;                     /* recv/send data length */
+   chann_msg_t *msg;            /* msg for pull style result */
+} rw_result;
 
 typedef struct {
    char ip[16];
@@ -61,11 +72,13 @@ void mnet_setlog(int level, mnet_log_cb); /* 0:disable, 1:error, 2:info, 3:verbo
 
 
 /* init before use chann */
-int mnet_init(void);
+int mnet_init(int); /* 0: callback style
+                       1: pull style api*/
 void mnet_fini(void);
-int mnet_report(int level);     /* 0:chann_count 1:chann_detail */
+int mnet_report(int level);     /* 0: chann_count 
+                                   1: chann_detail */
 
-int mnet_poll(int microseconds); /* dispatch chann event,  */
+poll_result* mnet_poll(int microseconds); /* dispatch chann event,  */
 
 
 
@@ -81,8 +94,8 @@ void mnet_chann_disconnect(chann_t *n);
 void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb, void *opaque);
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int active);
 
-int mnet_chann_recv(chann_t *n, void *buf, int len);
-int mnet_chann_send(chann_t *n, void *buf, int len);
+rw_result* mnet_chann_recv(chann_t *n, void *buf, int len);
+rw_result* mnet_chann_send(chann_t *n, void *buf, int len);
 
 int mnet_chann_set_bufsize(chann_t *n, int bufsize);
 int mnet_chann_cached(chann_t *n);

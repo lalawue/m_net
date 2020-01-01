@@ -29,9 +29,9 @@ public:
    
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         int ret = channRecv(m_buf, sizeof(m_buf));
+         rw_result *rw = channRecv(m_buf, sizeof(m_buf));
          channEnableEvent(CHANN_EVENT_SEND);
-         channSend(m_buf, ret);
+         channSend(m_buf, rw->ret);
       }
       else if (event == CHANN_EVENT_SEND || 
                event == CHANN_EVENT_DISCONNECT)
@@ -52,7 +52,7 @@ public:
       switch (event) {
          case CHANN_EVENT_CONNECTED: {
             int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ %d", m_idx);
-            if (ret == channSend(m_buf, ret)) {
+            if (ret == channSend(m_buf, ret)->ret) {
                cout << m_idx << ": connected, send '" << m_buf << "'" << endl;
             } else {
                cout << m_idx << ": connected, fail to send with ret " << ret << endl;

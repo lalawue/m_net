@@ -25,10 +25,11 @@ public:
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
 
       if (event == CHANN_EVENT_RECV) {
-         int ret = channRecv(m_buf, 256);
-         channSend(m_buf, ret);
+         rw_result *rw = channRecv(m_buf, 256);
+         channSend(m_buf, rw->ret);
       }
       if (event == CHANN_EVENT_DISCONNECT) {
+         cout << "svr disconnect cnt with chann " << this->myAddr().addrString << endl;         
          delete this;           // release chann
       }
    }
@@ -49,6 +50,7 @@ int main(int argc, char *argv[]) {
                   CntChann *cnt = new CntChann(accept);
                   char welcome[] = "Welcome to echoServ\n";
                   cnt->channSend((void*)welcome, sizeof(welcome));
+                  cout << "svr accept cnt with chann " << cnt->myAddr().addrString << endl;
                   delete accept;
                }
             });
