@@ -114,6 +114,7 @@ local mnet_chann_state = mnet_core.mnet_chann_state
 local mnet_chann_bytes = mnet_core.mnet_chann_bytes
 
 local ffinew = ffi.new
+local fficopy = ffi.copy
 local ffistring = ffi.string
 
 local EventNamesTable = {
@@ -195,10 +196,12 @@ end
 function Core.resolve(host, port, chann_type)
    local addr = ffinew("chann_addr_t[1]")
    local ctype = ffinew("chann_type_t", tonumber(chann_type))
-   if mnet_core.mnet_resolve(host, tonumber(port), ctype, addr[0]) > 0 then
+   local buf = ffinew("char[?]", host:len())
+   fficopy(buf, host, host:len())
+   if mnet_core.mnet_resolve(buf, tonumber(port), ctype, addr[0]) > 0 then
       local tbl = {}
-      tbl.ip = ffistring(addr.ip, 16)
-      tbl.port = tonumber(addr.port)
+      tbl.ip = ffistring(addr[0].ip, 16)
+      tbl.port = tonumber(addr[0].port)
       return tbl
    else
       return nil
@@ -299,7 +302,7 @@ function Chann:send(data)
    end
    local buf = ffinew("uint8_t[?]", data:len())
    local rw = ffinew("rw_result_t *");
-   ffi.copy(buf, data, data:len())
+   fficopy(buf, data, data:len())
    rw = mnet_chann_send(self.m_chann, buf, ffinew("int", data:len()))
    if rw.ret <= 0 then
       if self.m_callback then
