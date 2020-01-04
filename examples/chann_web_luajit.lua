@@ -21,10 +21,11 @@ local addr = Core.parseIpPort(ipport)
 print("open svr in ", addr.ip, addr.port)
 
 local svr = Core.openChann("tcp")
-svr:listen(addr.ip, addr.port, 2)
+svr:listen(addr.ip, addr.port, 100)
 
 -- client callback function
 local function clientCallback(self, eventName, accept)
+   -- print("eventName: ", eventName)
    if eventName == "event_recv" then
       local buf = self:recv()
       print("recv:\n", buf)
@@ -36,16 +37,17 @@ local function clientCallback(self, eventName, accept)
          .. 'Content-Type: text/plain\r\n'
          .. string.format("Content-Length: %d\r\n\r\n", toast:len())
          .. toast
+
+      self:activeEvent("event_send", true)      
       self:send( data )
       
-   elseif eventName == "event_disconnect" then
+   elseif eventName == "event_disconnect" or eventName == "event_send" then
       local addr = self:addr()
       print("---")
       print("client ip: " .. addr.ip .. ":" .. addr.port)
       print("state: " .. self:state())
       print("bytes send: " .. self:bytes(1))
       self:close()
-      svr = nil
    end
 end
 

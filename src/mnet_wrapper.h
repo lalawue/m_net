@@ -95,11 +95,11 @@ namespace mnet {
 
       /* build network 
        */
-      bool channListen(string ipPort) {
+      bool channListen(string ipPort, int backlog = 16) {
          if (m_chann && ipPort.length()>0) {
             ChannAddr addr = ChannAddr(ipPort);
             mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
-            return mnet_chann_listen(m_chann, addr.addr.ip, addr.addr.port, 16);
+            return mnet_chann_listen(m_chann, addr.addr.ip, addr.addr.port, backlog);
          }
          return false;
       }

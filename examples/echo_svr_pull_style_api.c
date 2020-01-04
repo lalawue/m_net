@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
    poll_result_t *results = NULL;
    char buf[256];
 
-   mnet_chann_listen(svr, addr.ip, addr.port, 2);
+   mnet_chann_listen(svr, addr.ip, addr.port, 100);
    printf("svr start listen: %s\n", argv[1]);
 
    while (1) {
@@ -51,9 +51,11 @@ int main(int argc, char *argv[]) {
             }
             case CHANN_EVENT_RECV: {
                rw_result_t *rw = mnet_chann_recv(msg->n, buf, 256);
+               mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
                mnet_chann_send(msg->n, buf, rw->ret);
                break;
             }
+            case CHANN_EVENT_SEND:               
             case CHANN_EVENT_DISCONNECT: {
                chann_addr_t addr;
                mnet_chann_addr(msg->n, &addr);

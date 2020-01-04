@@ -118,12 +118,12 @@ struct s_mchann {
    int64_t bytes_recv;
    int active_send_event;
    int buf_size;
+   chann_msg_t msg;   
 #if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
    struct s_mchann *del_prev;   /* for delete */
    struct s_mchann *del_next;   /* for delete */
    uint32_t epoll_events;
 #endif
-   chann_msg_t msg;
 };
 
 #if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
@@ -467,8 +467,8 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
    n->msg.n = n;
    n->msg.r = r;
    if (_is_callback_style_api()) {
-      n->msg.opaque = n->opaque;
       if ( n->cb ) {
+         n->msg.opaque = n->opaque;         
          n->cb( &n->msg );
       } else {
          mm_log(n, MNET_LOG_ERR, "chann fd:%d no callback\n", n->fd);
@@ -890,7 +890,8 @@ _evt_poll(int microseconds) {
    nfd = epoll_wait(ss->kq, evt->array, evt->size, microseconds);
 #endif
 
-   ss->poll_result.msg = NULL;
+   memset(&ss->poll_result, 0, sizeof(ss->poll_result));
+   
    if (nfd<0 && errno!=EINTR) {
       mm_log(NULL, MNET_LOG_ERR, "kevent return %d, errno %d:%s\n", nfd, errno, strerror(errno));
       ss->poll_result.chann_count = -1;
@@ -901,13 +902,10 @@ _evt_poll(int microseconds) {
       for (int i=0; i<nfd; i++) {
          mevent_t *kev = &evt->array[i];
          chann_t *n = (chann_t*)_kev_opaque(kev);
+         
          memset(&n->msg, 0, sizeof(n->msg));
-         if (ss->poll_result.msg) {
-            n->msg.opaque = ss->poll_result.msg;
-            ss->poll_result.msg = &n->msg;
-         } else {
-            ss->poll_result.msg = &n->msg;
-         }
+         n->msg.opaque = ss->poll_result.msg;
+         ss->poll_result.msg = &n->msg;
 
          mm_log(n, MNET_LOG_VERBOSE, "fd:%d,flags:%x,events:%x,state:%d (E:%x,H:%x,R:%x,W:%x)\n",
                 n->fd, _kev_get_flags(kev), _kev_get_events(kev), n->state,
@@ -1315,6 +1313,7 @@ mnet_chann_recv(chann_t *n, void *buf, int len) {
       return &ss->rw_result;
    }
    ss->rw_result.ret = -1;
+   ss->rw_result.msg = NULL;
    return &ss->rw_result;
 }
 
@@ -1356,6 +1355,7 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
       return &ss->rw_result;
    }
    ss->rw_result.ret = -1;
+   ss->rw_result.msg = NULL;
    return &ss->rw_result;
 }
 

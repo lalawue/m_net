@@ -115,6 +115,8 @@ local mnet_chann_bytes = mnet_core.mnet_chann_bytes
 
 local ffinew = ffi.new
 local fficopy = ffi.copy
+local fficast = ffi.cast
+local ffiistype = ffi.istype
 local ffistring = ffi.string
 
 local EventNamesTable = {
@@ -168,15 +170,15 @@ function Core.report(level)
 end
 
 function Core.poll(microseconds)
-   local result = ffinew("poll_result_t *");
+   local result = ffinew("poll_result_t *")   
    result = mnet_poll(microseconds)
    if result.chann_count < 0 then
       return -1
-   else
+   elseif result.chann_count > 0 then
       local msg = result.msg
       while msg ~= nil do
          local accept = nil
-         if msg.r then
+         if msg.r ~= nil then
             accept = {}
             setmetatable(accept, Chann)
             accept.m_chann = msg.r
@@ -187,10 +189,14 @@ function Core.poll(microseconds)
          if chann and chann.m_callback then
             chann.m_callback(chann, EventNamesTable[tonumber(msg.event)], accept)
          end
-         msg = msg.opaque
+         if msg.opaque ~= nil then
+            msg = ffinew("chann_msg_t *", msg.opaque)
+         else
+            break
+         end
       end
-      return result.chann_count
    end
+   return result.chann_count
 end
 
 function Core.resolve(host, port, chann_type)
@@ -274,18 +280,16 @@ function Chann:setCallback(callback)
 end
 
 function Chann:activeEvent(eventName, isActive)
-   if eventName == "chann_event_send" then
+   if eventName == "event_send" then
       local active = ffinew("int", isActive)
-      local event = ffinew("chann_event_t", 2)
-      mnet_chann_active_event(self.m_chann, event, active)
+      mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, active)
    end
 end
 
 function Chann:recv()
+   local rw = ffinew("rw_result_t *")   
    local buf = ffinew("uint8_t[?]", self.m_bufsize)
-   local rw = ffinew("rw_result_t *");   
    rw = mnet_chann_recv(self.m_chann, buf, ffinew("int", self.m_bufsize))
-   print("ret length ", rw.ret)
    if rw.ret <= 0 then
       if self.m_callback then
          self.m_callback(self, EventNamesTable[tonumber(rw.msg.event)], nil)
@@ -300,8 +304,8 @@ function Chann:send(data)
    if type(data) ~= "string" then
       return false
    end
+   local rw = ffinew("rw_result_t *")
    local buf = ffinew("uint8_t[?]", data:len())
-   local rw = ffinew("rw_result_t *");
    fficopy(buf, data, data:len())
    rw = mnet_chann_send(self.m_chann, buf, ffinew("int", data:len()))
    if rw.ret <= 0 then
@@ -334,7 +338,7 @@ function Chann:addr()
 end
 
 function Chann:state()
-   return StateNamesTable[tonumber(mnet_chann_state(self.m_chann))]
+   return StateNamesTable[tonumber(mnet_chann_state(self.m_chann)) + 1]
 end
 
 function Chann:bytes(beSend)

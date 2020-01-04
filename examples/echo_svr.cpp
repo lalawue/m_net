@@ -26,9 +26,10 @@ public:
 
       if (event == CHANN_EVENT_RECV) {
          rw_result_t *rw = channRecv(m_buf, 256);
+         channEnableEvent(CHANN_EVENT_SEND);         
          channSend(m_buf, rw->ret);
       }
-      if (event == CHANN_EVENT_DISCONNECT) {
+      else if (event==CHANN_EVENT_DISCONNECT || event==CHANN_EVENT_SEND) {
          cout << "svr disconnect cnt with chann " << this->myAddr().addrString << endl;         
          delete this;           // release chann
       }
@@ -42,7 +43,7 @@ int main(int argc, char *argv[]) {
    } else {
       Chann echoSvr("tcp");
 
-      if ( echoSvr.channListen(argv[1]) ) {
+      if ( echoSvr.channListen(argv[1], 100) ) {
          cout << "svr start listen: " << argv[1] << endl;
 
          echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err) {

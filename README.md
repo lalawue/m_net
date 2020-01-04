@@ -195,6 +195,24 @@ in [examples](https://github.com/lalawue/m_net/tree/master/examples) and
 
 
 
+# Benchmark
+
+benchmark for LuaJIT's examples/chann_web_luajit.lua '127.0.0.1:8080'
+
+```
+# ab -c 100 -n 5000 http://localhost:8080/empty
+
+Concurrency Level:      100
+Time taken for tests:   0.798 seconds
+Complete requests:      5000
+Failed requests:        0
+Total transferred:      530000 bytes
+HTML transferred:       75000 bytes
+Requests per second:    6262.88 [#/sec] (mean)
+Time per request:       15.967 [ms] (mean)
+Time per request:       0.160 [ms] (mean, across all concurrent requests)
+Transfer rate:          648.31 [Kbytes/sec] received
+```
 
 
 # Projects
