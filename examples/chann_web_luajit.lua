@@ -28,7 +28,7 @@ local svr = Core.openChann("tcp")
 svr:listen(addr.ip, addr.port, 100)
 
 -- client callback function
-local function clientCallback(self, eventName, accept)
+local function clientCallback(self, eventName, accept, c_msg)
    --print("eventName: ", eventName)
    if eventName == "event_recv" then
       local buf = self:recv()
@@ -41,23 +41,19 @@ local function clientCallback(self, eventName, accept)
          .. 'Content-Type: text/plain\r\n'
          .. string.format("Content-Length: %d\r\n\r\n", toast:len())
          .. toast
+         .. "\n\n"
 
       -- receive 'event_send' when send buffer was empty
       self:activeEvent("event_send", true)
       self:send( data )
       
    elseif eventName == "event_disconnect" or eventName == "event_send" then
-      if self.client_has_send then
          local addr = self:addr()
          print("---")
          print("client ip: " .. addr.ip .. ":" .. addr.port)
          print("state: " .. self:state())
          print("bytes send: " .. self:sendByes())
          self:close()
-      else
-         self:send("\n     \n     \n     \n")
-         self.client_has_send = true
-      end
    end
 end
 
