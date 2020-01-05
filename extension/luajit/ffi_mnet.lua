@@ -147,7 +147,7 @@ local Chann = {
    m_type = nil,                -- 'tcp', 'udp', 'broadcast'
    m_chann = nil,               -- chann_t
    m_callback = nil,            -- callback
-   m_addr = nil,
+   m_addr = nil,                -- self addr
 }
 Chann.__index = Chann
 
@@ -198,7 +198,7 @@ function Core.poll(microseconds)
          end
          local chann = AllChannsTable[tostring(msg.n)]
          if chann and chann.m_callback then
-            chann.m_callback(chann, EventNamesTable[tonumber(msg.event)], accept)
+            chann.m_callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
          end
          msg = msg.next
       end
@@ -286,7 +286,7 @@ function Chann:disconnect()
    mnet_chann_disconnect(self.m_chann)
 end
 
--- callback params should be (self, eventName, acceptChann) 
+-- callback params should be (self, eventName, acceptChann, c_msg)
 function Chann:setCallback(callback)
    self.m_callback = callback
 end
