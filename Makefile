@@ -36,10 +36,6 @@ DIRS := $(shell find src -type d)
 
 INCS := $(foreach n, $(DIRS), -I$(n))
 
-LUA_SRCS := $(shell find extension/lua -name "*.c")
-LUA_INCS := -I/usr/local/include
-LUA_LIBS := -L/usr/local/lib -llua
-
 .PHONY : all
 .PHONY : dir
 .PHONY : debug_c
@@ -47,7 +43,7 @@ LUA_LIBS := -L/usr/local/lib -llua
 .PHONY : lib
 .PHONY : clean
 
-all: _dir _debug_c _debug_cpp _lib
+all: _dir _debug_c _debug_cpp lib
 
 _dir:
 	mkdir -p build
@@ -63,17 +59,11 @@ _debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_reconnect.out $^ $(LIBS) -DTEST_RECONNECT
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_rwdata.out $^ $(LIBS) -DTEST_RWDATA
 
-_lib: $(LIB_SRCS)
+lib: $(LIB_SRCS)
 	mkdir -p build
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $^ $(LIBS) -shared -fPIC
 
-lua: $(LUA_SRCS) $(LIB_SRCS)
-	mkdir -p build
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(LUA_INCS) $(LUA_LIBS) -o build/mnet.so $^ -shared -fPIC
-
-luajit: $(LIB_SRCS)
-	mkdir -p build
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $^ -shared -fPIC
+luajit: lib
 
 clean:
 	rm -rf build
