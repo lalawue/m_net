@@ -116,7 +116,6 @@ local mnet_chann_bytes = mnet_core.mnet_chann_bytes
 local ffinew = ffi.new
 local fficopy = ffi.copy
 local fficast = ffi.cast
-local ffiistype = ffi.istype
 local ffistring = ffi.string
 
 local EventNamesTable = {
@@ -146,16 +145,29 @@ local AllChannsTable = {
 -- chann
 local Chann = {
    m_type = nil,                -- 'tcp', 'udp', 'broadcast'
-   m_chann = nil,               -- chann_t of ctype
-   m_bufsize = 256,             -- default recv buf size
+   m_chann = nil,               -- chann_t
    m_callback = nil,            -- callback
    m_addr = nil,
 }
 Chann.__index = Chann
 
+-- mnet core, shared by all channs
 local Core = {
-   -- mnet core 
+   m_recvsize = 256,            -- default recv buf size
+   m_sendsize = 256,            -- default send buf size
 }
+
+-- C level local veriable
+local _addr = ffinew("chann_addr_t[1]")
+local _ctype = ffinew("chann_type_t", 0)
+
+local _sendbuf = ffinew("uint8_t[?]", Core.m_sendsize)
+local _recvbuf = ffinew("uint8_t[?]", Core.m_recvsize)
+
+local _result = ffinew("poll_result_t *")
+local _rw = ffinew("rw_result_t *")
+
+local _intvalue = ffinew("int", 0)
 
 function Core.init()
    mnet_core.mnet_init(1)
@@ -170,12 +182,11 @@ function Core.report(level)
 end
 
 function Core.poll(microseconds)
-   local result = ffinew("poll_result_t *")   
-   result = mnet_poll(microseconds)
-   if result.chann_count < 0 then
+   _result = mnet_poll(microseconds)
+   if _result.chann_count < 0 then
       return -1
-   elseif result.chann_count > 0 then
-      local msg = result.msg
+   elseif _result.chann_count > 0 then
+      local msg = _result.msg
       while msg ~= nil do
          local accept = nil
          if msg.r ~= nil then
@@ -190,24 +201,25 @@ function Core.poll(microseconds)
             chann.m_callback(chann, EventNamesTable[tonumber(msg.event)], accept)
          end
          if msg.opaque ~= nil then
-            msg = ffinew("chann_msg_t *", msg.opaque)
+            msg = fficast("chann_msg_t *", msg.opaque)
          else
             break
          end
       end
    end
-   return result.chann_count
+   return _result.chann_count
 end
 
 function Core.resolve(host, port, chann_type)
-   local addr = ffinew("chann_addr_t[1]")
-   local ctype = ffinew("chann_type_t", tonumber(chann_type))
-   local buf = ffinew("char[?]", host:len())
+   local buf = _sendbuf
+   if host:len() > self.m_sendsize then
+      buf = ffinew("char[?]", host:len())
+   end
    fficopy(buf, host, host:len())
-   if mnet_core.mnet_resolve(buf, tonumber(port), ctype, addr[0]) > 0 then
+   if mnet_core.mnet_resolve(buf, tonumber(port), _ctype, _addr[0]) > 0 then
       local tbl = {}
-      tbl.ip = ffistring(addr[0].ip, 16)
-      tbl.port = tonumber(addr[0].port)
+      tbl.ip = ffistring(_addr[0].ip, 16)
+      tbl.port = tonumber(_addr[0].port)
       return tbl
    else
       return nil
@@ -215,15 +227,21 @@ function Core.resolve(host, port, chann_type)
 end
 
 function Core.parseIpPort(ipport)
-   local addr = ffinew("chann_addr_t[1]")
-   if mnet_core.mnet_parse_ipport(ipport, addr[0]) > 0 then
+   if mnet_core.mnet_parse_ipport(ipport, _addr[0]) > 0 then
       local tbl = {}
-      tbl.ip = ffistring(addr[0].ip, 16)
-      tbl.port = tonumber(addr[0].port)
+      tbl.ip = ffistring(_addr[0].ip, 16)
+      tbl.port = tonumber(_addr[0].port)
       return tbl
    else
       return nil
    end
+end
+
+function Core.setBufSize(sendsize, recvsize)
+   Core.m_sendsize = math.max(32, sendsize)
+   Core.m_recvsize = math.max(32, recvsize)
+   _sendbuf = ffinew("uint8_t[?]", Core.m_sendsize)
+   _recvbuf = ffinew("uint8_t[?]", Core.m_recvsize)   
 end
 
 --
@@ -233,7 +251,6 @@ end
 function Core.openChann(chann_type)
    local chann = {}
    setmetatable(chann, Chann)
-   assert(chann.m_bufsize)
    if chann_type == "broadcast" then
       chann.m_chann = mnet_chann_open(mnet_core.CHANN_TYPE_BROADCAST);
    elseif chann_type == "udp" then
@@ -252,14 +269,13 @@ function Chann:close()
    AllChannsTable[tostring(self.m_chann)] = nil
    mnet_chann_close(self.m_chann)
    self.m_chann = nil
+   self.m_callback = nil
+   self.m_addr = nil
+   self.m_type = nil
 end
 
 function Chann:channType()
    return self.m_type
-end
-
-function Chann:setRecvBufSize(size)
-   self.m_bufsize = size
 end
 
 function Chann:listen(host, port, backlog)
@@ -281,41 +297,43 @@ end
 
 function Chann:activeEvent(eventName, isActive)
    if eventName == "event_send" then
-      local active = ffinew("int", isActive)
-      mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, active)
+      _intvalue = isActive
+      mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _intvalue)
    end
 end
 
 function Chann:recv()
-   local rw = ffinew("rw_result_t *")   
-   local buf = ffinew("uint8_t[?]", self.m_bufsize)
-   rw = mnet_chann_recv(self.m_chann, buf, ffinew("int", self.m_bufsize))
-   if rw.ret <= 0 then
+   _intvalue = Core.m_recvsize
+   _rw = mnet_chann_recv(self.m_chann, _recvbuf, _intvalue)
+   if _rw.ret <= 0 then
       if self.m_callback then
-         self.m_callback(self, EventNamesTable[tonumber(rw.msg.event)], nil)
+         self.m_callback(self, EventNamesTable[tonumber(_rw.msg.event)], nil)
       end
       return nil
-   else
-      return ffistring(buf, rw.ret)
    end
+   return ffistring(_recvbuf, _rw.ret)
 end
 
 function Chann:send(data)
    if type(data) ~= "string" then
       return false
    end
-   local rw = ffinew("rw_result_t *")
-   local buf = ffinew("uint8_t[?]", data:len())
-   fficopy(buf, data, data:len())
-   rw = mnet_chann_send(self.m_chann, buf, ffinew("int", data:len()))
-   if rw.ret <= 0 then
-      if self.m_callback then
-         self.m_callback(self, EventNamesTable[tonumber(rw.msg.event)], nil)
+   local leftsize = data:len()
+   repeat
+      _intvalue = math.min(leftsize, Core.m_sendsize)
+      fficopy(_sendbuf, data, _intvalue)
+      _rw = mnet_chann_send(self.m_chann, _sendbuf, _intvalue)
+      if _rw.ret <= 0 then
+         if self.m_callback then
+            self.m_callback(self, EventNamesTable[tonumber(_rw.msg.event)], nil)
+         end
+         return false
+      else
+         data = data:sub(_intvalue)
+         leftsize = leftsize - _intvalue
       end
-      return false
-   else
-      return true
-   end
+   until leftsize <= 0
+   return true      
 end
 
 function Chann:setSocketBufSize(size)
@@ -328,11 +346,10 @@ end
 
 function Chann:addr()
    if not self.m_addr then
-      local addr = ffinew("chann_addr_t[1]")
-      mnet_chann_addr(self.m_chann, addr[0])
+      mnet_chann_addr(self.m_chann, _addr[0])
       self.m_addr = {}
-      self.m_addr.ip = ffistring(addr[0].ip, 16)
-      self.m_addr.port = tonumber(addr[0].port)
+      self.m_addr.ip = ffistring(_addr[0].ip, 16)
+      self.m_addr.port = tonumber(_addr[0].port)
    end
    return self.m_addr   
 end
@@ -341,9 +358,14 @@ function Chann:state()
    return StateNamesTable[tonumber(mnet_chann_state(self.m_chann)) + 1]
 end
 
-function Chann:bytes(beSend)
-   local be_send = ffinew("int", beSend or 0)
-   return tonumber(mnet_chann_bytes(self.m_chann, be_send))
+function Chann:recvBytes()
+   _intvalue = 0
+   return tonumber(mnet_chann_bytes(self.m_chann, _intvalue))
+end
+
+function Chann:sendByes()
+   _intvalue = 1
+   return tonumber(mnet_chann_bytes(self.m_chann, _intvalue))
 end
 
 return Core

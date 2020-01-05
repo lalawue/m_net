@@ -20,12 +20,16 @@ Core.init()
 local addr = Core.parseIpPort(ipport)
 print("open svr in ", addr.ip, addr.port)
 
+-- default 256, 256
+Core.setBufSize(32, 1024)
+
+-- open tcp stream
 local svr = Core.openChann("tcp")
 svr:listen(addr.ip, addr.port, 100)
 
 -- client callback function
 local function clientCallback(self, eventName, accept)
-   -- print("eventName: ", eventName)
+   print("eventName: ", eventName)
    if eventName == "event_recv" then
       local buf = self:recv()
       print("recv:\n", buf)
@@ -38,16 +42,22 @@ local function clientCallback(self, eventName, accept)
          .. string.format("Content-Length: %d\r\n\r\n", toast:len())
          .. toast
 
-      self:activeEvent("event_send", true)      
+      -- receive 'event_send' when send buffer was empty
+      self:activeEvent("event_send", true)
       self:send( data )
       
    elseif eventName == "event_disconnect" or eventName == "event_send" then
-      local addr = self:addr()
-      print("---")
-      print("client ip: " .. addr.ip .. ":" .. addr.port)
-      print("state: " .. self:state())
-      print("bytes send: " .. self:bytes(1))
-      self:close()
+      if self.client_has_send then
+         local addr = self:addr()
+         print("---")
+         print("client ip: " .. addr.ip .. ":" .. addr.port)
+         print("state: " .. self:state())
+         print("bytes send: " .. self:sendByes())
+         self:close()
+      else
+         self:send("\n     \n     \n     \n")
+         self.client_has_send = true
+      end
    end
 end
 
@@ -57,7 +67,6 @@ svr:setCallback(function(self, eventName, accept)
          local addr = accept:addr()
          print("---")  
          print("accept client from " .. addr.ip .. ":" .. addr.port)
-         accept:setRecvBufSize(1024) -- default 256
          accept:setCallback(clientCallback) -- client callback function
       end
 end)

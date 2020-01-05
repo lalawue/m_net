@@ -18,7 +18,7 @@
 m_net was a [single file](https://github.com/lalawue/m_net/blob/master/src/mnet_core.c)
 cross platform network library, provide a simple and efficient interface for covenient use.
 
-Also support Lua/LuaJIT with pull style API interface.
+Also support LuaJIT with pull style API interface.
 
 Support Linux/MacOS/FreeBSD/Windows, using epoll/kqueue/select underlying.
 
@@ -34,8 +34,7 @@ Please use gmake to build demo under FreeBSD.
 - with TCP/UDP support
 - nonblocking & event driven interface
 - using epoll/kqueue/select in Linux/MacOS/FreeBSD/Windows
-- support Lua binding
-- support LuaJIT with pull style API
+- support LuaJIT with pull style API (Lua interface was deprecate)
 
 
 
@@ -151,22 +150,6 @@ In the other hand, the C interface with more flexible options.
 
 
 
-# Lua Wrapper
-
-try '$make lua' then run [lua example](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua):
-
-```
-lua examples/chann_web.lua '127.0.0.1:8080'
-```
-
-open your browser to visit '127.0.0.1:8080'.
-
-
-in FreeBSD, modify Makefile to include/link to proper lua lib version.
-
-
-
-
 # LuaJIT Wrapper
 
 try 'make luajit' then run [luajit example](https://github.com/lalawue/m_net/blob/master/examples/chann_web_luajit.lua)
@@ -179,7 +162,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/build # in Linux
 ```
 
 ```
-lua examples/chann_web_jit.lua '127.0.0.1:8080'
+luajit examples/chann_web_jit.lua '127.0.0.1:8080'
 ```
 
 open your browser to visit '127.0.0.1:8080'.
@@ -197,21 +180,21 @@ in [examples](https://github.com/lalawue/m_net/tree/master/examples) and
 
 # Benchmark
 
-benchmark for LuaJIT's examples/chann_web_luajit.lua '127.0.0.1:8080'
+benchmark for LuaJIT's examples/chann_web_luajit.lua '127.0.0.1:8080', under MacBook Pro (13-inch, 2017, Four Thunderbolt 3 Ports)
 
 ```
-# ab -c 100 -n 5000 http://localhost:8080/empty
+# ab -c 100 -n 5000 http://127.0.0.1:8080/empty
 
 Concurrency Level:      100
-Time taken for tests:   0.798 seconds
+Time taken for tests:   0.547 seconds
 Complete requests:      5000
 Failed requests:        0
 Total transferred:      530000 bytes
-HTML transferred:       75000 bytes
-Requests per second:    6262.88 [#/sec] (mean)
-Time per request:       15.967 [ms] (mean)
-Time per request:       0.160 [ms] (mean, across all concurrent requests)
-Transfer rate:          648.31 [Kbytes/sec] received
+HTML transferred:       65000 bytes
+Requests per second:    9134.39 [#/sec] (mean)
+Time per request:       10.948 [ms] (mean)
+Time per request:       0.109 [ms] (mean, across all concurrent requests)
+Transfer rate:          945.55 [Kbytes/sec] received
 ```
 
 
