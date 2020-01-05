@@ -29,7 +29,7 @@ svr:listen(addr.ip, addr.port, 100)
 
 -- client callback function
 local function clientCallback(self, eventName, accept)
-   print("eventName: ", eventName)
+   --print("eventName: ", eventName)
    if eventName == "event_recv" then
       local buf = self:recv()
       print("recv:\n", buf)

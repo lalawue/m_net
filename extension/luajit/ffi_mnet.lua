@@ -32,12 +32,12 @@ typedef enum {
 
 typedef struct s_mchann chann_t;
 
-typedef struct {
+typedef struct s_chann_msg {
    chann_event_t event;         /* event type */
    int err;                     /* errno */
    chann_t *n;                  /* chann to emit event */
    chann_t *r;                  /* chann accept from remote */
-   void *opaque;                /* opaque in set_cb; next msg for pull style */
+   struct s_chann_msg *next;    /* modified as next msg for pull style */
 } chann_msg_t;
 
 typedef struct {
@@ -200,11 +200,7 @@ function Core.poll(microseconds)
          if chann and chann.m_callback then
             chann.m_callback(chann, EventNamesTable[tonumber(msg.event)], accept)
          end
-         if msg.opaque ~= nil then
-            msg = fficast("chann_msg_t *", msg.opaque)
-         else
-            break
-         end
+         msg = msg.next
       end
    end
    return _result.chann_count
