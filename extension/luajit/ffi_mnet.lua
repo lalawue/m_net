@@ -155,6 +155,7 @@ Chann.__index = Chann
 local Core = {
    m_recvsize = 256,            -- default recv buf size
    m_sendsize = 256,            -- default send buf size
+   m_callback = nil
 }
 
 -- C level local veriable
@@ -199,6 +200,8 @@ function Core.poll(microseconds)
          local chann = AllChannsTable[tostring(msg.n)]
          if chann and chann.m_callback then
             chann.m_callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
+         elseif Core.m_callback then
+            Core.m_callback(msg.n, EventNamesTable[tonumber(msg.event)], msg.r, msg)
          end
          msg = msg.next
       end
@@ -238,6 +241,12 @@ function Core.setBufSize(sendsize, recvsize)
    Core.m_recvsize = math.max(32, recvsize)
    _sendbuf = ffinew("uint8_t[?]", Core.m_sendsize)
    _recvbuf = ffinew("uint8_t[?]", Core.m_recvsize)   
+end
+
+-- callback for other channs
+-- params should be (c_chann, eventName, c_accept, c_msg)
+function Core.setCallback(callback)
+   Core.m_callback = callback
 end
 
 --
