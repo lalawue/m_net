@@ -244,7 +244,7 @@ function Core.setBufSize(sendsize, recvsize)
 end
 
 -- callback for other channs
--- params should be (c_chann, eventName, c_accept, c_msg)
+-- params should be (c_chann, event_name, c_accept, c_msg)
 function Core.setCallback(callback)
    Core.m_callback = callback
 end
@@ -295,13 +295,13 @@ function Chann:disconnect()
    mnet_chann_disconnect(self.m_chann)
 end
 
--- callback params should be (self, eventName, acceptChann, c_msg)
+-- callback params should be (self, event_name, acceptChann, c_msg)
 function Chann:setCallback(callback)
    self.m_callback = callback
 end
 
-function Chann:activeEvent(eventName, isActive)
-   if eventName == "event_send" then
+function Chann:activeEvent(event_name, isActive)
+   if event_name == "event_send" then
       _intvalue = isActive
       mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _intvalue)
    end
