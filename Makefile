@@ -14,7 +14,7 @@ endif
 ifeq ($(UNAME_S), Darwin)
 	MNET_LIBNAME=libmnet.dylib
 else
-	MNET_LIBNAME=mnet.so
+	MNET_LIBNAME=libmnet.so
 endif
 
 CFLAGS= -Wall -std=gnu99 -Wdeprecated-declarations
