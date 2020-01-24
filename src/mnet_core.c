@@ -19,11 +19,11 @@
 
 #if MNET_OS_WIN
 #define _CRT_SECURE_NO_WARNINGS
+#define _WIN32_WINNT _WIN32_WINNT_WIN8
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <stdint.h>
-#pragma comment(lib, "ws2_32.lib")
 #endif  // WIN
 
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
@@ -607,7 +607,7 @@ _select_poll(int microseconds) {
                   _chann_msg(n, CHANN_EVENT_CONNECTED, NULL, 0);
                } else {
                   _chann_disconnect_socket(ss, n);
-                  _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, opt);
+                  _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
                }
             }
             if ( _select_isset(se, n->fd) ) {
@@ -641,7 +641,7 @@ _select_poll(int microseconds) {
       n = nn;
    }
    ss->poll_result.chann_count = ss->chann_count;
-   ss->poll_result.msg = &ss->channs.msg;
+   ss->poll_result.msg = &ss->channs->msg;
    return &ss->poll_result;
 }
 
