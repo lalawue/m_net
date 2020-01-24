@@ -223,7 +223,7 @@ namespace mnet {
          if ( !isRunning() ) {
             isRunning() = true;
             while ( isRunning() ) {
-               mnet_poll(100000);
+               mnet_poll(1000000);
             }
          }
       }      
