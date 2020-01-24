@@ -530,6 +530,12 @@ _select_zero(mnet_t *ss, int set) {
    FD_ZERO(&ss->fdset[set]);
 }
 
+static inline chann_msg_t*
+_select_msg(chann_t *n, chann_msg_t *next) {
+   n->msg.opaque = (void *)next;
+   return &n->msg;
+}
+
 static poll_result_t*
 _select_poll(int microseconds) {
    int nfds = 0;
@@ -575,26 +581,30 @@ _select_poll(int microseconds) {
 
    if (select(nfds, sr, sw, se, microseconds >= 0 ? &tv : NULL) < 0) {
       if (errno != EINTR) {
-         perror("select error !\n");
+         mm_log(NULL, MNET_LOG_VERBOSE, "select error %d:%s!\n", errno, strerror(errno));
          ss->poll_result.chann_count = -1;
          return &ss->poll_result;
       }
    }
 
    n = ss->channs;
-   chann_msg_t *msg = &n->msg;
+   chann_msg_t *msg = NULL;
    while ( n ) {
       chann_t *nn = n->next;
-      memset(msg, 0, sizeof(*msg));
-      msg->opaque = nn ? (void *)&nn->msg : NULL;
+      memset(&n->msg, 0, sizeof(n->msg));
+
       switch ( n->state ) {
          case CHANN_STATE_LISTENING:
             if ( _select_isset(sr, n->fd) ) {
                if (n->type == CHANN_TYPE_STREAM) {
                   chann_t *c = _chann_accept(ss, n);
-                  if (c) { _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0); }
+                  if (c) {
+                     _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0);
+                     msg = _select_msg(n, msg);
+                  }
                } else {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
+                  msg = _select_msg(n, msg);
                }
             }
             break;
@@ -605,14 +615,17 @@ _select_poll(int microseconds) {
                if (err == 0) {
                   n->state = CHANN_STATE_CONNECTED;
                   _chann_msg(n, CHANN_EVENT_CONNECTED, NULL, 0);
+                  msg = _select_msg(n, msg);
                } else {
                   _chann_disconnect_socket(ss, n);
                   _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
+                  msg = _select_msg(n, msg);
                }
             }
             if ( _select_isset(se, n->fd) ) {
                _chann_disconnect_socket(ss, n);
                _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
+               msg = _select_msg(n, msg);
             }
             break;
 
@@ -620,13 +633,16 @@ _select_poll(int microseconds) {
             if ( _select_isset(se, n->fd) ) {
                _chann_disconnect_socket(ss, n);
                _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
+               msg = _select_msg(n, msg);
             } else {
                if ( _select_isset(sr, n->fd) ) {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
+                  msg = _select_msg(n, msg);
                }
                if ( _select_isset(sw, n->fd) ) {
                   if (!_mnet_send_rwb(n) && n->active_send_event) {
                      _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
+                     msg = _select_msg(n, msg);
                   }
                }
             }
@@ -641,7 +657,7 @@ _select_poll(int microseconds) {
       n = nn;
    }
    ss->poll_result.chann_count = ss->chann_count;
-   ss->poll_result.msg = &ss->channs->msg;
+   ss->poll_result.msg = msg;
    return &ss->poll_result;
 }
 
