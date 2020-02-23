@@ -211,7 +211,7 @@ end
 
 function Core.resolve(host, port, chann_type)
    local buf = _sendbuf
-   if host:len() > self.m_sendsize then
+   if host:len() > Core.m_sendsize then
       buf = ffinew("char[?]", host:len())
    end
    fficopy(buf, host, host:len())
@@ -241,12 +241,6 @@ function Core.setBufSize(sendsize, recvsize)
    Core.m_recvsize = math.max(32, recvsize)
    _sendbuf = ffinew("uint8_t[?]", Core.m_sendsize)
    _recvbuf = ffinew("uint8_t[?]", Core.m_recvsize)   
-end
-
--- callback for other channs
--- params should be (c_chann, event_name, c_accept, c_msg)
-function Core.setCallback(callback)
-   Core.m_callback = callback
 end
 
 --
@@ -311,9 +305,6 @@ function Chann:recv()
    _intvalue = Core.m_recvsize
    _rw = mnet_chann_recv(self.m_chann, _recvbuf, _intvalue)
    if _rw.ret <= 0 then
-      if self.m_callback then
-         self.m_callback(self, EventNamesTable[tonumber(_rw.msg.event)], nil)
-      end
       return nil
    end
    return ffistring(_recvbuf, _rw.ret)
@@ -329,16 +320,13 @@ function Chann:send(data)
       fficopy(_sendbuf, data, _intvalue)
       _rw = mnet_chann_send(self.m_chann, _sendbuf, _intvalue)
       if _rw.ret <= 0 then
-         if self.m_callback then
-            self.m_callback(self, EventNamesTable[tonumber(_rw.msg.event)], nil)
-         end
          return false
       else
          data = data:sub(_intvalue)
          leftsize = leftsize - _intvalue
       end
    until leftsize <= 0
-   return true      
+   return true
 end
 
 function Chann:setSocketBufSize(size)
