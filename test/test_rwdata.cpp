@@ -41,12 +41,27 @@ class SvrChann : public BaseChann {
 public:
    SvrChann(Chann *c) : BaseChann(c) {}
 
+   bool checkDataBuf(int len) {
+      for (int i=0; len>0 && i<len; i++) {
+         if (m_buf[i] != ((m_recved + i) & 0xff)) {
+            return false;
+         }
+      }
+      return true;
+   }
+
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
          rw_result_t *rw = channRecv(m_buf, kBufSize);
-         if (rw->ret > 0) {
+         if (checkDataBuf(rw->ret)) {
             m_recved += rw->ret;
-            m_sended += channSend(m_buf, rw->ret)->ret;
+            rw = channSend(m_buf, rw->ret);
+            if (rw->ret > 0) {
+               m_sended += rw->ret;
+            }
+         } else {
+            cout << "svr failed to recv ret code: " << rw->ret << endl;
+            releaseSelf();
          }
       }
       if (event == CHANN_EVENT_DISCONNECT) {
@@ -61,7 +76,7 @@ public:
 
    void fillDataBuf () {
       for (int i=0; i<kBufSize; i++) {
-         m_buf[i] = (m_sended + i) & 0xff;
+         m_buf[i] = (unsigned char)((m_sended + i) & 0xff);
       }
    }
 
@@ -75,7 +90,7 @@ public:
 
    bool checkDataBuf(int len) {
       for (int i=0; len>0 && i<len; i++) {
-         if (m_buf[i] != ((m_recved + i) & 0xff)) {
+         if (m_buf[i] != (unsigned char)((m_recved + i) & 0xff)) {
             return false;
          }
       }
@@ -84,10 +99,16 @@ public:
 
    bool recvBatchData() {
       rw_result_t *rw = channRecv(m_buf, kBufSize);
-      if (rw->ret>0 && checkDataBuf(rw->ret)) {
-         m_recved += rw->ret;
-         cout << "c recved " << m_recved << endl;
-         return true;
+      if (rw->ret > 0) {
+         if (checkDataBuf(rw->ret)) {
+            m_recved += rw->ret;
+            cout << "c recved " << m_recved << endl;
+            return true;
+         } else {
+            cout << "c failed to checked data" << endl;
+         }
+      } else {
+         cout << "c failed to recv data" << endl;
       }
       return false;
    }
@@ -96,10 +117,8 @@ public:
       if (event == CHANN_EVENT_CONNECTED) {
          sendBatchData();
       }
-
       if (event == CHANN_EVENT_RECV) {
          if ( !recvBatchData() ) {
-            cout << "fail to recv !" << endl;
             releaseSelf();
          }
 

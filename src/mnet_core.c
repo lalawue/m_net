@@ -200,8 +200,9 @@ static inline void mm_log(chann_t *n, int level, const char *fmt, ...) {
    }
 }
 //#define mm_log(...)             /* use to disable any log handling */
-void mnet_log_default(chann_t *n, int level, const char *log_string) {
-   char slev[8] = { 'D', 'E', 'I', 'V'};
+void
+mnet_log_default(chann_t *n, int level, const char *log_string) {
+   static const char slev[8] = { 'D', 'E', 'I', 'V'};
    printf("[%c]%p: %s", slev[level], n, log_string);
 }
 
@@ -234,7 +235,7 @@ _rwb_available(rwb_t *b) {
 static inline rwb_t*
 _rwb_new(void) {
    rwb_t *b = (rwb_t*)mm_malloc(sizeof(rwb_t) + MNET_BUF_SIZE);
-   b->buf = (unsigned char*)b + sizeof(*b);
+   b->buf = (unsigned char*)b + sizeof(rwb_t);
    return b;
 }
 
@@ -243,8 +244,7 @@ _rwb_create_tail(rwb_head_t *h) {
    if (h->count <= 0) {
       h->head = h->tail = _rwb_new();
       h->count++;
-   }
-   else if (_rwb_available(h->tail) <= 0) {
+   } else if (_rwb_available(h->tail) <= 0) {
       h->tail->next = _rwb_new();
       h->tail = h->tail->next;
       h->count++;
@@ -488,7 +488,7 @@ _chann_get_err(chann_t *n) {
 }
 
 static int
-_mnet_send_rwb(chann_t *n) {
+_chann_try_send_rwb(chann_t *n) {
    rwb_head_t *prh = &n->rwb_send;
    if (_rwb_count(prh) > 0) {
       int ret=0, len=0;
@@ -497,8 +497,7 @@ _mnet_send_rwb(chann_t *n) {
          ret = _chann_send(n, buf, len);
          if (ret > 0) {
             _rwb_drain(prh, ret);
-         }
-         else if (ret < 0 && errno != EWOULDBLOCK) {
+         } else if (ret < 0 && errno != EWOULDBLOCK) {
             mnet_t *ss = _gmnet();
             mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
                    n, n->fd, errno, strerror(errno));
@@ -640,7 +639,7 @@ _select_poll(int microseconds) {
                   msg = _select_msg(n, msg);
                }
                if ( _select_isset(sw, n->fd) ) {
-                  if (!_mnet_send_rwb(n) && n->active_send_event) {
+                  if (!_chann_try_send_rwb(n) && n->active_send_event) {
                      _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
                      msg = _select_msg(n, msg);
                   }
@@ -838,7 +837,7 @@ _evt_add(chann_t *n, int set) {
       }
       n->epoll_events = events;
 #endif
-      mm_log(n, MNET_LOG_VERBOSE, "add chann:%p fd:%d events\n", n, n->fd);
+      mm_log(n, MNET_LOG_VERBOSE, "add chann:%p fd:%d events %d\n", n, n->fd, set);
       return 1;
    }
    return 0;
@@ -881,7 +880,7 @@ _evt_del(chann_t *n, int set) {
       }
       n->epoll_events = events;
 #endif
-      mm_log(n, MNET_LOG_VERBOSE, "del chann:%p fd:%d events\n", n, n->fd);
+      mm_log(n, MNET_LOG_VERBOSE, "del chann:%p fd:%d events %d\n", n, n->fd, set);
       return 1;
    }
    return 0;
@@ -978,10 +977,12 @@ _evt_poll(int microseconds) {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                }
                if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
-                  if (!_mnet_send_rwb(n) && n->active_send_event) {
-                     _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
-                  } else {
-                     _evt_del(n, MNET_SET_WRITE);
+                  if (!_chann_try_send_rwb(n)) {
+                     if (n->active_send_event) {
+                        _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
+                     } else {
+                        _evt_del(n, MNET_SET_WRITE);
+                     }
                   }
                }
                break;
@@ -1158,7 +1159,8 @@ mnet_chann_open(chann_type_t type) {
    return _chann_create(_gmnet(), type, CHANN_STATE_DISCONNECT);
 }
 
-void mnet_chann_close(chann_t *n) {
+void
+mnet_chann_close(chann_t *n) {
    if (n) {
       mnet_t *ss = _gmnet();
       _chann_disconnect_socket(ss, n);
@@ -1166,14 +1168,16 @@ void mnet_chann_close(chann_t *n) {
    }
 }
 
-chann_type_t mnet_chann_type(chann_t *n) {
+chann_type_t
+mnet_chann_type(chann_t *n) {
    if (n) {
       return n->type;
    }
    return (chann_type_t)0;
 }
 
-int mnet_chann_state(chann_t *n) {
+int
+mnet_chann_state(chann_t *n) {
    return n ? n->state : -1;
 }
 
@@ -1326,10 +1330,10 @@ mnet_chann_recv(chann_t *n, void *buf, int len) {
       n->bytes_recv += ret;
       ss->rw_result.ret = ret;
       ss->rw_result.msg = &n->msg;
-      return &ss->rw_result;
+   } else {
+      ss->rw_result.ret = -1;
+      ss->rw_result.msg = NULL;
    }
-   ss->rw_result.ret = -1;
-   ss->rw_result.msg = NULL;
    return &ss->rw_result;
 }
 
@@ -1346,32 +1350,28 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
                 n, n->fd, _rwb_buffered(prh->tail), _rwb_count(prh));
       } else {
          ret = _chann_send(n, buf, len);
-         do {
-            if (ret < 0) {
-               if (errno == EWOULDBLOCK) {
-                  ret = 0;
-               } else {
-                  mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
-                         n, n->fd, errno, strerror(errno));
-                  _chann_disconnect_socket(ss, n);
-                  _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
-                  break;
-               }
+         if (ret < 0) {
+            if (errno == EWOULDBLOCK) {
+               ret = 0;
+            } else {
+               mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
+                      n, n->fd, errno, strerror(errno));
+               _chann_disconnect_socket(ss, n);
+               _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
             }
-            if (ret < len) {
-               mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d cache %d of %d!\n", n, n->fd, len - ret, len);
-               _rwb_cache(prh, ((unsigned char*)buf) + ret, len - ret);
-               ret = len;
-               _evt_add(n, MNET_SET_WRITE);
-            }
-         } while (0);
+         } else if (ret < len) {
+            mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d cache %d of %d!\n", n, n->fd, len - ret, len);
+            _rwb_cache(prh, ((unsigned char*)buf) + ret, len - ret);
+            ret = len;
+            _evt_add(n, MNET_SET_WRITE);
+         }
       }
       ss->rw_result.ret = ret;
       ss->rw_result.msg = &n->msg;
-      return &ss->rw_result;
+   } else {
+      ss->rw_result.ret = -1;
+      ss->rw_result.msg = NULL;
    }
-   ss->rw_result.ret = -1;
-   ss->rw_result.msg = NULL;
    return &ss->rw_result;
 }
 

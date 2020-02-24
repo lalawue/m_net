@@ -126,14 +126,18 @@ namespace mnet {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_recv(m_chann, buf, len);
          }
-         return NULL;
+         m_rw_dummy.ret = 0;
+         m_rw_dummy.msg = NULL;
+         return &m_rw_dummy;
       }
 
       rw_result_t* channSend(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_send(m_chann, buf, len);
          }
-         return NULL;
+         m_rw_dummy.ret = 0;
+         m_rw_dummy.msg = NULL;
+         return &m_rw_dummy;
       }
 
 
@@ -212,6 +216,7 @@ namespace mnet {
       ChannAddr m_peer;            // peer addr
       ChannAddr m_addr;            // my addr
       channEventHandler m_handler; // external event handler
+      rw_result_t m_rw_dummy;
    };
 
 
