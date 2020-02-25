@@ -95,7 +95,7 @@ void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb, void *opaque);
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int active);
 
 rw_result_t* mnet_chann_recv(chann_t *n, void *buf, int len);
-rw_result_t* mnet_chann_send(chann_t *n, void *buf, int len);
+rw_result_t* mnet_chann_send(chann_t *n, void *buf, int len); /* always cached would blocked data */
 
 int mnet_chann_set_bufsize(chann_t *n, int bufsize);
 int mnet_chann_cached(chann_t *n);

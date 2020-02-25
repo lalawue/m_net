@@ -94,7 +94,7 @@ enum {
 typedef struct s_rwbuf {
    int ptr, ptw;
    struct s_rwbuf *next;
-   unsigned char *buf;
+   uint8_t *buf;
 } rwb_t;
 
 typedef struct s_rwbuf_head {
@@ -104,21 +104,21 @@ typedef struct s_rwbuf_head {
 } rwb_head_t;
 
 struct s_mchann {
-   int fd;
-   void *opaque;
-   chann_state_t state;
-   chann_type_t type;
-   chann_msg_cb cb;
-   struct sockaddr_in addr;
-   socklen_t addr_len;
-   rwb_head_t rwb_send;         /* fifo */
-   struct s_mchann *prev;
-   struct s_mchann *next;
-   int64_t bytes_send;
-   int64_t bytes_recv;
-   int active_send_event;
-   int buf_size;
-   chann_msg_t msg;   
+   int fd;                      /* socket */
+   void *opaque;                /* user defined data */
+   chann_state_t state;         /* chann state */
+   chann_type_t type;           /* 'tcp', 'udp', 'broadcast' */
+   chann_msg_cb cb;             /* chann callback for callback style */
+   struct sockaddr_in addr;     /* socket address */
+   socklen_t addr_len;          /* socket address length */
+   rwb_head_t rwb_send;         /* fifo cached for unsend data*/
+   struct s_mchann *prev;       /* double linked prev chann */
+   struct s_mchann *next;       /* double linked next chann */
+   int64_t bytes_send;          /* bytes sended */
+   int64_t bytes_recv;          /* bytes received */
+   int active_send_event;       /* notify user send data buffer empty */
+   int buf_size;                /* system socket buffer size */
+   chann_msg_t msg;             /* chann message body */
 #if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
    struct s_mchann *del_prev;   /* for delete */
    struct s_mchann *del_next;   /* for delete */
@@ -235,7 +235,7 @@ _rwb_available(rwb_t *b) {
 static inline rwb_t*
 _rwb_new(void) {
    rwb_t *b = (rwb_t*)mm_malloc(sizeof(rwb_t) + MNET_BUF_SIZE);
-   b->buf = (unsigned char*)b + sizeof(rwb_t);
+   b->buf = (uint8_t *)b + sizeof(rwb_t);
    return b;
 }
 
@@ -266,7 +266,7 @@ _rwb_destroy_head(rwb_head_t *h) {
 }
 
 static void
-_rwb_cache(rwb_head_t *h, unsigned char *buf, int buf_len) {
+_rwb_cache(rwb_head_t *h, uint8_t *buf, int buf_len) {
    int buf_ptr = 0;
    while (buf_ptr < buf_len) {
       rwb_t *b = _rwb_create_tail(h);
@@ -277,7 +277,7 @@ _rwb_cache(rwb_head_t *h, unsigned char *buf, int buf_len) {
    }
 }
 
-static unsigned char*
+static uint8_t*
 _rwb_drain_param(rwb_head_t *h, int *len) {
    rwb_t *b = h->head;
    *len = _rwb_buffered(b);
@@ -493,7 +493,7 @@ _chann_try_send_rwb(chann_t *n) {
    if (_rwb_count(prh) > 0) {
       int ret=0, len=0;
       do {
-         unsigned char *buf = _rwb_drain_param(prh, &len);
+         uint8_t *buf = _rwb_drain_param(prh, &len);
          ret = _chann_send(n, buf, len);
          if (ret > 0) {
             _rwb_drain(prh, ret);
@@ -1299,7 +1299,7 @@ mnet_chann_active_event(chann_t *n, chann_event_t et, int active) {
          n->active_send_event = active;
          if (active) {
             _evt_add(n, MNET_SET_WRITE);
-         } else {
+         } else if (mnet_chann_cached(n) <= 0) {
             _evt_del(n, MNET_SET_WRITE);
          }
       }
@@ -1345,7 +1345,7 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
       rwb_head_t *prh = &n->rwb_send;
 
       if (_rwb_count(prh) > 0) {
-         _rwb_cache(prh, (unsigned char*)buf, len);
+         _rwb_cache(prh, (uint8_t *)buf, len);
          mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d still cache %d(%d)!\n",
                 n, n->fd, _rwb_buffered(prh->tail), _rwb_count(prh));
       } else {
@@ -1359,9 +1359,10 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
                _chann_disconnect_socket(ss, n);
                _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
             }
-         } else if (ret < len) {
+         }
+         if (ret >= 0 && ret < len) {
             mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d cache %d of %d!\n", n, n->fd, len - ret, len);
-            _rwb_cache(prh, ((unsigned char*)buf) + ret, len - ret);
+            _rwb_cache(prh, ((uint8_t *)buf) + ret, len - ret);
             ret = len;
             _evt_add(n, MNET_SET_WRITE);
          }

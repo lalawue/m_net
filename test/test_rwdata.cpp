@@ -26,38 +26,42 @@ class BaseChann : public Chann {
 public:
    BaseChann(Chann *c) : Chann(c) { m_sended = m_recved = 0; }
    BaseChann(string streamType) : Chann(streamType) {}
+   bool checkDataBuf(int base, int len) {
+      for (int i=0; i<len; i++) {
+         if (m_buf[i] != ((base + i) & 0xff)) {
+            return false;
+         }
+      }
+      return true;
+   }
    void releaseSelf() {
-      cout << "recved " << m_recved << endl
+      cout << "received " << m_recved << endl
            << "sended " << m_sended << endl
            << "release self" << endl;
       delete this;
    }
    int m_sended;
    int m_recved;
-   unsigned char m_buf[kBufSize];
+   uint8_t m_buf[kBufSize];
 };
 
 class SvrChann : public BaseChann {
 public:
    SvrChann(Chann *c) : BaseChann(c) {}
 
-   bool checkDataBuf(int len) {
-      for (int i=0; len>0 && i<len; i++) {
-         if (m_buf[i] != ((m_recved + i) & 0xff)) {
-            return false;
-         }
-      }
-      return true;
-   }
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
          rw_result_t *rw = channRecv(m_buf, kBufSize);
-         if (checkDataBuf(rw->ret)) {
-            m_recved += rw->ret;
-            rw = channSend(m_buf, rw->ret);
+         if (checkDataBuf(m_recved, rw->ret)) {
+            int ret = rw->ret;
+            m_recved += ret;
+            rw = channSend(m_buf, ret);
             if (rw->ret > 0) {
                m_sended += rw->ret;
+               assert(m_recved == m_sended);
+            } else {
+               cout << "invalid send " << endl;
             }
          } else {
             cout << "svr failed to recv ret code: " << rw->ret << endl;
@@ -74,63 +78,47 @@ class CntChann : public BaseChann {
 public:
    CntChann(string streamType) : BaseChann(streamType) {}
 
-   void fillDataBuf () {
-      for (int i=0; i<kBufSize; i++) {
-         m_buf[i] = (unsigned char)((m_sended + i) & 0xff);
-      }
-   }
-
    void sendBatchData() {
-      fillDataBuf();
+      for (int i=0; i<kBufSize; i++) {
+         m_buf[i] = (m_sended + i) & 0xff;
+      }
       rw_result_t *rw = channSend(m_buf, kBufSize);
       if (rw->ret > 0) {
+         assert(rw->ret == kBufSize);
          m_sended += rw->ret;
       }
    }
 
-   bool checkDataBuf(int len) {
-      for (int i=0; len>0 && i<len; i++) {
-         if (m_buf[i] != (unsigned char)((m_recved + i) & 0xff)) {
-            return false;
-         }
-      }
-      return true;
-   }
-
    bool recvBatchData() {
       rw_result_t *rw = channRecv(m_buf, kBufSize);
-      if (rw->ret > 0) {
-         if (checkDataBuf(rw->ret)) {
-            m_recved += rw->ret;
-            cout << "c recved " << m_recved << endl;
-            return true;
-         } else {
-            cout << "c failed to checked data" << endl;
-         }
+      if (checkDataBuf(m_recved, rw->ret)) {
+         m_recved += rw->ret;
+         cout << "c recved " << m_recved << endl;
+         return true;
       } else {
-         cout << "c failed to recv data" << endl;
+         cout << "c failed to checked data: " << rw->ret << endl;
+         return false;         
       }
-      return false;
    }
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_CONNECTED) {
-         sendBatchData();
+         channEnableEvent(CHANN_EVENT_SEND);
       }
       if (event == CHANN_EVENT_RECV) {
-         if ( !recvBatchData() ) {
-            releaseSelf();
-         }
-
-         if (m_sended < kSendedPoint) {
-            sendBatchData();
-         }
-         
-         if (m_recved >= kSendedPoint ) {
+         if (recvBatchData() && m_recved < kSendedPoint) {
+         } else {
             releaseSelf();
          }
       }
-
+      if (event == CHANN_EVENT_SEND) {
+         if (m_sended < kSendedPoint) {
+            sendBatchData();
+         } else {
+            cout << "send enough data " << m_sended << endl;
+            channDisableEvent(CHANN_EVENT_SEND);            
+         }
+      }
       if (event == CHANN_EVENT_DISCONNECT) {
          releaseSelf();
       }
@@ -139,13 +127,13 @@ public:
 
 int main(int argc, char *argv[]) {
 
-   if (argc < 3) {
-      cout << "Usage: " << argv[0] << " [-s|-c] server_ip:port" << endl;
+   if (argc < 2) {
+      cout << "Usage: " << argv[0] << " [-s|-c] [ip:port]" << endl;
       return 0;
    }
 
    string option = argv[1];
-   string ipaddr = argv[2];
+   string ipaddr = argc > 2 ? argv[2] : "127.0.0.1:8090";
 
 
    if (option == "-s") {

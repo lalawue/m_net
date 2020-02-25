@@ -85,13 +85,13 @@ public:
 
 int main(int argc, char *argv[]) {
 
-   if (argc < 3) {
-      cout << "Usage: " << argv[0] << " [-s|-c] server_ip:port" << endl;
+   if (argc < 2) {
+      cout << "Usage: " << argv[0] << " [-s|-c] [ip:port]" << endl;
       return 0;
    }
 
    string option = argv[1];
-   string ipaddr = argv[2];
+   string ipaddr = argc > 2 ?  argv[2] : "127.0.0.1:8090";
 
 
    if (option == "-s") {
