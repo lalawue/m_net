@@ -1168,6 +1168,14 @@ mnet_chann_close(chann_t *n) {
    }
 }
 
+int
+mnet_chann_fd(chann_t *n) {
+   if (n) {
+       return n->fd;
+   }
+   return -1;
+}
+
 chann_type_t
 mnet_chann_type(chann_t *n) {
    if (n) {
