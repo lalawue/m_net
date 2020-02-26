@@ -322,7 +322,7 @@ function Chann:send(data)
       if _rw.ret <= 0 then
          return false
       else
-         data = data:sub(_intvalue)
+         data = data:sub(_intvalue + 1)
          leftsize = leftsize - _intvalue
       end
    until leftsize <= 0
