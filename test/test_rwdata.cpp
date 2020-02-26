@@ -10,6 +10,7 @@
 #ifdef TEST_RWDATA
 
 #include <iostream>
+#include <assert.h>
 #include "mnet_wrapper.h"
 
 using std::cout;
