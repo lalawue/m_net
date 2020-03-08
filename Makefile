@@ -27,6 +27,8 @@ LIBS= -lc
 
 LIB_SRCS := $(shell find src -name "*.c")
 C_SRCS := $(shell find examples -name "*.c")
+C_SRCS += $(shell find test -name "*.c")
+
 CPP_SRCS := $(shell find test -name "*.cpp")
 CPP_SRCS += $(shell find examples -name "*.cpp")
 
@@ -50,7 +52,8 @@ _dir:
 
 _debug_c: $(LIB_SRCS) $(C_SRCS)
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_pull_style_api.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_PULL_STYLE_API
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_pull_style.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_rwdata_pull_style.out $^ $(LIBS) -DTEST_RWDATA_PULL_STYLE
 
 _debug_cpp: $(LIB_SRCS) $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_svr.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR

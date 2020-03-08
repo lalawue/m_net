@@ -124,6 +124,7 @@ struct s_mchann {
    struct s_mchann *del_next;   /* for delete */
    uint32_t epoll_events;
 #endif
+   struct s_mchann *tmp_next;   /* for pull style */
 };
 
 #if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
@@ -473,6 +474,12 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
       } else {
          mm_log(n, MNET_LOG_ERR, "chann fd:%d no callback\n", n->fd);
       }
+   } else {
+      mnet_t *ss = _gmnet();
+      if (ss->poll_result.reserved != n) {
+         n->tmp_next = (chann_t *)ss->poll_result.reserved;
+         ss->poll_result.reserved = n;
+      }
    }
 }
 
@@ -529,12 +536,6 @@ _select_zero(mnet_t *ss, int set) {
    FD_ZERO(&ss->fdset[set]);
 }
 
-static inline chann_msg_t*
-_select_msg(chann_t *n, chann_msg_t *next) {
-   n->msg.opaque = (void *)next;
-   return &n->msg;
-}
-
 static poll_result_t*
 _select_poll(int microseconds) {
    int nfds = 0;
@@ -544,6 +545,7 @@ _select_poll(int microseconds) {
    fd_set *sr, *sw, *se;
 
    nfds = 0;
+   memset(&ss->poll_result, 0, sizeof(ss->poll_result));
 
    _select_zero(ss, MNET_SET_READ);
    _select_zero(ss, MNET_SET_WRITE);
@@ -587,7 +589,6 @@ _select_poll(int microseconds) {
    }
 
    n = ss->channs;
-   chann_msg_t *msg = NULL;
    while ( n ) {
       chann_t *nn = n->next;
       memset(&n->msg, 0, sizeof(n->msg));
@@ -599,11 +600,9 @@ _select_poll(int microseconds) {
                   chann_t *c = _chann_accept(ss, n);
                   if (c) {
                      _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0);
-                     msg = _select_msg(n, msg);
                   }
                } else {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
-                  msg = _select_msg(n, msg);
                }
             }
             break;
@@ -614,17 +613,14 @@ _select_poll(int microseconds) {
                if (err == 0) {
                   n->state = CHANN_STATE_CONNECTED;
                   _chann_msg(n, CHANN_EVENT_CONNECTED, NULL, 0);
-                  msg = _select_msg(n, msg);
                } else {
                   _chann_disconnect_socket(ss, n);
                   _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
-                  msg = _select_msg(n, msg);
                }
             }
             if ( _select_isset(se, n->fd) ) {
                _chann_disconnect_socket(ss, n);
                _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
-               msg = _select_msg(n, msg);
             }
             break;
 
@@ -632,16 +628,13 @@ _select_poll(int microseconds) {
             if ( _select_isset(se, n->fd) ) {
                _chann_disconnect_socket(ss, n);
                _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
-               msg = _select_msg(n, msg);
             } else {
                if ( _select_isset(sr, n->fd) ) {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
-                  msg = _select_msg(n, msg);
                }
                if ( _select_isset(sw, n->fd) ) {
                   if (!_chann_try_send_rwb(n) && n->active_send_event) {
                      _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
-                     msg = _select_msg(n, msg);
                   }
                }
             }
@@ -656,7 +649,6 @@ _select_poll(int microseconds) {
       n = nn;
    }
    ss->poll_result.chann_count = ss->chann_count;
-   ss->poll_result.msg = msg;
    return &ss->poll_result;
 }
 
@@ -886,6 +878,13 @@ _evt_del(chann_t *n, int set) {
    return 0;
 }
 
+static inline void
+_evt_reset_chann(poll_result_t *result, chann_t *n) {
+   if (result->reserved != n) {
+      memset(&n->msg, 0, sizeof(n->msg));
+   }
+}
+
 
 static poll_result_t*
 _evt_poll(int microseconds) {
@@ -917,10 +916,8 @@ _evt_poll(int microseconds) {
       for (int i=0; i<nfd; i++) {
          mevent_t *kev = &evt->array[i];
          chann_t *n = (chann_t*)_kev_opaque(kev);
-         
-         memset(&n->msg, 0, sizeof(n->msg));
-         n->msg.opaque = ss->poll_result.msg;
-         ss->poll_result.msg = &n->msg;
+
+         _evt_reset_chann(&ss->poll_result, n);
 
          mm_log(n, MNET_LOG_VERBOSE, "fd:%d,flags:%x,events:%x,state:%d (E:%x,H:%x,R:%x,W:%x)\n",
                 n->fd, _kev_get_flags(kev), _kev_get_events(kev), n->state,
@@ -975,8 +972,7 @@ _evt_poll(int microseconds) {
             case CHANN_STATE_CONNECTED: {
                if ( _kev_events(kev, _KEV_EVENT_READ) ) {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
-               }
-               if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
+               } else if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
                   if (!_chann_try_send_rwb(n)) {
                      if (n->active_send_event) {
                         _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
@@ -1426,6 +1422,16 @@ mnet_chann_bytes(chann_t *n, int be_send) {
       return (be_send ? n->bytes_send : n->bytes_recv);
    }
    return -1;
+}
+
+chann_msg_t*
+mnet_result_next(poll_result_t *result) {
+   if (result && result->reserved) {
+      chann_t *n = (chann_t *)result->reserved;
+      result->reserved = n->tmp_next;
+      return &n->msg;
+   }
+   return NULL;
 }
 
 poll_result_t*

@@ -27,31 +27,31 @@ typedef enum {
 } chann_state_t;
 
 typedef enum {
-   CHANN_EVENT_RECV = 1,     /* socket has data to read */
-   CHANN_EVENT_SEND,         /* socket send buf empty, inactive default */
-   CHANN_EVENT_ACCEPT,       /* socket accept */
-   CHANN_EVENT_CONNECTED,    /* socket connected */
-   CHANN_EVENT_DISCONNECT,   /* socket disconnect when EOF or error */
+   CHANN_EVENT_RECV = 1,       /* socket has data to read */
+   CHANN_EVENT_SEND,           /* socket send buf empty */
+   CHANN_EVENT_ACCEPT,         /* socket accept */
+   CHANN_EVENT_CONNECTED,      /* socket connected */
+   CHANN_EVENT_DISCONNECT,     /* socket disconnect when EOF or error */
 } chann_event_t;
 
 typedef struct s_mchann chann_t;
 
-typedef struct {
+typedef struct s_chann_msg {
    chann_event_t event;         /* event type */
    int err;                     /* errno */
    chann_t *n;                  /* chann to emit event */
    chann_t *r;                  /* chann accept from remote */
-   void *opaque;                /* opaque in set_cb; next msg for pull style */
+   void *opaque;                /* user defined data */
 } chann_msg_t;
 
 typedef struct {
    int chann_count;             /* -1 for error */
-   chann_msg_t *msg;            /* msg for pull style result */
+   void *reserved;              /* reserved for mnet */
 } poll_result_t;
 
 typedef struct {
-   int ret;                     /* recv/send data length */
-   chann_msg_t *msg;            /* msg for pull style result */
+   int ret;                     /* recv/send data length, -1 for error */
+   chann_msg_t *msg;            /* for pull style */
 } rw_result_t;
 
 typedef struct {
@@ -72,12 +72,13 @@ void mnet_setlog(int level, mnet_log_cb); /* 0:disable, 1:error, 2:info, 3:verbo
 
 /* init before use chann */
 int mnet_init(int); /* 0: callback style
-                       1: pull style api*/
+                       1: pull style API */
 void mnet_fini(void);
 int mnet_report(int level);     /* 0: chann_count 
                                    1: chann_detail */
 
 poll_result_t* mnet_poll(int microseconds); /* dispatch chann event,  */
+chann_msg_t* mnet_result_next(poll_result_t *result); /* next msg */
 
 
 

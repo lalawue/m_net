@@ -8,11 +8,11 @@
 #include <stdio.h>
 #include "mnet_core.h"
 
-#ifdef EXAMPLE_ECHO_SVR_PULL_STYLE_API
+#ifdef EXAMPLE_ECHO_SVR_PULL_STYLE
 
 int main(int argc, char *argv[]) {
    if (argc < 2) {
-      printf("%s: 'svr_ip:port'", argv[0]);
+      printf("%s: 'svr_ip:port'\n", argv[0]);
       return 0;
    }
 
@@ -35,8 +35,8 @@ int main(int argc, char *argv[]) {
       if (results->chann_count <= 0) {
          break;
       }
-
-      for (chann_msg_t *msg=results->msg; msg; msg=(chann_msg_t *)msg->opaque) {
+      chann_msg_t *msg = NULL;
+      while ((msg = mnet_result_next(results))) {
          switch (msg->event) {
             case CHANN_EVENT_ACCEPT: {
                if (msg->n == svr) {
@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
                break;
             }
             case CHANN_EVENT_RECV: {
+               /* only recv one message then disconnect */
                rw_result_t *rw = mnet_chann_recv(msg->n, buf, 256);
                mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
                mnet_chann_send(msg->n, buf, rw->ret);

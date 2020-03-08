@@ -63,7 +63,7 @@ int mnet_report(int level);     /* 0: chann_count
                                    1: chann_detail */
 
 poll_result_t* mnet_poll(int microseconds); /* dispatch chann event,  */
-
+chann_msg_t* mnet_result_next(poll_result_t *result); /* next msg */
 
 
 /* channel */
@@ -101,6 +101,7 @@ int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 local mnet_core = ffi.load("mnet")
 
 local mnet_poll = mnet_core.mnet_poll
+local mnet_result_next = mnet_core.mnet_result_next
 local mnet_chann_open = mnet_core.mnet_chann_open
 local mnet_chann_close = mnet_core.mnet_chann_close
 local mnet_chann_fd = mnet_core.mnet_chann_fd
@@ -189,7 +190,7 @@ function Core.poll(microseconds)
     if _result.chann_count < 0 then
         return -1
     elseif _result.chann_count > 0 then
-        local msg = _result.msg
+        local msg = mnet_result_next(_result)
         while msg ~= nil do
             local accept = nil
             if msg.r ~= nil then
@@ -203,7 +204,7 @@ function Core.poll(microseconds)
             if chann and chann.m_callback then
                 chann.m_callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
             end
-            msg = msg.next
+            msg = mnet_result_next(_result)
         end
     end
     return _result.chann_count
