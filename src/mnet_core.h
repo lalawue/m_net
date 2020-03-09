@@ -94,7 +94,7 @@ int mnet_chann_listen(chann_t *n, const char *host, int port, int backlog);
 int mnet_chann_connect(chann_t *n, const char *host, int port);
 void mnet_chann_disconnect(chann_t *n);
 
-void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb, void *opaque);
+void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb, void *opaque); /* only for callback style */
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int active);
 
 rw_result_t* mnet_chann_recv(chann_t *n, void *buf, int len);

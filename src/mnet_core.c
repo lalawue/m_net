@@ -1298,10 +1298,11 @@ mnet_chann_set_cb(chann_t *n, chann_msg_cb cb, void *opaque) {
 
 void
 mnet_chann_active_event(chann_t *n, chann_event_t et, int active) {
-   if ( n ) {
-      if (et == CHANN_EVENT_SEND) {
+   if (n && n->state == CHANN_STATE_CONNECTED) {
+      active = active != 0;
+      if (et == CHANN_EVENT_SEND && n->active_send_event != active) {
          n->active_send_event = active;
-         if (active) {
+         if (n->active_send_event) {
             _evt_add(n, MNET_SET_WRITE);
          } else if (mnet_chann_cached(n) <= 0) {
             _evt_del(n, MNET_SET_WRITE);
