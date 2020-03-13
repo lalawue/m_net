@@ -304,7 +304,7 @@ function Chann:disconnect()
     mnet_chann_disconnect(self.m_chann)
 end
 
--- callback params should be (self, event_name, acceptChann, c_msg)
+-- callback params should be (self, event_name, accept_chann, c_msg)
 function Chann:setCallback(callback)
     self.m_callback = callback
 end
