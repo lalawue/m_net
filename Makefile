@@ -17,7 +17,7 @@ else
 	MNET_LIBNAME=libmnet.so
 endif
 
-CFLAGS= -Wall -std=gnu99 -Wdeprecated-declarations
+CFLAGS= -Wall -std=c99 -Wdeprecated-declarations
 CPPFLAGS= -Wall -Wdeprecated-declarations -Wno-deprecated
 
 DEBUG= -g
