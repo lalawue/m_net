@@ -15,8 +15,8 @@
 #include <unistd.h>
 #include "mnet_core.h"
 
-static const int kBufSize = 256*1024; // even number
-static const int kSendedPoint = 1024*1024*1024;
+#define kBufSize 256*1024 // even number
+#define kSendedPoint 1024*1024*1024
 
 typedef struct {
    int sended;
