@@ -1,5 +1,4 @@
 
-
 [![MIT licensed][1]][2]  [![Build Status][3]][4]
 
 
@@ -8,8 +7,6 @@
 
 [3]: https://travis-ci.org/lalawue/m_net.svg?branch=master
 [4]: https://travis-ci.org/lalawue/m_net
-
-
 
 
 
@@ -26,8 +23,6 @@ Please use gmake to build demo under FreeBSD.
 
 
 
-
-
 # Features
 
 - simple API in C++ wrapper
@@ -35,8 +30,6 @@ Please use gmake to build demo under FreeBSD.
 - nonblocking & event driven interface
 - using epoll/kqueue/select in Linux/MacOS/FreeBSD/Windows
 - support LuaJIT with pull style API (Lua interface was deprecate)
-
-
 
 
 
@@ -96,8 +89,6 @@ the nested code need Closure support, with environment:
 
 
 
-
-
 # Client
 
 with bare C:
@@ -148,8 +139,6 @@ In the other hand, the C interface with more flexible options.
 
 
 
-
-
 # LuaJIT Wrapper
 
 try 'make luajit' then run [luajit example](https://github.com/lalawue/m_net/blob/master/examples/chann_web_luajit.lua)
@@ -166,8 +155,6 @@ luajit examples/chann_web_jit.lua '127.0.0.1:8080'
 ```
 
 open your browser to visit '127.0.0.1:8080'.
-
-
 
 
 
@@ -198,19 +185,11 @@ Transfer rate:          945.55 [Kbytes/sec] received
 ```
 
 
+
 # Projects
 
-- [m_tunnel](https://github.com/lalawue/m_tunnel): provide a secure
-  socks5 interface tcp connection between local <-> remote side.
-
-- [m_kcptun](https://github.com/lalawue/m_kcptun): provide a speedup TCP
-  connection between local <-> remote, with [KCP](https://github.com/skywind3000/kcp) underlying
-
-- [m_dnscnt](https://github.com/lalawue/m_dnscnt): asynchronous DNS query client/library, query
-  every DNS server in list at one time.
-
-
-
+- [m_rpc_framework](https://github.com/lalawue/m_rpc_framework): LuaJIT base network RPC framework for MacOS/Linux/FreeBSD/Windows.
+- [m_dnscnt](https://github.com/lalawue/m_dnscnt): asynchronous DNS query client/library, query every DNS server in list at one time.
 
 
 
