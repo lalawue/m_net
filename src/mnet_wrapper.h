@@ -82,7 +82,8 @@ namespace mnet {
          if (c) {
             m_chann = c->m_chann;
             m_handler = NULL;
-            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
+            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent);
+            mnet_chann_set_opaque(m_chann, this);
             c->m_chann = NULL;
             c->m_handler = NULL;
          }
@@ -98,7 +99,8 @@ namespace mnet {
       bool channListen(string ipPort, int backlog = 16) {
          if (m_chann && ipPort.length()>0) {
             ChannAddr addr = ChannAddr(ipPort);
-            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
+            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent);
+            mnet_chann_set_opaque(m_chann, this);
             return mnet_chann_listen(m_chann, addr.addr.ip, addr.addr.port, backlog);
          }
          return false;
@@ -107,7 +109,8 @@ namespace mnet {
       bool channConnect(string ipPort) {
          if (m_chann && ipPort.length()>0) {
             m_peer = ChannAddr(ipPort);
-            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent, this);
+            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent);
+            mnet_chann_set_opaque(m_chann, this);
             return mnet_chann_connect(m_chann, m_peer.addr.ip, m_peer.addr.port);
          }
          return false;
@@ -196,7 +199,8 @@ namespace mnet {
          if (m_handler) {
             if (m->event == CHANN_EVENT_ACCEPT) {
                Chann *nc = new Chann(m->r);
-               mnet_chann_set_cb(m->r, Chann::channDispatchEvent, nc);
+               mnet_chann_set_cb(m->r, Chann::channDispatchEvent);
+               mnet_chann_set_opaque(m->r, nc);
                m_handler(this, nc, m->event, 0);
             } else {
                m_handler(this, NULL, m->event, m->err);
@@ -204,7 +208,8 @@ namespace mnet {
          } else {
             if (m->event == CHANN_EVENT_ACCEPT) {
                Chann *nc = new Chann(m->r);
-               mnet_chann_set_cb(m->r, Chann::channDispatchEvent, nc);
+               mnet_chann_set_cb(m->r, Chann::channDispatchEvent);
+               mnet_chann_set_opaque(m->r, nc);
                defaultEventHandler(nc, m->event, m->err);
             } else {
                defaultEventHandler(NULL, m->event, m->err);

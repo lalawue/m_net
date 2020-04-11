@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include "mnet_wrapper.h"
 
+#define kMultiChannCount 256    // default for 'ulimit -n'
+
 using std::cout;
 using std::endl;
 using std::string;
@@ -106,7 +108,7 @@ int main(int argc, char *argv[]) {
    else if (option == "-c") {
       // client side
 
-      for (int i=0; i<4096; i++) {
+      for (int i=0; i<kMultiChannCount; i++) {
          CntChann *cnt = new CntChann("tcp");
          cnt->m_idx = i;
          if ( cnt->channConnect(ipaddr) ) {

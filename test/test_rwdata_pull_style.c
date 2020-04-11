@@ -77,16 +77,20 @@ _as_client(chann_addr_t *addr) {
    memset(ctx, 0, sizeof(*ctx));
 
    for (;;) {
+      
       results = mnet_poll(1000000);
       if (results->chann_count <= 0) {
          break;
       }
+      
       chann_msg_t *msg = NULL;      
       while ((msg = mnet_result_next(results))) {
+         
          if (msg->event == CHANN_EVENT_CONNECTED) {
             printf("client connected\n");
             mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
          }
+         
          if (msg->event == CHANN_EVENT_RECV) {
             if (_client_recv_batch_data(msg->n, ctx) && ctx->recved < kSendedPoint) {
             } else {               
@@ -95,6 +99,7 @@ _as_client(chann_addr_t *addr) {
                continue;
             }
          }
+         
          if (msg->event == CHANN_EVENT_SEND) {
             if (ctx->sended < kSendedPoint) {
                _client_send_batch_data(msg->n, ctx);
@@ -103,6 +108,7 @@ _as_client(chann_addr_t *addr) {
                mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 0);
             }
          }
+         
          if (msg->event == CHANN_EVENT_DISCONNECT) {
             _print_data_info(ctx);            
             mnet_chann_close(msg->n);
@@ -130,31 +136,29 @@ _as_server(chann_addr_t *addr) {
       chann_msg_t *msg = NULL;      
       while ((msg = mnet_result_next(results))) {
          if (msg->n == svr) {
-            if (msg->event == CHANN_EVENT_ACCEPT) {
-               // ignore this
-            }
-         } else {
-            if (msg->event == CHANN_EVENT_DISCONNECT) {
-               _print_data_info(ctx);
-               mnet_chann_close(msg->n);
-               continue;
-            }
-            if (msg->event == CHANN_EVENT_RECV) {
-               rw_result_t *rw = mnet_chann_recv(msg->n, ctx->buf, kBufSize);
-               if (_check_data_buf(ctx, ctx->recved, rw->ret)) {
-                  int ret = rw->ret;
-                  ctx->recved += ret;
-                  rw = mnet_chann_send(msg->n, ctx->buf, ret);
-                  if (rw->ret > 0) {
-                     ctx->sended += rw->ret;
-                     assert(ctx->recved == ctx->sended);
-                  } else {
-                     printf("invalid send\n");
-                  }
+            // ignore this
+            continue;
+         }
+         if (msg->event == CHANN_EVENT_DISCONNECT) {
+            _print_data_info(ctx);
+            mnet_chann_close(msg->n);
+            continue;
+         }
+         if (msg->event == CHANN_EVENT_RECV) {
+            rw_result_t *rw = mnet_chann_recv(msg->n, ctx->buf, kBufSize);
+            if (_check_data_buf(ctx, ctx->recved, rw->ret)) {
+               int ret = rw->ret;
+               ctx->recved += ret;
+               rw = mnet_chann_send(msg->n, ctx->buf, ret);
+               if (rw->ret > 0) {
+                  ctx->sended += rw->ret;
+                  assert(ctx->recved == ctx->sended);
                } else {
-                  printf("svr failed to recv rw code: %d\n", rw->ret);
-                  mnet_chann_close(msg->n);
+                  printf("invalid send\n");
                }
+            } else {
+               printf("svr failed to recv rw code: %d\n", rw->ret);
+               mnet_chann_close(msg->n);
             }
          }
       }

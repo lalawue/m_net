@@ -11,13 +11,10 @@
 #ifdef EXAMPLE_ECHO_SVR_PULL_STYLE
 
 int main(int argc, char *argv[]) {
-   if (argc < 2) {
-      printf("%s: 'svr_ip:port'\n", argv[0]);
-      return 0;
-   }
+   const char *ipaddr = argc > 1 ? argv[1] : "127.0.0.1:8090";
 
    chann_addr_t addr;   
-   if (mnet_parse_ipport(argv[1], &addr) <= 0) {
+   if (mnet_parse_ipport(ipaddr, &addr) <= 0) {
       return 0;
    }
 
@@ -28,7 +25,7 @@ int main(int argc, char *argv[]) {
    char buf[256];
 
    mnet_chann_listen(svr, addr.ip, addr.port, 100);
-   printf("svr start listen: %s\n", argv[1]);
+   printf("svr start listen: %s\n", ipaddr);
 
    while (1) {
       results = mnet_poll(100000);
@@ -52,11 +49,9 @@ int main(int argc, char *argv[]) {
             case CHANN_EVENT_RECV: {
                /* only recv one message then disconnect */
                rw_result_t *rw = mnet_chann_recv(msg->n, buf, 256);
-               mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
                mnet_chann_send(msg->n, buf, rw->ret);
                break;
             }
-            case CHANN_EVENT_SEND:               
             case CHANN_EVENT_DISCONNECT: {
                chann_addr_t addr;
                mnet_chann_addr(msg->n, &addr);

@@ -107,6 +107,7 @@ _ntp_parse_response(ntp_ctx_t *ctx) {
    now = localtime(&total_secs);
    printf("%02d/%02d/%d %02d:%02d:%02d\n", now->tm_mday, now->tm_mon+1, \
           now->tm_year+1900, now->tm_hour, now->tm_min, now->tm_sec);
+   exit(0);
 }
 
 
@@ -138,7 +139,8 @@ _ntp_loop(ntp_ctx_t *ctx) {
    }
 
    // set event callback
-   mnet_chann_set_cb(udp, _ntp_event_cb, ctx);
+   mnet_chann_set_cb(udp, _ntp_event_cb);
+   mnet_chann_set_opaque(udp, ctx);
 
    // try connect ntp server
    if ( mnet_chann_connect(udp, ctx->addr.ip, ctx->addr.port) ) {

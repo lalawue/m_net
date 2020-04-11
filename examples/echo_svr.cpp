@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <unistd.h>
 #include "mnet_wrapper.h"
 
 #ifdef EXAMPLE_ECHO_SVR
@@ -26,11 +27,11 @@ public:
 
       if (event == CHANN_EVENT_RECV) {
          rw_result_t *rw = channRecv(m_buf, 256);
-         channEnableEvent(CHANN_EVENT_SEND);         
          channSend(m_buf, rw->ret);
       }
-      else if (event==CHANN_EVENT_DISCONNECT || event==CHANN_EVENT_SEND) {
-         cout << "svr disconnect cnt with chann " << this->myAddr().addrString << endl;         
+      else if (event==CHANN_EVENT_DISCONNECT) {
+         usleep(1000);
+         cout << "svr disconnect cnt with chann " << this->myAddr().addrString << endl;
          delete this;           // release chann
       }
    }
@@ -38,26 +39,24 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-   if (argc < 2) {
-      cout << argv[0] << ": 'svr_ip:port'" << endl;
-   } else {
-      Chann echoSvr("tcp");
+   string ipaddr = argc > 1 ? argv[1] : "127.0.0.1:8090";
 
-      if ( echoSvr.channListen(argv[1], 100) ) {
-         cout << "svr start listen: " << argv[1] << endl;
+   Chann echoSvr("tcp");
 
-         echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err) {
-               if (event == CHANN_EVENT_ACCEPT) {
-                  CntChann *cnt = new CntChann(accept);
-                  char welcome[] = "Welcome to echoServ\n";
-                  cnt->channSend((void*)welcome, sizeof(welcome));
-                  cout << "svr accept cnt with chann " << cnt->myAddr().addrString << endl;
-                  delete accept;
-               }
-            });
+   if ( echoSvr.channListen(ipaddr, 100) ) {
+      cout << "svr start listen: " << ipaddr << endl;
 
-         ChannDispatcher::startEventLoop();
-      }
+      echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err) {
+                                 if (event == CHANN_EVENT_ACCEPT) {
+                                    CntChann *cnt = new CntChann(accept);
+                                    char welcome[] = "Welcome to echoServ\n";
+                                    cnt->channSend((void*)welcome, sizeof(welcome));
+                                    cout << "svr accept cnt with chann " << cnt->myAddr().addrString << endl;
+                                    delete accept;
+                                 }
+                              });
+
+      ChannDispatcher::startEventLoop();
    }
    return 0;
 }
