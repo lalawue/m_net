@@ -467,9 +467,9 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
    n->msg.err = err;
    n->msg.n = n;
    n->msg.r = r;
+   n->msg.opaque = n->opaque;
    if (_is_callback_style_api()) {
       if ( n->cb ) {
-         n->msg.opaque = n->opaque;         
          n->cb( &n->msg );
       } else {
          mm_log(n, MNET_LOG_ERR, "chann fd:%d no callback\n", n->fd);
@@ -1289,9 +1289,15 @@ mnet_chann_listen(chann_t *n, const char *host, int port, int backlog) {
 /* mnet channel api
  */
 void
-mnet_chann_set_cb(chann_t *n, chann_msg_cb cb, void *opaque) {
+mnet_chann_set_cb(chann_t *n, chann_msg_cb cb) {
    if ( n ) {
       n->cb = cb;
+   }
+}
+
+void
+mnet_chann_set_opaque(chann_t *n, void *opaque) {
+   if (n) {
       n->opaque = opaque;
    }
 }
