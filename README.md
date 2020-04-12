@@ -146,12 +146,8 @@ try 'make luajit' then run [luajit example](https://github.com/lalawue/m_net/blo
 for LuaJIT's ffi.load() ignore package.cpath, first add 'build' directory into your system's library search path:
 
 ```
-export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$PWD/build # in MacOS
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/build # in Linux
-```
-
-```
-luajit examples/chann_web_jit.lua '127.0.0.1:8080'
+env DYLD_LIBRARY_PATH=$PWD/build luajit examples/chann_web_luajit.lua   # in MacOS
+env LD_LIBRARY_PATH=$PWD/build luajit examples/chann_web_luajit.lua     # in Linux
 ```
 
 open your browser to visit '127.0.0.1:8080'.

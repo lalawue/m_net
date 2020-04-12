@@ -10,15 +10,11 @@ package.path = package.path .. ";../extension/luajit/?.lua;./extension/luajit/?.
 local Core = require("ffi_mnet")
 local ipport = ...
 
-if not ipport then
-   print("chann_web_jit.lua 'IP:PORT'")
-   os.exit(0)
-end
-
 Core.init()
 
+ipport = ipport or '127.0.0.1:8080'
 local addr = Core.parseIpPort(ipport)
-print("open svr in ", addr.ip, addr.port)
+print("open svr in " .. addr.ip .. ":" .. addr.port)
 
 -- default 256, 256
 Core.setBufSize(32, 1024)
