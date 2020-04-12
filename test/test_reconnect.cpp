@@ -15,6 +15,7 @@
 #include "mnet_wrapper.h"
 
 #define kMultiChannCount 256    // default for 'ulimit -n'
+#define kTestCount 5            // disconnect/connect count for each chann 
 
 using std::cout;
 using std::endl;
@@ -64,8 +65,14 @@ public:
          }
 
          case CHANN_EVENT_DISCONNECT: {
+            
+            m_test_count += 1;
+            if (m_test_count >= kTestCount) {
+               delete this;
+               return;
+            }
 
-            usleep(1000);
+            usleep(1000);            
 
             cout << m_idx << ": disconnect, try to connect " << peerAddr().addrString << endl;
             if ( !channConnect( peerAddr().addrString ) ) {
@@ -83,6 +90,7 @@ public:
 
    int m_idx;
    char m_buf[128];
+   int m_test_count;
 };
 
 int main(int argc, char *argv[]) {
@@ -101,7 +109,7 @@ int main(int argc, char *argv[]) {
 
       Chann svrListen("tcp");
 
-      if ( svrListen.channListen(ipaddr) ) {
+      if ( svrListen.channListen(ipaddr, kMultiChannCount) ) {
 
          cout << "svr listen " << ipaddr << endl;
 
@@ -109,7 +117,6 @@ int main(int argc, char *argv[]) {
                if (event == CHANN_EVENT_ACCEPT) {
                   SvrChann *svr = new SvrChann(accept);
                   cout << "accept cnt " << svr << endl;
-                  delete accept;
                }
             });
 
@@ -128,7 +135,10 @@ int main(int argc, char *argv[]) {
          }
       } 
 
-      ChannDispatcher::startEventLoop();
+      while (ChannDispatcher::pullEvent(1000)->chann_count > 0) {
+      }
+
+      cout << "\nall cnt tested, exit !" << endl;      
    }
 
    return 0;
