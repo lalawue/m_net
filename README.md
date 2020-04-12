@@ -158,10 +158,23 @@ open your browser to visit '127.0.0.1:8080'.
 
 
 
-# Example & Tests
+# Tests
 
-in [examples](https://github.com/lalawue/m_net/tree/master/examples) and
-[test](https://github.com/lalawue/m_net/tree/master/test) dir.
+in [test](https://github.com/lalawue/m_net/tree/master/test) dir.
+
+only point to point testing, with Callback/Pull Style API, no unit test right now.
+
+- test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
+- test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
+
+
+
+# Example
+
+take simple example above, or details in [examples](https://github.com/lalawue/m_net/tree/master/examples).
+
+including UDP/TCP, C/C++, Callback/Pull Style API examples, also prvode LuaJIT one as a tiny web server.
+
 
 
 
