@@ -885,6 +885,16 @@ _evt_reset_chann(poll_result_t *result, chann_t *n) {
    }
 }
 
+static void
+_evt_clear_del_channs(mnet_t *ss) {
+   chann_t *n = ss->del_channs;
+   while (n) {
+      chann_t *next = n->del_next;
+      _chann_destroy(ss, n);
+      n = next;
+   }
+   ss->del_channs = NULL;
+}
 
 static poll_result_t*
 _evt_poll(int microseconds) {
@@ -892,6 +902,10 @@ _evt_poll(int microseconds) {
    mnet_t *ss = _gmnet();
    struct s_event *evt = &ss->evt;
    struct s_event *chg = &ss->chg;
+
+   if (!_is_callback_style_api()) {
+      _evt_clear_del_channs(ss);
+   }   
 
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    struct timespec tsp;
@@ -990,13 +1004,9 @@ _evt_poll(int microseconds) {
       }
    }
 
-   chann_t *n = ss->del_channs;
-   while (n) {
-      chann_t *next = n->del_next;
-      _chann_destroy(ss, n);
-      n = next;
+   if (_is_callback_style_api()) {
+      _evt_clear_del_channs(ss);
    }
-   ss->del_channs = NULL;
 
    ss->poll_result.chann_count = ss->chann_count;
    return &ss->poll_result;
@@ -1433,10 +1443,15 @@ mnet_chann_bytes(chann_t *n, int be_send) {
 
 chann_msg_t*
 mnet_result_next(poll_result_t *result) {
-   if (result && result->reserved) {
-      chann_t *n = (chann_t *)result->reserved;
-      result->reserved = n->tmp_next;
-      return &n->msg;
+   if (result) {
+      while (result->reserved) {
+         chann_t *n = (chann_t *)result->reserved;
+         result->reserved = n->tmp_next;
+         if (n->del_prev || n->del_next) {
+            continue;
+         }
+         return &n->msg;
+      }
    }
    return NULL;
 }

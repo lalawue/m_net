@@ -8,11 +8,18 @@
 #ifdef TEST_RECONNECT_PULL_STYLE
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "mnet_core.h"
 
-#define kMultiChannCount 256    // default for 'ulimit -n'
+#define kMultiChannCount 256  // default for 'ulimit -n'
+#define kTestCount 5          // disconnect/connect count for each chann
+
+typedef struct {
+   int idx;
+   int count;
+} ctx_t;
 
 static void
 _print_help(char *argv[]) {
@@ -22,14 +29,14 @@ _print_help(char *argv[]) {
 static void
 _as_server(chann_addr_t *addr) {
    chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
-   mnet_chann_listen(svr, addr->ip, addr->port, 1);
+   mnet_chann_listen(svr, addr->ip, addr->port, kMultiChannCount * kTestCount);
    printf("svr listen %s:%d\n", addr->ip, addr->port);
 
-   char buf[128];   
+   char buf[128];
    poll_result_t *results = NULL;
 
    for (;;) {
-      results = mnet_poll(1000000);
+      results = mnet_poll(-1);
       if (results->chann_count < 0) {
          printf("poll error !\n");
          break;
@@ -38,7 +45,9 @@ _as_server(chann_addr_t *addr) {
       chann_msg_t *msg = NULL;
       while ((msg = mnet_result_next(results))) {
          if (msg->n == svr) {
-            // ignore this
+            if (msg->event == CHANN_EVENT_ACCEPT) {
+               printf("accept cnt %p\n", msg->r);
+            }
             continue;
          }
          if (msg->event == CHANN_EVENT_RECV) {
@@ -60,9 +69,14 @@ static void
 _as_client(chann_addr_t *addr) {
    for (size_t i=0; i<kMultiChannCount; i++) {
       chann_t *cnt = mnet_chann_open(CHANN_TYPE_STREAM);
-      mnet_chann_set_opaque(cnt, (void *)i); /* set opaque */
-      mnet_chann_connect(cnt, addr->ip, addr->port);
-      printf("%d begin connect %s:%d\n", (int)i, addr->ip, addr->port);
+      ctx_t *ctx = calloc(1, sizeof(ctx_t));
+      ctx->idx = i;
+      mnet_chann_set_opaque(cnt, ctx); /* set opaque */
+      if (mnet_chann_connect(cnt, addr->ip, addr->port)) {
+         printf("%d begin connect %s:%d\n", (int)i, addr->ip, addr->port);
+      } else {
+         mnet_chann_close(cnt);
+      }
    }
 
    char buf[128];
@@ -72,29 +86,38 @@ _as_client(chann_addr_t *addr) {
       
       results = mnet_poll(1000000);
       if (results->chann_count <= 0) {
+         printf("all cnt tested, exit !\n");
          break;
       }
       
       chann_msg_t *msg = NULL;      
       while ((msg = mnet_result_next(results))) {
-         
-         int idx = (int)msg->opaque;
+
+         ctx_t *ctx = (ctx_t *)msg->opaque;
          
          if (msg->event == CHANN_EVENT_CONNECTED) {
-            int ret = snprintf(buf, sizeof(buf), "HelloServ %d", idx);
+            int ret = snprintf(buf, sizeof(buf), "HelloServ %d", ctx->idx);
             if (ret == mnet_chann_send(msg->n, buf, ret)->ret) {
-               printf("%d: connected, send '%s'\n", idx, buf);
+               printf("%d: connected, send '%s'\n", ctx->idx, buf);
             } else {
-               printf("%d: connected, fail to send with ret %d\n", idx, ret);
+               printf("%d: connected, fail to send with ret %d\n", ctx->idx, ret);
                mnet_chann_close(msg->n);
             }
          }
 
          if (msg->event == CHANN_EVENT_DISCONNECT) {
-            usleep(1000);
-            printf("%d: disconnect, try to connect %s:%d\n", idx, addr->ip, addr->port);
+
+            ctx->count += 1;
+            if (ctx->count >= kTestCount) {
+               mnet_chann_close(msg->n);
+               continue;
+            }
+
+            usleep(1000);            
+            
+            printf("%d: disconnect, try to connect %s:%d\n", ctx->idx, addr->ip, addr->port);
             if ( !mnet_chann_connect(msg->n, addr->ip, addr->port) ) {
-               printf("%d: disconnect, fail to connect !\n", idx);
+               printf("%d: disconnect, fail to connect !\n", ctx->idx);
                mnet_chann_close(msg->n);
             }
          }         
@@ -133,7 +156,5 @@ main(int argc, char *argv[]) {
 
    return 0;
 }
-
-
 
 #endif  /* TEST_RECONNECT_PULL_STYLE */
