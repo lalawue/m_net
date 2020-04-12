@@ -29,10 +29,13 @@ public:
          rw_result_t *rw = channRecv(m_buf, 256);
          channSend(m_buf, rw->ret);
       }
-      else if (event==CHANN_EVENT_DISCONNECT) {
+      else if (event == CHANN_EVENT_DISCONNECT) {
          usleep(1000);
          cout << "svr disconnect cnt with chann " << this->myAddr().addrString << endl;
          delete this;           // release chann
+      }
+      else if (event == CHANN_EVENT_TIMER) {
+         cout << "svr current time: " << ChannDispatcher::currentTime() << endl;
       }
    }
    char m_buf[256];
@@ -51,12 +54,14 @@ int main(int argc, char *argv[]) {
                                     CntChann *cnt = new CntChann(accept);
                                     char welcome[] = "Welcome to echoServ\n";
                                     cnt->channSend((void*)welcome, sizeof(welcome));
+                                    cnt->channActiveEvent(CHANN_EVENT_TIMER, 5 * 1000000);
                                     cout << "svr accept cnt with chann " << cnt->myAddr().addrString << endl;
                                     delete accept;
                                  }
                               });
 
-      ChannDispatcher::startEventLoop();
+      while (ChannDispatcher::pollEvent(1000)->chann_count > 0) {
+      }
    }
    return 0;
 }

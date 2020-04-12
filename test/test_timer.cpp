@@ -1,21 +1,21 @@
 // 
 // 
-// Copyright (c) 2017 lalawue
+// Copyright (c) 2020 lalawue
 // 
 // This library is free software; you can redistribute it and/or modify it
 // under the terms of the MIT license. See LICENSE for details.
 // 
 // 
 
-#ifdef TEST_RECONNECT
+#ifdef TEST_TIMER
 
 #include <iostream>
 #include <string>
-#include <unistd.h>
 #include "mnet_wrapper.h"
 
-#define kMultiChannCount 256    // default for 'ulimit -n'
-#define kTestCount 5            // disconnect/connect count for each chann 
+#define kBufSize 128
+#define kMultiChannCount 2
+#define kOneSecond 1000000
 
 using std::cout;
 using std::endl;
@@ -33,17 +33,10 @@ public:
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
          rw_result_t *rw = channRecv(m_buf, sizeof(m_buf));
-         channActiveEvent(CHANN_EVENT_SEND, 1);
          channSend(m_buf, rw->ret);
       }
-      else if (event == CHANN_EVENT_SEND || 
-               event == CHANN_EVENT_DISCONNECT)
-      {
-         cout << "cnt " << this << " disconnect" << endl;
-         delete this;
-      }
    }
-   char m_buf[128];
+   char m_buf[kBufSize];
 };
 
 
@@ -54,30 +47,24 @@ public:
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       switch (event) {
          case CHANN_EVENT_CONNECTED: {
-            int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ %d", m_idx);
-            if (ret == channSend(m_buf, ret)->ret) {
-               cout << m_idx << ": connected, send '" << m_buf << "'" << endl;
-            } else {
-               cout << m_idx << ": connected, fail to send with ret " << ret << endl;
-               delete this;
-            }
+            m_connected_time = ChannDispatcher::currentTime();
+            cout << m_idx << ": connected time " << m_connected_time << endl;
+            break;
+         }
+         case CHANN_EVENT_RECV: {
+            channRecv(m_buf, kBufSize);
+            cout << "recv from svr: '" << m_buf << "'" << endl;
             break;
          }
 
-         case CHANN_EVENT_DISCONNECT: {
-            
-            m_test_count += 1;
-            if (m_test_count >= kTestCount) {
-               delete this;
-               return;
-            }
-
-            usleep(1000);            
-
-            cout << m_idx << ": disconnect, try to connect " << peerAddr().addrString << endl;
-            if ( !channConnect( peerAddr().addrString ) ) {
-               cout << m_idx << ": disconnect, fail to connect !" << endl;
-               delete this;
+         case CHANN_EVENT_TIMER: {
+            m_duration = (int64_t)(ChannDispatcher::currentTime() - m_connected_time) / kOneSecond;
+            if (m_duration > 20) {
+               cout << m_idx << ": over 20 seconds, time " << ChannDispatcher::currentTime() << endl;
+               delete this;               
+            } else {
+               int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ %d %lld", m_idx, m_duration);
+               channSend(m_buf, ret);
             }
             break;
          }
@@ -89,8 +76,9 @@ public:
    }
 
    int m_idx;
-   char m_buf[128];
-   int m_test_count;
+   char m_buf[kBufSize];   
+   int64_t m_duration;
+   int64_t m_connected_time;   
 };
 
 int main(int argc, char *argv[]) {
@@ -130,12 +118,16 @@ int main(int argc, char *argv[]) {
          CntChann *cnt = new CntChann("tcp", i);
          if ( cnt->channConnect(ipaddr) ) {
             cout << i << " begin try connect " << ipaddr << endl;
+            int64_t interval = ((random() + i) % 10 + 1) * kOneSecond;;
+            cnt->channActiveEvent(CHANN_EVENT_TIMER, interval);
          } else {
             delete cnt;
          }
       } 
 
-      while (ChannDispatcher::pollEvent(1000)->chann_count > 0) {
+      poll_result_t *result;
+      while ((result = ChannDispatcher::pollEvent(1000000)) && result->chann_count > 0) {
+         cout << result->chann_count << endl;
       }
 
       cout << "\nall cnt tested, exit !" << endl;      

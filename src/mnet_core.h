@@ -8,6 +8,8 @@
 #ifndef MNET_H
 #define MNET_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,6 +34,7 @@ typedef enum {
    CHANN_EVENT_ACCEPT,         /* socket accept */
    CHANN_EVENT_CONNECTED,      /* socket connected */
    CHANN_EVENT_DISCONNECT,     /* socket disconnect when EOF or error */
+   CHANN_EVENT_TIMER,          /* user defined interval, highest priority */
 } chann_event_t;
 
 typedef struct s_mchann chann_t;
@@ -62,29 +65,45 @@ typedef struct {
 typedef void (*chann_msg_cb)(chann_msg_t*);
 typedef void (*mnet_log_cb)(chann_t*, int, const char *log_string);
 
-
-/* set allocator/log before init */
+/* set allocator/log before init
+ */
 void mnet_allocator(void* (*new_malloc)(int),
                     void* (*new_realloc)(void*, int),
                     void  (*new_free)(void*));
-void mnet_setlog(int level, mnet_log_cb); /* 0:disable, 1:error, 2:info, 3:verbose */
+/* 0:disable
+ * 1:error
+ * 2:info
+ * 3:verbose
+ */
+void mnet_setlog(int level, mnet_log_cb);
 
 
-/* init before use chann */
-int mnet_init(int); /* 0: callback style
-                       1: pull style API */
+/* init before use chann
+ * 0: callback style
+ * 1: pull style API
+ */   
+int mnet_init(int);
 void mnet_fini(void);
-int mnet_report(int level);     /* 0: chann_count 
-                                   1: chann_detail */
 
-poll_result_t* mnet_poll(int microseconds); /* dispatch chann event,  */
-chann_msg_t* mnet_result_next(poll_result_t *result); /* next msg */
+/* report mnet chann status
+ * 0: chann_count 
+ * 1: chann_detail
+ */
+int mnet_report(int level);
 
+/* micro seconds */
+int64_t mnet_current(void);
 
+/* dispatch chann event */
+poll_result_t* mnet_poll(int microseconds);
 
-/* channel */
-chann_t* mnet_chann_open(chann_type_t type);
-void mnet_chann_close(chann_t *n);
+/* next msg for pull style */   
+chann_msg_t* mnet_result_next(poll_result_t *result);
+
+/* channel
+ */
+chann_t* mnet_chann_open(chann_type_t type); /* create chann */
+void mnet_chann_close(chann_t *n);           /* destroy chann */
 
 int mnet_chann_fd(chann_t *n);
 chann_type_t mnet_chann_type(chann_t *n);
@@ -95,14 +114,17 @@ int mnet_chann_connect(chann_t *n, const char *host, int port);
 void mnet_chann_disconnect(chann_t *n);
 
 void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb); /* only for callback style */   
-void mnet_chann_set_opaque(chann_t *n, void *opaque); /* opaque, return with chann_msg_t */
-   
-void mnet_chann_active_event(chann_t *n, chann_event_t et, int active);
+void mnet_chann_set_opaque(chann_t *n, void *opaque); /* user defined data, return with chann_msg_t */
+
+/* CHANN_EVENT_SEND: send buffer empty event, 0 to inactive, postive to active
+ * CHANN_EVENT_TIMEOUT: repeated timeout event, 0 to inactive, postive for milli second interval
+ */
+void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
 
 rw_result_t* mnet_chann_recv(chann_t *n, void *buf, int len);
 rw_result_t* mnet_chann_send(chann_t *n, void *buf, int len); /* always cached would blocked data */
 
-int mnet_chann_set_bufsize(chann_t *n, int bufsize);
+int mnet_chann_set_bufsize(chann_t *n, int bufsize); /* set socket bufsize */
 int mnet_chann_cached(chann_t *n);
 
 int mnet_chann_addr(chann_t *n, chann_addr_t*);
@@ -111,11 +133,10 @@ int mnet_chann_state(chann_t *n);
 long long mnet_chann_bytes(chann_t *n, int be_send);
 
 
-
-/* tools without init */
+/* tools without init
+ */
 int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
-
 
 #ifdef __cplusplus
 }

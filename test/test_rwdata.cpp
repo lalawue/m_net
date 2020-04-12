@@ -104,7 +104,7 @@ public:
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_CONNECTED) {
-         channEnableEvent(CHANN_EVENT_SEND);
+         channActiveEvent(CHANN_EVENT_SEND, 1);
       }
       if (event == CHANN_EVENT_RECV) {
          if (recvBatchData() && m_recved < kSendedPoint) {
@@ -117,7 +117,7 @@ public:
             sendBatchData();
          } else {
             cout << "send enough data " << m_sended << endl;
-            channDisableEvent(CHANN_EVENT_SEND);            
+            channActiveEvent(CHANN_EVENT_SEND, 0);  
          }
       }
       if (event == CHANN_EVENT_DISCONNECT) {
@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
          delete cnt;
       }
 
-      while (ChannDispatcher::pullEvent(-1)->chann_count > 0) {
+      while (ChannDispatcher::pollEvent(1000)->chann_count > 0) {
       }
    }
 

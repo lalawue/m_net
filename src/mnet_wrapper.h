@@ -147,12 +147,10 @@ namespace mnet {
       /* event handler
        */
 
-      // only support MNET_EVENT_SEND, event send while send buffer emtpy
-      void channEnableEvent(chann_event_t event) {
-         mnet_chann_active_event(m_chann, event, 1);
-      }
-      void channDisableEvent(chann_event_t event) {
-         mnet_chann_active_event(m_chann, event, 0);
+      // MNET_EVENT_SEND: event send while send buffer emtpy
+      // MNET_EVENT_TIMER: micro seconds repeat event
+      void channActiveEvent(chann_event_t event, int64_t value) {
+         mnet_chann_active_event(m_chann, event, value);
       }
 
       // external event handler, overide defaultEventHandler
@@ -242,8 +240,12 @@ namespace mnet {
       }
       
       // pullEvent with waiting microseconds at most
-      static poll_result_t* pullEvent(int microseconds) {
+      static poll_result_t* pollEvent(int microseconds) {
          return mnet_poll(microseconds);
+      }
+
+      static int64_t currentTime(void) {
+         return mnet_current();
       }
 
      private:
