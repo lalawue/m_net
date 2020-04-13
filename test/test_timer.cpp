@@ -14,8 +14,7 @@
 #include "mnet_wrapper.h"
 
 #define kBufSize 128
-#define kMultiChannCount 2
-#define kOneSecond 1000000
+#define kMultiChannCount 16
 
 using std::cout;
 using std::endl;
@@ -53,17 +52,17 @@ public:
          }
          case CHANN_EVENT_RECV: {
             channRecv(m_buf, kBufSize);
-            cout << "recv from svr: '" << m_buf << "'" << endl;
+            cout << m_idx << ": recv '" << m_buf << "'" << endl;
             break;
          }
 
          case CHANN_EVENT_TIMER: {
-            m_duration = (int64_t)(ChannDispatcher::currentTime() - m_connected_time) / kOneSecond;
-            if (m_duration > 20) {
-               cout << m_idx << ": over 20 seconds, time " << ChannDispatcher::currentTime() << endl;
+            m_duration = (int64_t)(ChannDispatcher::currentTime() - m_connected_time) / MNET_SECOND_MS;
+            if (m_duration > 10) {
+               cout << m_idx << ": over 10 seconds, time " << ChannDispatcher::currentTime() << endl;
                delete this;               
             } else {
-               int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ %d %lld", m_idx, m_duration);
+               int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ duration %lld", m_duration);
                channSend(m_buf, ret);
             }
             break;
@@ -117,8 +116,8 @@ int main(int argc, char *argv[]) {
       for (int i=0; i<kMultiChannCount; i++) {
          CntChann *cnt = new CntChann("tcp", i);
          if ( cnt->channConnect(ipaddr) ) {
-            cout << i << " begin try connect " << ipaddr << endl;
-            int64_t interval = ((random() + i) % 10 + 1) * kOneSecond;;
+            cout << i << ": begin try connect " << ipaddr << endl;
+            int64_t interval = ((random() + i) % 5 + 1) * MNET_SECOND_MS;;
             cnt->channActiveEvent(CHANN_EVENT_TIMER, interval);
          } else {
             delete cnt;
@@ -127,7 +126,6 @@ int main(int argc, char *argv[]) {
 
       poll_result_t *result;
       while ((result = ChannDispatcher::pollEvent(1000000)) && result->chann_count > 0) {
-         cout << result->chann_count << endl;
       }
 
       cout << "\nall cnt tested, exit !" << endl;      

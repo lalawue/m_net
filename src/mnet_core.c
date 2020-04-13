@@ -57,9 +57,6 @@
 #include <stdarg.h>
 #include <string.h>
 
-#define MNET_BUF_SIZE (64*1024) /* 64kb default */
-#define MNET_SECOND_MS (1000000) /* micro seconds */
-
 #if MNET_OS_WIN
 
 #define close(a) closesocket(a)
@@ -106,7 +103,7 @@ typedef struct {
 typedef struct {
    int interval;                /* micro seconds */
    int64_t time;                /* micro seconds */
-   void *chann;                 /* chann addr */
+   void *chann;                 /* chann pointer */
 } chann_tm_t;
 
 typedef struct {
@@ -228,11 +225,7 @@ _min_of(int a, int b) {
    return a < b ? a : b;
 }
 
-static inline int
-_is_callback_style_api() {
-   return (_gmnet()->api_style == 0);
-}
-
+#define _is_callback_style_api() (_gmnet()->api_style == 0)
 
 /* buf op
  */
@@ -355,7 +348,7 @@ _tm_create(mnet_clock_t *clock, chann_t *n, int64_t interval) {
    it->chann = n;
    n->time = it->time;
    clock->count += 1;
-   mm_log(n, MNET_LOG_VERBOSE, "chann %p create timer, count %d\n", n, clock->count);
+   mm_log(n, MNET_LOG_VERBOSE, "chann create timer, %p (%d)\n", n, clock->count);
    return it;
 }
 
@@ -383,20 +376,22 @@ static chann_tm_t*
 _tm_timer(mnet_clock_t *clock, chann_t *n) {
    if (clock->count > 0) {
       chann_tm_t tmp = { 0, n->time, n };
-      chann_tm_t *prev = clock->timers;
-      chann_tm_t *next = &clock->timers[clock->count - 1];
-      do {
-         chann_tm_t *mid = clock->timers + (next - prev) / 2;
-         int ret = _tm_compar(mid, &tmp);
+      int prev = 0;
+      int next = clock->count;
+      for (int i=0; i<clock->count && next > prev; i+=1) {
+         int mid = (next + prev) / 2;
+         chann_tm_t *tm = &clock->timers[mid];         
+         int ret = _tm_compar(tm, &tmp);
          if (ret == 0) {
-            return mid;
+            return tm;
          } else if (ret > 0) {
-            prev = mid;
-         } else {
             next = mid;
+         } else {
+            prev = mid;
          }
-      } while (next > prev);
+      }
    }
+   printf("failed to find %p\n", n);
    return NULL;
 }
 
@@ -416,16 +411,13 @@ static void
 _tm_destory(mnet_clock_t *clock, chann_t *n) {
    chann_tm_t *tm = _tm_timer(clock, n);
    if (tm) {
-      tm->interval = 0;
-      tm->time = 0;
-      tm->chann = NULL;
       n->time = 0;
-      if (clock->count > 1) {
-         chann_tm_t *last = &clock->timers[clock->count - 1];
-         memcpy(tm, last, sizeof(chann_tm_t));
-      }
       clock->count -= 1;
-      mm_log(n, MNET_LOG_VERBOSE, "chann %p destroy timer, count %d\n", n, clock->count);
+      chann_tm_t *last = &clock->timers[clock->count];
+      tm->interval = last->interval;
+      tm->time = last->time;
+      tm->chann = last->chann;
+      mm_log(n, MNET_LOG_VERBOSE, "chann destroy timer, %p (%d)\n", n, clock->count);
    }
 }
 
@@ -508,7 +500,7 @@ _chann_destroy(mnet_t *ss, chann_t *n) {
          _tm_destory(&ss->tm_clock, n);
       }
       ss->chann_count--;
-      mm_log(n, MNET_LOG_VERBOSE, "chann destroy, count %d\n", ss->chann_count);
+      mm_log(n, MNET_LOG_VERBOSE, "chann destroy %p (%d)\n", n, ss->chann_count);
       mm_free(n);
    }
    return has_timer;
@@ -560,7 +552,7 @@ _chann_send(chann_t *n, void *buf, int len) {
 static int
 _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
    if (n->fd > 0 && n->state > CHANN_STATE_DISCONNECT) {
-      mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd:%d\n", n->fd);
+      mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd:%d, %p\n", n->fd, n);
       close(n->fd);
       _rwb_destroy(&n->rwb_send);
       n->fd = -1;
@@ -583,7 +575,7 @@ _chann_close_socket(mnet_t *ss, chann_t *n) {
       n->state = CHANN_STATE_CLOSED;
       n->cb = NULL;
       n->opaque = NULL;
-      mm_log(n, MNET_LOG_VERBOSE, "chann close fd:%d\n", n->fd);
+      mm_log(n, MNET_LOG_VERBOSE, "chann close %p\n", n);
    }
 }
 
@@ -1060,6 +1052,7 @@ _evt_poll(int microseconds) {
       }
    }
 
+   /* kqueue/epoll read/write/error event */
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    struct timespec tsp;
    if (microseconds > 0) {
@@ -1075,7 +1068,7 @@ _evt_poll(int microseconds) {
       mm_log(NULL, MNET_LOG_ERR, "kevent return %d, errno %d:%s\n", nfd, errno, strerror(errno));
       ss->poll_result.chann_count = -1;
       return &ss->poll_result;
-   } else {
+   } else if (nfd > 0) {
       chg->count = 0;
 
       for (int i=0; i<nfd; i++) {
@@ -1626,3 +1619,5 @@ mnet_poll(int microseconds) {
    return _evt_poll(microseconds);
 #endif
 }
+
+#undef _is_callback_style_api

@@ -14,6 +14,9 @@
 extern "C" {
 #endif
 
+#define MNET_BUF_SIZE (64*1024) /* 64kb default */
+#define MNET_SECOND_MS (1000000) /* micro seconds */
+
 typedef enum {
    CHANN_TYPE_STREAM = 1,       /* TCP */
    CHANN_TYPE_DGRAM,            /* UDP */
@@ -48,7 +51,7 @@ typedef struct s_chann_msg {
 } chann_msg_t;
 
 typedef struct {
-   int chann_count;             /* -1 for error */
+   int chann_count;             /* active chann count, -1 for error */
    void *reserved;              /* reserved for mnet */
 } poll_result_t;
 
@@ -117,7 +120,7 @@ void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb); /* only for callback style 
 void mnet_chann_set_opaque(chann_t *n, void *opaque); /* user defined data, return with chann_msg_t */
 
 /* CHANN_EVENT_SEND: send buffer empty event, 0 to inactive, postive to active
- * CHANN_EVENT_TIMEOUT: repeated timeout event, 0 to inactive, postive for milli second interval
+ * CHANN_EVENT_TIMER: repeated timeout event, 0 to inactive, postive for milli second interval
  */
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
 
