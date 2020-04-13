@@ -28,7 +28,7 @@ static void
 _print_data_info(ctx_t *ctx) {
    printf("received %d\n", ctx->recved);
    printf("sended %d\n", ctx->sended);
-   printf("reelase self\n");
+   printf("relase self\n");
 }
 
 static int

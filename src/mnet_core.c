@@ -134,7 +134,6 @@ struct s_mchann {
    int64_t time;                /* user defined timer event */
    chann_msg_t msg;             /* chann message body */
 #if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
-   struct s_mchann *del_prev;   /* for delete */
    struct s_mchann *del_next;   /* for delete */
    uint32_t epoll_events;
 #endif
@@ -206,7 +205,7 @@ static inline void mm_free(void *p) {
    mnet_free(p);
 }
 
-static int _log_level = MNET_LOG_VERBOSE;
+static int _log_level = MNET_LOG_INFO;
 static inline void mm_log(chann_t *n, int level, const char *fmt, ...) {
    if (level <= _log_level) {
       char buf[192];
@@ -499,7 +498,7 @@ _chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
 static int
 _chann_destroy(mnet_t *ss, chann_t *n) {
    int has_timer = 0;
-   if (n->state >= CHANN_STATE_CLOSED) {
+   if (n->state == CHANN_STATE_CLOSED) {
       if (n->next) { n->next->prev = n->prev; }
       if (n->prev) { n->prev->next = n->next; }
       else { ss->channs = n->next; }
@@ -510,7 +509,6 @@ _chann_destroy(mnet_t *ss, chann_t *n) {
       }
       ss->chann_count--;
       mm_log(n, MNET_LOG_VERBOSE, "chann destroy, count %d\n", ss->chann_count);
-      n->state = (chann_state_t)-1;
       mm_free(n);
    }
    return has_timer;
@@ -561,7 +559,7 @@ _chann_send(chann_t *n, void *buf, int len) {
 
 static int
 _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
-   if (n->fd > 0) {
+   if (n->fd > 0 && n->state > CHANN_STATE_DISCONNECT) {
       mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd:%d\n", n->fd);
       close(n->fd);
       _rwb_destroy(&n->rwb_send);
@@ -580,9 +578,6 @@ _chann_close_socket(mnet_t *ss, chann_t *n) {
    if (n->state > CHANN_STATE_CLOSED) {
 #if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
       n->del_next = ss->del_channs;
-      if (ss->del_channs) {
-         ss->del_channs->del_prev = n;
-      }
       ss->del_channs = n;
 #endif
       n->state = CHANN_STATE_CLOSED;
@@ -1018,7 +1013,7 @@ _evt_reset_chann(poll_result_t *result, chann_t *n) {
 }
 
 static int
-_evt_clear_del_channs(mnet_t *ss) {
+_evt_del_channs(mnet_t *ss) {
    int has_timer = 0;
    chann_t *n = ss->del_channs;
    while (n) {
@@ -1038,10 +1033,8 @@ _evt_poll(int microseconds) {
    struct s_event *evt = &ss->evt;
    struct s_event *chg = &ss->chg;
 
-   if (!_is_callback_style_api()) {
-      if (_evt_clear_del_channs(ss)) {
-         _tm_sort(clock);
-      }
+   if (_evt_del_channs(ss)) {
+      _tm_sort(clock);
    }
 
    memset(&ss->poll_result, 0, sizeof(ss->poll_result));   
@@ -1061,7 +1054,8 @@ _evt_poll(int microseconds) {
             _tm_update(clock, tm);
          } else {
             _tm_sort(clock);
-            goto EVT_POLL_END;
+            ss->poll_result.chann_count = ss->chann_count;
+            return &ss->poll_result;
          }
       }
    }
@@ -1087,6 +1081,10 @@ _evt_poll(int microseconds) {
       for (int i=0; i<nfd; i++) {
          mevent_t *kev = &evt->array[i];
          chann_t *n = (chann_t*)_kev_opaque(kev);
+
+         if (n->state == CHANN_STATE_CLOSED) {
+            continue;
+         }
 
          _evt_reset_chann(&ss->poll_result, n);
 
@@ -1159,11 +1157,6 @@ _evt_poll(int microseconds) {
                break;
          }
       }
-   }
-
-  EVT_POLL_END:
-   if (_is_callback_style_api()) {
-      _evt_clear_del_channs(ss);
    }
 
    ss->poll_result.chann_count = ss->chann_count;
@@ -1370,7 +1363,7 @@ _chann_fill_addr(chann_t *n, const char *host, int port) {
 
 static int
 _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
-   if (n->state <= CHANN_STATE_DISCONNECT) {
+   if (n->state == CHANN_STATE_DISCONNECT) {
       int istcp = n->type == CHANN_TYPE_STREAM;
       int isbc = n->type == CHANN_TYPE_BROADCAST;
       int fd = socket(AF_INET, istcp ? SOCK_STREAM : SOCK_DGRAM, 0);
@@ -1387,15 +1380,6 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
          if (istcp && _set_keepalive(fd)<0) goto fail;
          if (isbc && _set_broadcast(fd)<0) goto fail;
          if (_set_bufsize(fd, buf_size) < 0) goto fail;
-#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
-         {
-            mnet_t *ss = _gmnet();
-            if (n->del_next) { n->del_next->prev = n->del_prev; }
-            if (n->del_prev) { n->del_prev->next = n->del_next; }
-            else { ss->del_channs = n->del_next; }
-            n->del_next = n->del_prev = NULL;
-         }
-#endif
          mm_log(n, MNET_LOG_VERBOSE, "open socket chann:%p fd:%d\n", n, fd);
          return fd;
 
@@ -1628,9 +1612,6 @@ mnet_result_next(poll_result_t *result) {
       while (result->reserved) {
          chann_t *n = (chann_t *)result->reserved;
          result->reserved = n->tmp_next;
-         if (n->del_prev || n->del_next) {
-            continue;
-         }
          return &n->msg;
       }
    }

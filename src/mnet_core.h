@@ -15,17 +15,17 @@ extern "C" {
 #endif
 
 typedef enum {
-   CHANN_TYPE_STREAM = 1,
-   CHANN_TYPE_DGRAM,
+   CHANN_TYPE_STREAM = 1,       /* TCP */
+   CHANN_TYPE_DGRAM,            /* UDP */
    CHANN_TYPE_BROADCAST,
 } chann_type_t;
 
 typedef enum {
-   CHANN_STATE_CLOSED = 0,
-   CHANN_STATE_DISCONNECT,
-   CHANN_STATE_CONNECTING,
-   CHANN_STATE_CONNECTED,
-   CHANN_STATE_LISTENING,
+   CHANN_STATE_CLOSED = 0,      /* only for closed */
+   CHANN_STATE_DISCONNECT,      /* for opened/disconnected */
+   CHANN_STATE_CONNECTING,      /* for connecting */
+   CHANN_STATE_CONNECTED,       /* for connected */
+   CHANN_STATE_LISTENING,       /* only for listening */
 } chann_state_t;
 
 typedef enum {
