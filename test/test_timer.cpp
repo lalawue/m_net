@@ -14,7 +14,7 @@
 #include "mnet_wrapper.h"
 
 #define kBufSize 128
-#define kMultiChannCount 16
+#define kMultiChannCount 256    // default for 'ulimit -n'
 
 using std::cout;
 using std::endl;

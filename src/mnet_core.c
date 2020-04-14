@@ -107,10 +107,12 @@ typedef struct {
 } chann_tm_t;
 
 typedef struct {
-   chann_tm_t *timers;          /* default count 16 */
-   uint16_t count;              /* timer count */
+   uint16_t live_count;         /* live timer count */
+   uint16_t dead_count;         /* dead timer count */
+   uint8_t dirty;               /* need to sort */
    uint16_t capacity;           /* timer capacity */
-   int64_t current;             /* current time */      
+   int64_t current;             /* current time */
+   chann_tm_t *timers;          /* default count 16 */   
 } mnet_clock_t;
 
 struct s_mchann {
@@ -316,6 +318,12 @@ _rwb_destroy(rwb_head_t *h) {
 
 /* timer op
  */
+
+static inline uint16_t
+_tm_count(mnet_clock_t *clock) {
+   return clock->live_count + clock->dead_count;
+}
+
 static int64_t
 _tm_current() {
 #ifdef MNET_OS_WIN
@@ -332,55 +340,58 @@ _tm_current() {
 }
 
 static chann_tm_t*
-_tm_create(mnet_clock_t *clock, chann_t *n, int64_t interval) {
-   if (clock->count >= clock->capacity) {
-      if (clock->count <= 0) {
-         clock->timers = (chann_tm_t *)mm_malloc(16 * sizeof(chann_tm_t));
-         clock->capacity = 16;
+_tm_active(mnet_clock_t *clock, chann_t *n, int64_t interval) {
+   if (_tm_count(clock) >= clock->capacity) {
+      if (_tm_count(clock) <= 0) {
+         clock->capacity = 16;         
+         clock->timers = (chann_tm_t *)mm_malloc(clock->capacity * sizeof(chann_tm_t));
       } else {
-         clock->capacity *= 2;         
+         clock->capacity *= 2;
          clock->timers = (chann_tm_t *)mm_realloc(clock->timers, clock->capacity * sizeof(chann_tm_t));
       }
    }
-   chann_tm_t *it = &clock->timers[clock->count];
+   chann_tm_t *it = &clock->timers[_tm_count(clock)];
    it->interval = interval;
    it->time = _tm_current() + interval;
    it->chann = n;
    n->time = it->time;
-   clock->count += 1;
-   mm_log(n, MNET_LOG_VERBOSE, "chann create timer, %p (%d)\n", n, clock->count);
+   clock->live_count += 1;
+   clock->dirty = 1;
+   mm_log(n, MNET_LOG_VERBOSE, "chann create timer, %p (%d)\n", n, _tm_count(clock));
    return it;
 }
 
+static inline void
+_tm_update(mnet_clock_t *clock, chann_tm_t *tm) {
+   chann_t *n = (chann_t *)tm->chann;
+   tm->time = _tm_current() + tm->interval;
+   n->time = tm->time;
+   clock->dirty = 1;
+}
+
+/* return -1, 0, 1 if prev less, equal, greater than next */
 static int
 _tm_compar(const void *n1, const void *n2) {
    chann_tm_t *prev = (chann_tm_t *)n1;
    chann_tm_t *next = (chann_tm_t *)n2;
+   int64_t sign = 0;
    if (prev->time == next->time) {
-      if (prev->chann == next->chann) {
-         return 0;
-      } else if (prev->chann > next->chann) {
-         return 1;
-      } else {
-         return -1;
-      }
-   } else if (prev->time > next->time) {
-      return 1;
+      sign = (int64_t)prev->chann - (int64_t)next->chann;
    } else {
-      // prev->time < next->time
-      return -1;
+      sign = prev->time - next->time;
    }
+   return (sign > 0) - (sign < 0);
 }
 
 static chann_tm_t*
 _tm_timer(mnet_clock_t *clock, chann_t *n) {
-   if (clock->count > 0) {
+   if (_tm_count(clock) > 0) {
       chann_tm_t tmp = { 0, n->time, n };
       int prev = 0;
-      int next = clock->count;
-      for (int i=0; i<clock->count && next > prev; i+=1) {
+      int next = _tm_count(clock);
+      for (int i=0; i<_tm_count(clock) && next > prev; i+=1) {
          int mid = (next + prev) / 2;
-         chann_tm_t *tm = &clock->timers[mid];         
+         chann_tm_t *tm = &clock->timers[mid];
          int ret = _tm_compar(tm, &tmp);
          if (ret == 0) {
             return tm;
@@ -391,33 +402,38 @@ _tm_timer(mnet_clock_t *clock, chann_t *n) {
          }
       }
    }
-   printf("failed to find %p\n", n);
+   mm_log(n, MNET_LOG_ERR, "failed to find %p\n", n);
    return NULL;
 }
 
 static inline void
-_tm_update(mnet_clock_t *clock, chann_tm_t *tm) {
-   chann_t *n = (chann_t *)tm->chann;
-   tm->time = _tm_current() + tm->interval;
-   n->time = tm->time;
-}
-
-static inline void
 _tm_sort(mnet_clock_t *clock) {
-   qsort(clock->timers, clock->count, sizeof(chann_tm_t), _tm_compar);
+   if (!clock->dirty) {
+      return;
+   }
+   if (clock->dead_count > 0) {
+      for (int i=0; i<_tm_count(clock); i+=1) {
+         chann_tm_t *tm = &clock->timers[i];
+         if (tm->chann == NULL) {
+            tm->time = ~((uint64_t)1 << 63); /* for qsort to right */
+         }
+      }
+   }
+   qsort(clock->timers, _tm_count(clock), sizeof(chann_tm_t), _tm_compar);
+   clock->dead_count = 0;
+   clock->dirty = 0;
 }
 
 static void
-_tm_destory(mnet_clock_t *clock, chann_t *n) {
+_tm_kill(mnet_clock_t *clock, chann_t *n) {
    chann_tm_t *tm = _tm_timer(clock, n);
    if (tm) {
-      n->time = 0;
-      clock->count -= 1;
-      chann_tm_t *last = &clock->timers[clock->count];
-      tm->interval = last->interval;
-      tm->time = last->time;
-      tm->chann = last->chann;
-      mm_log(n, MNET_LOG_VERBOSE, "chann destroy timer, %p (%d)\n", n, clock->count);
+      tm->chann = NULL; /* only mark invalid, for next _tm_timer() got correct one */
+      n->time = 0;      /* no timer */
+      clock->live_count -= 1;
+      clock->dead_count += 1;
+      clock->dirty = 1;
+      mm_log(n, MNET_LOG_VERBOSE, "chann destroy timer, %p (%d)\n", n, _tm_count(clock));
    }
 }
 
@@ -497,7 +513,7 @@ _chann_destroy(mnet_t *ss, chann_t *n) {
       _rwb_destroy(&n->rwb_send);
       if (n->time > 0) {
          has_timer = 1;
-         _tm_destory(&ss->tm_clock, n);
+         _tm_kill(&ss->tm_clock, n);
       }
       ss->chann_count--;
       mm_log(n, MNET_LOG_VERBOSE, "chann destroy %p (%d)\n", n, ss->chann_count);
@@ -662,13 +678,40 @@ _select_poll(int microseconds) {
    mnet_t *ss = _gmnet();
    fd_set *sr, *sw, *se;
 
-   nfds = 0;
+   _tm_sort(clock);
+
    memset(&ss->poll_result, 0, sizeof(ss->poll_result));
 
+   /* timer has highest prority */
+   clock->current = _tm_current();
+   if (clock->live_count > 0 &&
+       clock->timers[0].chann &&
+       clock->timers[0].time <= clock->current)
+   {
+      for (int i=0; i<_tm_count(clock); i++) {
+         chann_tm_t *tm = &clock->timers[i];
+         if (tm->chann == NULL) {
+            continue;
+         }
+         if (tm->time <= clock->current) {
+            chann_t *n = (chann_t *)tm->chann;
+            _evt_reset_chann(&ss->poll_result, n);
+            _chann_msg(n, CHANN_EVENT_TIMER, NULL, 0);
+            _tm_update(clock, tm);
+         } else {
+            _tm_sort(clock);
+            ss->poll_result.chann_count = ss->chann_count;
+            return &ss->poll_result;
+         }
+      }
+   }
+
+   /* select read/write/error event */
    _select_zero(ss, MNET_SET_READ);
    _select_zero(ss, MNET_SET_WRITE);
    _select_zero(ss, MNET_SET_ERROR);
 
+   nfds = 0;   
    n = ss->channs;
    while ( n ) {
       switch (n->state) {
@@ -1004,17 +1047,15 @@ _evt_reset_chann(poll_result_t *result, chann_t *n) {
    }
 }
 
-static int
+static void
 _evt_del_channs(mnet_t *ss) {
-   int has_timer = 0;
    chann_t *n = ss->del_channs;
    while (n) {
       chann_t *next = n->del_next;
-      has_timer |= _chann_destroy(ss, n);
+      _chann_destroy(ss, n);
       n = next;
    }
    ss->del_channs = NULL;
-   return has_timer;
 }
 
 static poll_result_t*
@@ -1025,20 +1066,22 @@ _evt_poll(int microseconds) {
    struct s_event *evt = &ss->evt;
    struct s_event *chg = &ss->chg;
 
-   if (_evt_del_channs(ss)) {
-      _tm_sort(clock);
-   }
+   _evt_del_channs(ss);
+   _tm_sort(clock);
 
    memset(&ss->poll_result, 0, sizeof(ss->poll_result));   
 
    /* timer has highest prority */
    clock->current = _tm_current();
-   if (clock->count > 0 &&
+   if (clock->live_count > 0 &&
        clock->timers[0].chann &&
        clock->timers[0].time <= clock->current)
    {
-      for (int i=0; i<clock->count; i++) {
+      for (int i=0; i<_tm_count(clock); i++) {
          chann_tm_t *tm = &clock->timers[i];
+         if (tm->chann == NULL) {
+            continue;
+         }
          if (tm->time <= clock->current) {
             chann_t *n = (chann_t *)tm->chann;
             _evt_reset_chann(&ss->poll_result, n);
@@ -1475,11 +1518,11 @@ mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value) {
             tm->interval = value;
             _tm_update(clock, tm);
          } else{
-            _tm_create(clock, n, value);
+            _tm_active(clock, n, value);
          }
          _tm_sort(clock);
       } else if (n->time > 0) {
-         _tm_destory(clock, n);
+         _tm_kill(clock, n);
          _tm_sort(clock);
       }
    }
