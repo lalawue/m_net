@@ -88,6 +88,25 @@ enum {
    MNET_SET_MAX,
 };
 
+struct sk_link {
+   struct sk_link *prev, *next;
+};
+
+#define SKIPLIST_MAX_LEVEL 32   /* Should be enough for 2^32 elements */
+
+typedef struct {
+   int level;
+   int count;
+   struct sk_link head[SKIPLIST_MAX_LEVEL];
+} skiplist_t;
+
+typedef struct {
+   int64_t key;
+   void *value;
+   uint8_t level;               /* for O(1) deletion */
+   struct sk_link link[0];
+} skipnode_t;
+
 typedef struct s_rwbuf {
    int ptr, ptw;
    struct s_rwbuf *next;
@@ -106,15 +125,6 @@ typedef struct {
    void *chann;                 /* chann pointer */
 } chann_tm_t;
 
-typedef struct {
-   uint16_t live_count;         /* live timer count */
-   uint16_t dead_count;         /* dead timer count */
-   uint8_t dirty;               /* need to sort */
-   uint16_t capacity;           /* timer capacity */
-   int64_t current;             /* current time */
-   chann_tm_t *timers;          /* default count 16 */   
-} mnet_clock_t;
-
 struct s_mchann {
    int fd;                      /* socket */
    void *opaque;                /* user defined data */
@@ -130,7 +140,7 @@ struct s_mchann {
    int64_t bytes_recv;          /* bytes received */
    int buf_size;                /* system socket buffer size */   
    uint8_t active_send_event;   /* notify user send data buffer empty */
-   int64_t time;                /* user defined timer event */
+   skipnode_t *timer_node;      /* timer node */
    chann_msg_t msg;             /* chann message body */
 #if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
    struct s_mchann *del_next;   /* for delete */
@@ -156,7 +166,7 @@ typedef struct {
    int init;
    int chann_count;
    chann_t *channs;
-   mnet_clock_t tm_clock;
+   skiplist_t *tm_clock;
    int tm_count;
    int tm_capacity;
 #if MNET_OS_WIN
@@ -226,6 +236,16 @@ static inline int
 _min_of(int a, int b) {
    return a < b ? a : b;
 }
+
+static inline void
+_reset_msg(poll_result_t *result, chann_t *n) {
+   if (result->reserved != n) {
+      memset(&n->msg, 0, sizeof(n->msg));
+      n->tmp_next = NULL;
+   }
+}
+
+void _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err);
 
 #define _is_callback_style_api() (_gmnet()->api_style == 0)
 
@@ -316,13 +336,150 @@ _rwb_destroy(rwb_head_t *h) {
    }
 }
 
+/* skip list
+ */
+
+static inline void
+list_init(struct sk_link *link) {
+   link->prev = link->next = link;
+}
+
+static inline void
+__list_add(struct sk_link *link, struct sk_link *prev, struct sk_link *next) {
+   link->next = next;
+   link->prev = prev;
+   next->prev = link;
+   prev->next = link;
+}
+
+static inline void
+__list_del(struct sk_link *prev, struct sk_link *next) {
+   prev->next = next;
+   next->prev = prev;
+}
+
+static inline void
+list_del(struct sk_link *link) {
+   __list_del(link->prev, link->next);
+   list_init(link);
+}
+
+static inline int
+list_empty(struct sk_link *link) {
+   return link->next == link;
+}
+
+#define list_entry(ptr, type, member)                           \
+   ((type *)((char *)(ptr) - (size_t)(&((type *)0)->member)))
+
+#define skiplist_foreach(pos, end)              \
+   for (; pos != end; pos = pos->next)
+
+#define skiplist_foreach_safe(pos, n, end)                      \
+   for (n = pos->next; pos != end; pos = n, n = pos->next)
+
+static skipnode_t*
+skipnode_create(int level, int64_t key, void *value) {
+   skipnode_t *node = (skipnode_t *)mm_malloc(sizeof(*node) + level * sizeof(struct sk_link));
+   if (node) {
+      node->key = key;
+      node->value = value;
+      node->level = level;
+   }
+   return node;
+}
+
+static inline void
+skipnode_destroy(skipnode_t *node) {
+   mm_free(node);
+}
+
+static skiplist_t*
+skiplist_create(void) {
+   skiplist_t *list = (skiplist_t *)mm_malloc(sizeof(*list));
+   if (list) {
+      list->level = 1;
+      list->count = 0;
+      for (int i = 0; i < sizeof(list->head) / sizeof(list->head[0]); i++) {
+         list_init(&list->head[i]);
+      }
+   }
+   return list;
+}
+
+static void
+skiplist_destroy(skiplist_t *list) {
+   struct sk_link *n;
+   struct sk_link *pos = list->head[0].next;
+   skiplist_foreach_safe(pos, n, &list->head[0]) {
+      skipnode_t *node = list_entry(pos, skipnode_t, link[0]);
+      skipnode_destroy(node);
+   }
+   mm_free(list);
+}
+
+static int
+skiplist_random_level(void) {
+   int level = 1;
+   const double p = 0.25;
+   while ((random() & 0xffff) < 0xffff * p) {
+      level++;
+   }
+   return level > SKIPLIST_MAX_LEVEL ? SKIPLIST_MAX_LEVEL : level;
+}
+
+static skipnode_t *
+skiplist_insert(skiplist_t *list, int64_t key, void *value) {
+   int level = skiplist_random_level();
+   if (level > list->level) {
+      list->level = level;
+   }
+
+   skipnode_t *node = skipnode_create(level, key, value);
+   if (node != NULL) {
+      int i = list->level - 1;
+      struct sk_link *pos = &list->head[i];
+      struct sk_link *end = &list->head[i];
+
+      for (; i >= 0; i--) {
+         pos = pos->next;
+         skiplist_foreach(pos, end) {
+            skipnode_t *nd = list_entry(pos, skipnode_t, link[i]);
+            if (nd->key >= key) {
+               end = &nd->link[i];
+               break;
+            }
+         }
+         pos = end->prev;
+         if (i < level) {
+            __list_add(&node->link[i], pos, end);
+         }
+         pos--;
+         end--;
+      }
+
+      list->count++;
+   }
+   return node;
+}
+
+static void
+skiplist_remove_skipnode(skiplist_t *list, skipnode_t *node) {
+   int i, level = node->level;
+   for (i = 0; i < level; i++) {
+      list_del(&node->link[i]);
+      if (list_empty(&list->head[i])) {
+         list->level--;
+      }
+   }
+   skipnode_destroy(node);
+   list->count--;
+}
+
 /* timer op
  */
 
-static inline uint16_t
-_tm_count(mnet_clock_t *clock) {
-   return clock->live_count + clock->dead_count;
-}
+#define _tm_count(clock) (clock->count)
 
 static int64_t
 _tm_current() {
@@ -340,101 +497,66 @@ _tm_current() {
 }
 
 static chann_tm_t*
-_tm_active(mnet_clock_t *clock, chann_t *n, int64_t interval) {
-   if (_tm_count(clock) >= clock->capacity) {
-      if (_tm_count(clock) <= 0) {
-         clock->capacity = 16;         
-         clock->timers = (chann_tm_t *)mm_malloc(clock->capacity * sizeof(chann_tm_t));
-      } else {
-         clock->capacity *= 2;
-         clock->timers = (chann_tm_t *)mm_realloc(clock->timers, clock->capacity * sizeof(chann_tm_t));
-      }
-   }
-   chann_tm_t *it = &clock->timers[_tm_count(clock)];
+_tm_active(skiplist_t *clock, chann_t *n, int64_t interval) {
+   chann_tm_t *it = (chann_tm_t *)mm_malloc(sizeof(*it));
    it->interval = interval;
    it->time = _tm_current() + interval;
    it->chann = n;
-   n->time = it->time;
-   clock->live_count += 1;
-   clock->dirty = 1;
-   mm_log(n, MNET_LOG_VERBOSE, "chann create timer, %p (%d)\n", n, _tm_count(clock));
+   n->timer_node = skiplist_insert(clock, it->time, it);
+   mm_log(n, MNET_LOG_VERBOSE, "chann create timer , %p -> %lld (%d)\n", n, interval, _tm_count(clock));
    return it;
 }
 
 static inline void
-_tm_update(mnet_clock_t *clock, chann_tm_t *tm) {
-   chann_t *n = (chann_t *)tm->chann;
+_tm_update(skiplist_t *clock, chann_t *n, int64_t interval) {
+   skipnode_t *snode = (skipnode_t *)n->timer_node;
+   chann_tm_t *tm = (chann_tm_t *)snode->value;
+   tm->interval = interval;
    tm->time = _tm_current() + tm->interval;
-   n->time = tm->time;
-   clock->dirty = 1;
-}
-
-/* return -1, 0, 1 if prev less, equal, greater than next */
-static int
-_tm_compar(const void *n1, const void *n2) {
-   chann_tm_t *prev = (chann_tm_t *)n1;
-   chann_tm_t *next = (chann_tm_t *)n2;
-   int64_t sign = 0;
-   if (prev->time == next->time) {
-      sign = (int64_t)prev->chann - (int64_t)next->chann;
-   } else {
-      sign = prev->time - next->time;
-   }
-   return (sign > 0) - (sign < 0);
-}
-
-static chann_tm_t*
-_tm_timer(mnet_clock_t *clock, chann_t *n) {
-   if (_tm_count(clock) > 0) {
-      chann_tm_t tmp = { 0, n->time, n };
-      int prev = 0;
-      int next = _tm_count(clock);
-      for (int i=0; i<_tm_count(clock) && next > prev; i+=1) {
-         int mid = (next + prev) / 2;
-         chann_tm_t *tm = &clock->timers[mid];
-         int ret = _tm_compar(tm, &tmp);
-         if (ret == 0) {
-            return tm;
-         } else if (ret > 0) {
-            next = mid;
-         } else {
-            prev = mid;
-         }
-      }
-   }
-   mm_log(n, MNET_LOG_ERR, "failed to find %p\n", n);
-   return NULL;
-}
-
-static inline void
-_tm_sort(mnet_clock_t *clock) {
-   if (!clock->dirty) {
-      return;
-   }
-   if (clock->dead_count > 0) {
-      for (int i=0; i<_tm_count(clock); i+=1) {
-         chann_tm_t *tm = &clock->timers[i];
-         if (tm->chann == NULL) {
-            tm->time = ~((uint64_t)1 << 63); /* for qsort to right */
-         }
-      }
-   }
-   qsort(clock->timers, _tm_count(clock), sizeof(chann_tm_t), _tm_compar);
-   clock->dead_count = 0;
-   clock->dirty = 0;
+   skiplist_remove_skipnode(clock, snode);
+   n->timer_node = skiplist_insert(clock, tm->time, tm);
+   mm_log(n, MNET_LOG_VERBOSE, "chann update timer, %p -> %lld (%d)\n", n, interval, _tm_count(clock));
 }
 
 static void
-_tm_kill(mnet_clock_t *clock, chann_t *n) {
-   chann_tm_t *tm = _tm_timer(clock, n);
-   if (tm) {
-      tm->chann = NULL; /* only mark invalid, for next _tm_timer() got correct one */
-      n->time = 0;      /* no timer */
-      clock->live_count -= 1;
-      clock->dead_count += 1;
-      clock->dirty = 1;
-      mm_log(n, MNET_LOG_VERBOSE, "chann destroy timer, %p (%d)\n", n, _tm_count(clock));
+_tm_kill(skiplist_t *clock, chann_t *n) {
+   if (n->timer_node) {
+      skipnode_t *snode = (skipnode_t *)n->timer_node;
+      if (snode->value) {
+         mm_free(snode->value);
+      }
+      skiplist_remove_skipnode(clock, snode);
+      n->timer_node = NULL;
    }
+}
+
+static int
+_tm_schedule(skiplist_t *clock) {
+   if (clock->count <= 0) {
+      return 0;
+   }
+   int64_t current = _tm_current();
+   struct sk_link *pos = clock->head[0].next;
+   skipnode_t *snode = list_entry(pos, skipnode_t, link[0]);
+   chann_tm_t *tm = (chann_tm_t *)snode->value;
+   if (tm->time > current) {
+      return 0;
+   }
+   mnet_t *ss = _gmnet();
+   struct sk_link *n;
+   skiplist_foreach_safe(pos, n, &clock->head[0]) {
+      snode = list_entry(pos, skipnode_t, link[0]);
+      tm = (chann_tm_t *)snode->value;
+      if (tm->time <= current) {
+         chann_t *n = (chann_t *)tm->chann;
+         _reset_msg(&ss->poll_result, n);
+         _chann_msg(n, CHANN_EVENT_TIMER, NULL, 0);
+         _tm_update(clock, n, tm->interval);
+      } else {
+         break;
+      }
+   }
+   return 1;
 }
 
 /* socket param op
@@ -503,23 +625,18 @@ _chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
    return n;
 }
 
-static int
+static void
 _chann_destroy(mnet_t *ss, chann_t *n) {
-   int has_timer = 0;
    if (n->state == CHANN_STATE_CLOSED) {
       if (n->next) { n->next->prev = n->prev; }
       if (n->prev) { n->prev->next = n->next; }
       else { ss->channs = n->next; }
       _rwb_destroy(&n->rwb_send);
-      if (n->time > 0) {
-         has_timer = 1;
-         _tm_kill(&ss->tm_clock, n);
-      }
+      _tm_kill(ss->tm_clock, n);
       ss->chann_count--;
       mm_log(n, MNET_LOG_VERBOSE, "chann destroy %p (%d)\n", n, ss->chann_count);
       mm_free(n);
    }
-   return has_timer;
 }
 
 static inline char*
@@ -595,7 +712,7 @@ _chann_close_socket(mnet_t *ss, chann_t *n) {
    }
 }
 
-static void
+void
 _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
    n->msg.event = event;
    n->msg.err = err;
@@ -651,6 +768,48 @@ _chann_try_send_rwb(chann_t *n) {
    return 0;
 }
 
+static void
+_chann_fill_addr(chann_t *n, const char *host, int port) {
+   memset(&n->addr, 0, sizeof(n->addr));
+   n->addr.sin_family = AF_INET;
+   n->addr.sin_port = htons(port);
+   n->addr.sin_addr.s_addr = host==NULL ? htonl(INADDR_ANY) : inet_addr(host);
+   n->addr_len = sizeof(n->addr);
+}
+
+static int
+_chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
+   if (n->state == CHANN_STATE_DISCONNECT) {
+      int istcp = n->type == CHANN_TYPE_STREAM;
+      int isbc = n->type == CHANN_TYPE_BROADCAST;
+      int fd = socket(AF_INET, istcp ? SOCK_STREAM : SOCK_DGRAM, 0);
+      if (fd > 0) {
+         int buf_size = n->buf_size>0 ? n->buf_size : MNET_BUF_SIZE;
+         n->state = CHANN_STATE_DISCONNECT;
+
+         _chann_fill_addr(n, host, port);
+
+         if (_set_reuseaddr(fd) < 0) goto fail;
+         if (backlog && _bind(fd, &n->addr) < 0) goto fail;
+         if (backlog && istcp && _listen(fd,backlog) < 0) goto fail;
+         if (_set_nonblocking(fd) < 0) goto fail;
+         if (istcp && _set_keepalive(fd)<0) goto fail;
+         if (isbc && _set_broadcast(fd)<0) goto fail;
+         if (_set_bufsize(fd, buf_size) < 0) goto fail;
+         mm_log(n, MNET_LOG_VERBOSE, "open socket chann:%p fd:%d\n", n, fd);
+         return fd;
+
+        fail:
+         close(fd);
+         perror("chann open socket: ");
+      }
+   }
+   else if (n->type==CHANN_TYPE_DGRAM || n->type==CHANN_TYPE_BROADCAST) {
+      return n->fd;
+   }
+   return -1;
+}
+
 #if MNET_OS_WIN
 
 /* select op
@@ -678,32 +837,12 @@ _select_poll(int microseconds) {
    mnet_t *ss = _gmnet();
    fd_set *sr, *sw, *se;
 
-   _tm_sort(clock);
-
    memset(&ss->poll_result, 0, sizeof(ss->poll_result));
 
    /* timer has highest prority */
-   clock->current = _tm_current();
-   if (clock->live_count > 0 &&
-       clock->timers[0].chann &&
-       clock->timers[0].time <= clock->current)
-   {
-      for (int i=0; i<_tm_count(clock); i++) {
-         chann_tm_t *tm = &clock->timers[i];
-         if (tm->chann == NULL) {
-            continue;
-         }
-         if (tm->time <= clock->current) {
-            chann_t *n = (chann_t *)tm->chann;
-            _evt_reset_chann(&ss->poll_result, n);
-            _chann_msg(n, CHANN_EVENT_TIMER, NULL, 0);
-            _tm_update(clock, tm);
-         } else {
-            _tm_sort(clock);
-            ss->poll_result.chann_count = ss->chann_count;
-            return &ss->poll_result;
-         }
-      }
+   if (_tm_schedule(ss->tm_clock) && !_is_callback_style_api()) {
+      ss->poll_result.chann_count = ss->chann_count;
+      return &ss->poll_result;
    }
 
    /* select read/write/error event */
@@ -1039,14 +1178,6 @@ _evt_del(chann_t *n, int set) {
    return 0;
 }
 
-static inline void
-_evt_reset_chann(poll_result_t *result, chann_t *n) {
-   if (result->reserved != n) {
-      memset(&n->msg, 0, sizeof(n->msg));
-      n->tmp_next = NULL;
-   }
-}
-
 static void
 _evt_del_channs(mnet_t *ss) {
    chann_t *n = ss->del_channs;
@@ -1062,39 +1193,19 @@ static poll_result_t*
 _evt_poll(int microseconds) {
    int nfd = 0;
    mnet_t *ss = _gmnet();
-   mnet_clock_t *clock = &ss->tm_clock;
    struct s_event *evt = &ss->evt;
    struct s_event *chg = &ss->chg;
 
    _evt_del_channs(ss);
-   _tm_sort(clock);
 
    memset(&ss->poll_result, 0, sizeof(ss->poll_result));   
 
    /* timer has highest prority */
-   clock->current = _tm_current();
-   if (clock->live_count > 0 &&
-       clock->timers[0].chann &&
-       clock->timers[0].time <= clock->current)
-   {
-      for (int i=0; i<_tm_count(clock); i++) {
-         chann_tm_t *tm = &clock->timers[i];
-         if (tm->chann == NULL) {
-            continue;
-         }
-         if (tm->time <= clock->current) {
-            chann_t *n = (chann_t *)tm->chann;
-            _evt_reset_chann(&ss->poll_result, n);
-            _chann_msg(n, CHANN_EVENT_TIMER, NULL, 0);
-            _tm_update(clock, tm);
-         } else {
-            _tm_sort(clock);
-            ss->poll_result.chann_count = ss->chann_count;
-            return &ss->poll_result;
-         }
-      }
+   if (_tm_schedule(ss->tm_clock) && !_is_callback_style_api()) {
+      ss->poll_result.chann_count = ss->chann_count;
+      return &ss->poll_result;
    }
-
+   
    /* kqueue/epoll read/write/error event */
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    struct timespec tsp;
@@ -1122,7 +1233,7 @@ _evt_poll(int microseconds) {
             continue;
          }
 
-         _evt_reset_chann(&ss->poll_result, n);
+         _reset_msg(&ss->poll_result, n);
 
          mm_log(n, MNET_LOG_VERBOSE, "fd:%d,flags:%x,events:%x,state:%d (E:%x,H:%x,R:%x,W:%x)\n",
                 n->fd, _kev_get_flags(kev), _kev_get_events(kev), n->state,
@@ -1217,6 +1328,7 @@ mnet_init(int api_style) {
       signal(SIGPIPE, SIG_IGN);
       _evt_init();
 #endif
+      ss->tm_clock = skiplist_create();
       ss->api_style = api_style;      
       ss->init = 1;
       return 1;
@@ -1243,6 +1355,7 @@ mnet_fini() {
       _kev_get_events(NULL);
       _evt_fini();
 #endif
+      skiplist_destroy(ss->tm_clock);
       ss->init = 0;
       memset(ss, 0, sizeof(*ss));
       mm_log(NULL, MNET_LOG_VERBOSE, "fini\n");
@@ -1387,49 +1500,6 @@ mnet_chann_state(chann_t *n) {
    return n ? n->state : -1;
 }
 
-static void
-_chann_fill_addr(chann_t *n, const char *host, int port) {
-   memset(&n->addr, 0, sizeof(n->addr));
-   n->addr.sin_family = AF_INET;
-   n->addr.sin_port = htons(port);
-   n->addr.sin_addr.s_addr = 
-      host==NULL ? htonl(INADDR_ANY) : inet_addr(host);
-   n->addr_len = sizeof(n->addr);
-}
-
-static int
-_chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
-   if (n->state == CHANN_STATE_DISCONNECT) {
-      int istcp = n->type == CHANN_TYPE_STREAM;
-      int isbc = n->type == CHANN_TYPE_BROADCAST;
-      int fd = socket(AF_INET, istcp ? SOCK_STREAM : SOCK_DGRAM, 0);
-      if (fd > 0) {
-         int buf_size = n->buf_size>0 ? n->buf_size : MNET_BUF_SIZE;
-         n->state = CHANN_STATE_DISCONNECT;
-
-         _chann_fill_addr(n, host, port);
-
-         if (_set_reuseaddr(fd) < 0) goto fail;
-         if (backlog && _bind(fd, &n->addr) < 0) goto fail;
-         if (backlog && istcp && _listen(fd,backlog) < 0) goto fail;
-         if (_set_nonblocking(fd) < 0) goto fail;
-         if (istcp && _set_keepalive(fd)<0) goto fail;
-         if (isbc && _set_broadcast(fd)<0) goto fail;
-         if (_set_bufsize(fd, buf_size) < 0) goto fail;
-         mm_log(n, MNET_LOG_VERBOSE, "open socket chann:%p fd:%d\n", n, fd);
-         return fd;
-
-        fail:
-         close(fd);
-         perror("chann open socket: ");
-      }
-   }
-   else if (n->type==CHANN_TYPE_DGRAM || n->type==CHANN_TYPE_BROADCAST) {
-      return n->fd;
-   }
-   return -1;
-}
-
 int
 mnet_chann_connect(chann_t *n, const char *host, int port) {
    if (n && host && port>0) {
@@ -1511,19 +1581,15 @@ mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value) {
          _evt_del(n, MNET_SET_WRITE);
       }
    } else if (et == CHANN_EVENT_TIMER && n->state != CHANN_STATE_CLOSED) {
-      mnet_clock_t *clock = &_gmnet()->tm_clock;
+      skiplist_t *clock = _gmnet()->tm_clock;
       if (value > 0) {
-         if (n->time > 0) {
-            chann_tm_t *tm = _tm_timer(clock, n);
-            tm->interval = value;
-            _tm_update(clock, tm);
+         if (n->timer_node) {
+            _tm_update(clock, n, value);
          } else{
             _tm_active(clock, n, value);
          }
-         _tm_sort(clock);
-      } else if (n->time > 0) {
+      } else if (n->timer_node) {
          _tm_kill(clock, n);
-         _tm_sort(clock);
       }
    }
 }
