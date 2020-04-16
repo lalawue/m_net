@@ -159,7 +159,7 @@ open your browser to visit '127.0.0.1:8080'.
 
 in [test](https://github.com/lalawue/m_net/tree/master/test) dir.
 
-only point to point testing, with Callback/Pull Style API, no unit test right now.
+only point to point testing, with callback/pull Style API, no unit test right now.
 
 - test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
 - test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
