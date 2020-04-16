@@ -97,8 +97,10 @@ int mnet_report(int level);
 /* micro seconds */
 int64_t mnet_current(void);
 
-/* dispatch chann event */
-poll_result_t* mnet_poll(int microseconds);
+/* dispatch chann event, microseconds > 0, and it will cause
+ * CHANN_EVENT_TIMER accurate
+*/
+poll_result_t* mnet_poll(uint32_t microseconds);
 
 /* next msg for pull style */   
 chann_msg_t* mnet_result_next(poll_result_t *result);

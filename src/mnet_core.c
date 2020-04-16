@@ -830,7 +830,7 @@ _select_zero(mnet_t *ss, int set) {
 }
 
 static poll_result_t*
-_select_poll(int microseconds) {
+_select_poll(uint32_t microseconds) {
    int nfds = 0;
    chann_t *n = NULL;
    struct timeval tv;
@@ -877,10 +877,11 @@ _select_poll(int microseconds) {
    sw = &ss->fdset[MNET_SET_WRITE];
    se = &ss->fdset[MNET_SET_ERROR];
 
+   microseconds = ((microseconds << 1) >> 1) | 1;
    tv.tv_sec = microseconds / MNET_SECOND_MS;
    tv.tv_usec = microseconds - tv.tv_sec * MNET_SECOND_MS;
 
-   if (select(nfds, sr, sw, se, microseconds >= 0 ? &tv : NULL) < 0) {
+   if (select(nfds, sr, sw, se, &tv) < 0) {
       if (errno != EINTR) {
          mm_log(NULL, MNET_LOG_VERBOSE, "select error %d:%s!\n", errno, strerror(errno));
          ss->poll_result.chann_count = -1;
@@ -1190,7 +1191,7 @@ _evt_del_channs(mnet_t *ss) {
 }
 
 static poll_result_t*
-_evt_poll(int microseconds) {
+_evt_poll(uint32_t microseconds) {
    int nfd = 0;
    mnet_t *ss = _gmnet();
    struct s_event *evt = &ss->evt;
@@ -1207,13 +1208,12 @@ _evt_poll(int microseconds) {
    }
    
    /* kqueue/epoll read/write/error event */
+   microseconds = ((microseconds << 1) >> 1) | 1;
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    struct timespec tsp;
-   if (microseconds > 0) {
-      tsp.tv_sec = microseconds / MNET_SECOND_MS;
-      tsp.tv_nsec = (uint64_t)(microseconds - tsp.tv_sec * MNET_SECOND_MS) * 1000;
-   }
-   nfd = kevent(ss->kq, NULL, 0, evt->array, evt->size, microseconds<=0 ? NULL : &tsp);
+   tsp.tv_sec = microseconds / MNET_SECOND_MS;
+   tsp.tv_nsec = (uint64_t)(microseconds - tsp.tv_sec * MNET_SECOND_MS) * 1000;
+   nfd = kevent(ss->kq, NULL, 0, evt->array, evt->size, &tsp);
 #else  /* LINUX */
    nfd = epoll_wait(ss->kq, evt->array, evt->size, microseconds);
 #endif
@@ -1721,7 +1721,7 @@ mnet_result_next(poll_result_t *result) {
 }
 
 poll_result_t*
-mnet_poll(int microseconds) {
+mnet_poll(uint32_t microseconds) {
 #if MNET_OS_WIN
    return _select_poll(microseconds);
 #else
