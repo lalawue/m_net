@@ -126,7 +126,7 @@ main(int argc, char *argv[]) {
 
          printf("cnt try connect %s:%d...\n", addr.ip, addr.port);
          mnet_chann_connect(cnt, addr.ip, addr.port);
-         while (mnet_poll(-1) > 0) {
+         while (mnet_poll(1000000) > 0) {
          }
          mnet_fini();
       }

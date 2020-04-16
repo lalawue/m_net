@@ -36,7 +36,7 @@ _as_server(chann_addr_t *addr) {
    poll_result_t *results = NULL;
 
    for (;;) {
-      results = mnet_poll(-1);
+      results = mnet_poll(MNET_SECOND_MS);
       if (results->chann_count < 0) {
          printf("poll error !\n");
          break;
