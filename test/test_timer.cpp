@@ -62,7 +62,7 @@ public:
                cout << m_idx << ": over 10 seconds, time " << ChannDispatcher::currentTime() << endl;
                delete this;               
             } else {
-               int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ duration %lld", m_duration);
+               int ret = snprintf(m_buf, kBufSize, "HelloServ duration %lld", m_duration);
                channSend(m_buf, ret);
             }
             break;
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
       } 
 
       poll_result_t *result;
-      while ((result = ChannDispatcher::pollEvent(1000000)) && result->chann_count > 0) {
+      while ((result = ChannDispatcher::pollEvent(0.5 * MNET_SECOND_MS)) && result->chann_count > 0) {
       }
 
       cout << "\nall cnt tested, exit !" << endl;      
