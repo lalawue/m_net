@@ -27,8 +27,11 @@ int main(int argc, char *argv[]) {
    mnet_chann_listen(svr, addr.ip, addr.port, 100);
    printf("svr start listen: %s\n", ipaddr);
 
+   // server will receive timer event every 5 second   
+   mnet_chann_active_event(svr, CHANN_EVENT_TIMER, 5 * MNET_SECOND_MS);
+
    for (;;) {
-      results = mnet_poll(100000);
+      results = mnet_poll(0.1 * MNET_SECOND_MS);
       if (results->chann_count <= 0) {
          break;
       }
@@ -42,6 +45,8 @@ int main(int argc, char *argv[]) {
                mnet_chann_send(msg->r, welcome, sizeof(welcome));
                mnet_chann_addr(msg->r, &addr);
                printf("svr accept cnt with chann %s:%d\n", addr.ip, addr.port);
+            } else if (msg->event == CHANN_EVENT_TIMER) {
+               printf("svr current time: %lld\n", mnet_current());
             }
             continue;
          }

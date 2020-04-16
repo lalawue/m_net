@@ -26,6 +26,7 @@ _on_cnt_event(chann_msg_t *msg) {
       }
    }
    if (msg->event == CHANN_EVENT_DISCONNECT) {
+      printf("svr disconnect !\n");
       mnet_chann_close(msg->n);
    }
 }

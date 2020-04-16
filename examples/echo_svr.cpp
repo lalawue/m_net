@@ -34,9 +34,6 @@ public:
          cout << "svr disconnect cnt with chann " << this->myAddr().addrString << endl;
          delete this;           // release chann
       }
-      else if (event == CHANN_EVENT_TIMER) {
-         cout << "svr current time: " << ChannDispatcher::currentTime() << endl;
-      }
    }
    char m_buf[256];
 };
@@ -48,19 +45,24 @@ int main(int argc, char *argv[]) {
 
    if ( echoSvr.channListen(ipaddr, 100) ) {
       cout << "svr start listen: " << ipaddr << endl;
+      
+      // server will receive timer event every 5 second
+      echoSvr.channActiveEvent(CHANN_EVENT_TIMER, 5 * MNET_SECOND_MS);
 
       echoSvr.setEventHandler([](Chann *self, Chann *accept, chann_event_t event, int err) {
                                  if (event == CHANN_EVENT_ACCEPT) {
                                     CntChann *cnt = new CntChann(accept);
                                     char welcome[] = "Welcome to echoServ\n";
                                     cnt->channSend((void*)welcome, sizeof(welcome));
-                                    cnt->channActiveEvent(CHANN_EVENT_TIMER, 5 * 1000000);
+
                                     cout << "svr accept cnt with chann " << cnt->myAddr().addrString << endl;
                                     delete accept;
-                                 }
+                                 } else if (event == CHANN_EVENT_TIMER) {
+                                    cout << "svr current time: " << ChannDispatcher::currentTime() << endl;
+                                 }    
                               });
 
-      while (ChannDispatcher::pollEvent(1000)->chann_count > 0) {
+      while (ChannDispatcher::pollEvent(0.1 * MNET_SECOND_MS)->chann_count > 0) {
       }
    }
    return 0;
