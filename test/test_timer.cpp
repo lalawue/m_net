@@ -62,7 +62,7 @@ public:
                cout << m_idx << ": over 10 seconds, time " << ChannDispatcher::currentTime() << endl;
                delete this;               
             } else {
-               int ret = snprintf(m_buf, kBufSize, "HelloServ duration %lld", m_duration);
+               int ret = snprintf(m_buf, kBufSize, "HelloServ duration %ld", m_duration);
                channSend(m_buf, ret);
             }
             break;

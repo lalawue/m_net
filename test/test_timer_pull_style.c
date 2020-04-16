@@ -7,6 +7,8 @@
 
 #ifdef TEST_TIMER_PULL_STYLE
 
+#define _BSD_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +17,8 @@
 
 #define kBufSize 128
 #define kMultiChannCount 256    // default for 'ulimit -n'
+
+long int random(void);
 
 typedef struct {
    int idx;
@@ -93,17 +97,17 @@ _as_client(chann_addr_t *addr) {
          
          if (msg->event == CHANN_EVENT_CONNECTED) {
             ctx->connected_time = mnet_current();
-            printf("%d: connected time %lld\n", ctx->idx, ctx->connected_time);
+            printf("%d: connected time %zd\n", ctx->idx, ctx->connected_time);
          } else if (msg->event == CHANN_EVENT_RECV) {
             mnet_chann_recv(msg->n, buf, kBufSize);
             printf("%d: recv '%s'\n", ctx->idx, buf);
          } else if (msg->event == CHANN_EVENT_TIMER) {
             ctx->duration = (mnet_current() - ctx->connected_time) / MNET_SECOND_MS;
             if (ctx->duration > 10) {
-               printf("%d: over 10 seconds, time %lld\n", ctx->idx, mnet_current());
+               printf("%d: over 10 seconds, time %zd\n", ctx->idx, mnet_current());
                mnet_chann_close(msg->n);
             } else {
-               int ret = snprintf(buf, kBufSize, "HelloServ duration %lld", ctx->duration);
+               int ret = snprintf(buf, kBufSize, "HelloServ duration %zd", ctx->duration);
                mnet_chann_send(msg->n, buf, ret);
             }
          }

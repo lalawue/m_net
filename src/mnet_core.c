@@ -5,8 +5,6 @@
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#include "mnet_core.h"
-
 #if defined(_WIN32) || defined(_WIN64)
    #define MNET_OS_WIN 1
 #elif defined(__APPLE__)
@@ -15,7 +13,13 @@
    #define MNET_OS_FreeBSD 1
 #else
    #define MNET_OS_LINUX 1
+   #define _BSD_SOURCE
 #endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
 
 #if MNET_OS_WIN
 #define _CRT_SECURE_NO_WARNINGS
@@ -29,7 +33,6 @@
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
 #include <sys/types.h>
 #include <sys/event.h>
-#include <sys/time.h>
 #endif  /* MACOSX, FreeBSD */
 
 #if MNET_OS_LINUX
@@ -50,12 +53,10 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <ctype.h>
-#endif
+#include <sys/time.h>   
+#endif  /* MACOSX, FreeBSD, LINUX */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
+#include "mnet_core.h"
 
 #if MNET_OS_WIN
 
@@ -400,7 +401,7 @@ skiplist_create(void) {
    if (list) {
       list->level = 1;
       list->count = 0;
-      for (int i = 0; i < sizeof(list->head) / sizeof(list->head[0]); i++) {
+      for (size_t i = 0; i < sizeof(list->head) / sizeof(list->head[0]); i++) {
          list_init(&list->head[i]);
       }
    }
@@ -503,7 +504,7 @@ _tm_active(skiplist_t *clock, chann_t *n, int64_t interval) {
    it->time = _tm_current() + interval;
    it->chann = n;
    n->timer_node = skiplist_insert(clock, it->time, it);
-   mm_log(n, MNET_LOG_VERBOSE, "chann create timer , %p -> %lld (%d)\n", n, interval, _tm_count(clock));
+   mm_log(n, MNET_LOG_VERBOSE, "chann create timer , %p -> %zd (%d)\n", n, interval, _tm_count(clock));
    return it;
 }
 
@@ -515,7 +516,7 @@ _tm_update(skiplist_t *clock, chann_t *n, int64_t interval) {
    tm->time = _tm_current() + tm->interval;
    skiplist_remove_skipnode(clock, snode);
    n->timer_node = skiplist_insert(clock, tm->time, tm);
-   mm_log(n, MNET_LOG_VERBOSE, "chann update timer, %p -> %lld (%d)\n", n, interval, _tm_count(clock));
+   mm_log(n, MNET_LOG_VERBOSE, "chann update timer, %p -> %zd (%d)\n", n, interval, _tm_count(clock));
 }
 
 static void
