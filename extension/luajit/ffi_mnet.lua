@@ -62,7 +62,10 @@ void mnet_fini(void);
 int mnet_report(int level);     /* 0: chann_count 
                                    1: chann_detail */
 
-poll_result_t* mnet_poll(int microseconds); /* dispatch chann event,  */
+/* micro seconds */
+int64_t mnet_current(void);
+
+poll_result_t* mnet_poll(uint32_t microseconds); /* dispatch chann event,  */
 chann_msg_t* mnet_result_next(poll_result_t *result); /* next msg */
 
 
@@ -78,7 +81,7 @@ int mnet_chann_listen(chann_t *n, const char *host, int port, int backlog);
 int mnet_chann_connect(chann_t *n, const char *host, int port);
 void mnet_chann_disconnect(chann_t *n);
 
-void mnet_chann_active_event(chann_t *n, chann_event_t et, int active);
+void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t active);
 
 rw_result_t* mnet_chann_recv(chann_t *n, void *buf, int len);
 rw_result_t* mnet_chann_send(chann_t *n, void *buf, int len);
@@ -116,6 +119,7 @@ local mnet_chann_cached = mnet_core.mnet_chann_cached
 local mnet_chann_addr = mnet_core.mnet_chann_addr
 local mnet_chann_state = mnet_core.mnet_chann_state
 local mnet_chann_bytes = mnet_core.mnet_chann_bytes
+local mnet_current = mnet_core.mnet_current
 
 local ffinew = ffi.new
 local fficopy = ffi.copy
@@ -127,7 +131,8 @@ local EventNamesTable = {
     "event_send",
     "event_accept",
     "event_connected",
-    "event_disconnect"
+    "event_disconnect",
+    "event_timer"
 }
 
 local StateNamesTable = {
@@ -172,6 +177,7 @@ local _result = ffinew("poll_result_t *")
 local _rw = ffinew("rw_result_t *")
 
 local _intvalue = ffinew("int", 0)
+local _int64value = ffinew("int64_t", 0)
 
 function Core.init()
     mnet_core.mnet_init(1)
@@ -183,6 +189,10 @@ end
 
 function Core.report(level)
     mnet_core.mnet_report(level)
+end
+
+function Core.current()
+   return mnet_current()
 end
 
 function Core.poll(microseconds)
@@ -309,10 +319,13 @@ function Chann:setCallback(callback)
     self.m_callback = callback
 end
 
-function Chann:activeEvent(event_name, isActive)
+function Chann:activeEvent(event_name, value)
     if event_name == "event_send" then
-        _intvalue = isActive
-        mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _intvalue)
+        _int64value = value
+        mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
+    elseif event_name == "event_timer" then
+        _int64value = value
+        mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
     end
 end
 

@@ -30,6 +30,7 @@ Please use gmake to build demo under FreeBSD.
 - nonblocking & event driven interface
 - using epoll/kqueue/select in Linux/MacOS/FreeBSD/Windows
 - support LuaJIT with pull style API (Lua interface was deprecate)
+- buildin timer event
 
 
 
@@ -169,7 +170,7 @@ only point to point testing, with Callback/Pull Style API, no unit test right no
 
 take simple example above, or details in [examples](https://github.com/lalawue/m_net/tree/master/examples).
 
-including UDP/TCP, C/C++, Callback/Pull Style API examples, also prvode LuaJIT one as a tiny web server.
+including UDP/TCP, C/C++, callback/pull style API, timer event examples, also prvode LuaJIT one as a tiny web server.
 
 
 
