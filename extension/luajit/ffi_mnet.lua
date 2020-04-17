@@ -28,6 +28,7 @@ typedef enum {
    CHANN_EVENT_ACCEPT,       /* socket accept */
    CHANN_EVENT_CONNECTED,    /* socket connected */
    CHANN_EVENT_DISCONNECT,   /* socket disconnect when EOF or error */
+   CHANN_EVENT_TIMER,        /* user defined interval, highest priority */
 } chann_event_t;
 
 typedef struct s_mchann chann_t;
@@ -325,7 +326,7 @@ function Chann:activeEvent(event_name, value)
         mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
     elseif event_name == "event_timer" then
         _int64value = value
-        mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
+        mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_TIMER, _int64value)
     end
 end
 
