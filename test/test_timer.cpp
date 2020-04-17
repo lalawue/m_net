@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
          CntChann *cnt = new CntChann("tcp", i);
          if ( cnt->channConnect(ipaddr) ) {
             cout << i << ": begin try connect " << ipaddr << endl;
-            int64_t interval = ((random() + i) % 5 + 1) * MNET_SECOND_MS;;
+            int64_t interval = ((rand() + i) % 5 + 1) * MNET_SECOND_MS;;
             cnt->channActiveEvent(CHANN_EVENT_TIMER, interval);
          } else {
             delete cnt;

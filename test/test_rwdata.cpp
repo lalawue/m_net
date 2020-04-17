@@ -63,6 +63,7 @@ public:
                assert(m_recved == m_sended);
             } else {
                cout << "invalid send " << endl;
+               releaseSelf();
             }
          } else {
             cout << "svr failed to recv ret code: " << rw->ret << endl;

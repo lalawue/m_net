@@ -155,6 +155,7 @@ _as_server(chann_addr_t *addr) {
                   assert(ctx->recved == ctx->sended);
                } else {
                   printf("invalid send\n");
+                  mnet_chann_close(msg->n);                  
                }
             } else {
                printf("svr failed to recv rw code: %d\n", rw->ret);

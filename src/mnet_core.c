@@ -16,11 +16,6 @@
    #define _BSD_SOURCE
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-
 #if MNET_OS_WIN
 #define _CRT_SECURE_NO_WARNINGS
 #define _WIN32_WINNT _WIN32_WINNT_WIN8
@@ -29,6 +24,11 @@
 #include <windows.h>
 #include <stdint.h>
 #endif  // WIN
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
 
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
 #include <sys/types.h>
@@ -423,7 +423,7 @@ static int
 skiplist_random_level(void) {
    int level = 1;
    const double p = 0.25;
-   while ((random() & 0xffff) < 0xffff * p) {
+   while ((rand() & 0xffff) < 0xffff * p) {
       level++;
    }
    return level > SKIPLIST_MAX_LEVEL ? SKIPLIST_MAX_LEVEL : level;
@@ -1329,6 +1329,7 @@ mnet_init(int api_style) {
       signal(SIGPIPE, SIG_IGN);
       _evt_init();
 #endif
+      srand(_tm_current());
       ss->tm_clock = skiplist_create();
       ss->api_style = api_style;      
       ss->init = 1;

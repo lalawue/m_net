@@ -18,8 +18,6 @@
 #define kBufSize 128
 #define kMultiChannCount 256    // default for 'ulimit -n'
 
-long int random(void);
-
 typedef struct {
    int idx;
    int count;
@@ -73,7 +71,7 @@ _as_client(chann_addr_t *addr) {
       mnet_chann_set_opaque(cnt, ctx); /* set opaque */
       if (mnet_chann_connect(cnt, addr->ip, addr->port)) {
          printf("%d begin try connect %s:%d\n", (int)i, addr->ip, addr->port);
-         int64_t interval = ((random() + i) % 5 + 1) * MNET_SECOND_MS;;
+         int64_t interval = ((rand() + i) % 5 + 1) * MNET_SECOND_MS;;
          mnet_chann_active_event(cnt, CHANN_EVENT_TIMER, interval);         
       } else {
          mnet_chann_close(cnt);
