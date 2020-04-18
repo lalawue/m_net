@@ -122,7 +122,7 @@ void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb); /* only for callback style 
 void mnet_chann_set_opaque(chann_t *n, void *opaque); /* user defined data, return with chann_msg_t */
 
 /* CHANN_EVENT_SEND: send buffer empty event, 0 to inactive, postive to active
- * CHANN_EVENT_TIMER: repeated timeout event, 0 to inactive, postive for milli second interval
+ * CHANN_EVENT_TIMER: repeated timeout event, 0 to inactive, postive for micro second interval
  */
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
 

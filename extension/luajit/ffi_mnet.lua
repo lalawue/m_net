@@ -320,6 +320,8 @@ function Chann:setCallback(callback)
     self.m_callback = callback
 end
 
+-- 'event_send' : send buffer empty event, false to inactive, true to active
+-- 'event_timer' : repeated timeout event, 0 to inactive, postive for micro second interval
 function Chann:activeEvent(event_name, value)
     if event_name == "event_send" then
         _int64value = value
