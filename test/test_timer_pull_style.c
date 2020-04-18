@@ -8,6 +8,7 @@
 #ifdef TEST_TIMER_PULL_STYLE
 
 #define _BSD_SOURCE
+#define __BSD_VISIBLE 1
 
 #include <stdio.h>
 #include <stdlib.h>

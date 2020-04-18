@@ -31,6 +31,12 @@
 #include <string.h>
 
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
+#if MNET_OS_FreeBSD
+#include <sys/cdefs.h>
+#undef __XSI_VISIBLE
+#define __XSI_VISIBLE 1
+#define __BSD_VISIBLE 1
+#endif
 #include <sys/types.h>
 #include <sys/event.h>
 #endif  /* MACOSX, FreeBSD */
