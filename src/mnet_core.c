@@ -337,8 +337,6 @@ _rwb_drain(rwb_head_t *h, int drain_len) {
 static void
 _rwb_destroy(rwb_head_t *h) {
    while (h->count > 0) {
-      rwb_t *b = h->head;
-      b->ptr = b->ptw = 0;
       _rwb_destroy_head(h);
    }
 }
@@ -1480,7 +1478,7 @@ mnet_chann_open(chann_type_t type) {
 
 void
 mnet_chann_close(chann_t *n) {
-   if (n) {
+   if (n && n->state > CHANN_STATE_CLOSED) {
       mnet_t *ss = _gmnet();
       _chann_disconnect_socket(ss, n);
       _chann_close_socket(ss, n);
