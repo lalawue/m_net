@@ -193,7 +193,7 @@ function Core.report(level)
 end
 
 function Core.current()
-   return mnet_current()
+    return mnet_current()
 end
 
 function Core.poll(microseconds)
@@ -210,6 +210,7 @@ function Core.poll(microseconds)
                 accept.m_chann = msg.r
                 accept.m_type = ChannTypesTable[tonumber(mnet_chann_type(msg.r))]
                 AllOpenedChannsTable[tostring(msg.r)] = accept
+                ffi.gc(msg.r, mnet_chann_close)
             end
             local chann = AllOpenedChannsTable[tostring(msg.n)]
             if chann and chann.m_callback then
