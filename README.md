@@ -163,6 +163,7 @@ only point to point testing, with callback/pull Style API, no unit test right no
 
 - test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
 - test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
+- test_timer: test client invoke with random seconds, send data to server, close when running duration over 10 seconds
 
 
 
