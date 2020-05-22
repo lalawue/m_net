@@ -8,7 +8,6 @@
 #ifdef TEST_RECONNECT_PULL_STYLE
 
 #define _BSD_SOURCE
-#define __BSD_VISIBLE 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +38,7 @@ _as_server(chann_addr_t *addr) {
    poll_result_t *results = NULL;
 
    for (;;) {
-      results = mnet_poll(MNET_SECOND_MS);
+      results = mnet_poll(MNET_MILLI_SECOND);
       if (results->chann_count < 0) {
          printf("poll error !\n");
          break;

@@ -57,12 +57,12 @@ public:
          }
 
          case CHANN_EVENT_TIMER: {
-            m_duration = (int64_t)(ChannDispatcher::currentTime() - m_connected_time) / MNET_SECOND_MS;
+            m_duration = (int64_t)(ChannDispatcher::currentTime() - m_connected_time) / MNET_MILLI_SECOND;
             if (m_duration > 10) {
                cout << m_idx << ": over 10 seconds, time " << ChannDispatcher::currentTime() << endl;
                delete this;               
             } else {
-               int ret = snprintf(m_buf, kBufSize, "HelloServ duration %zd", m_duration);
+               int ret = snprintf(m_buf, kBufSize, "HelloServ duration %ld", (long)m_duration);
                channSend(m_buf, ret);
             }
             break;
@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
          CntChann *cnt = new CntChann("tcp", i);
          if ( cnt->channConnect(ipaddr) ) {
             cout << i << ": begin try connect " << ipaddr << endl;
-            int64_t interval = ((rand() + i) % 5 + 1) * MNET_SECOND_MS;;
+            int64_t interval = ((rand() + i) % 5 + 1) * MNET_MILLI_SECOND;;
             cnt->channActiveEvent(CHANN_EVENT_TIMER, interval);
          } else {
             delete cnt;
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
       } 
 
       poll_result_t *result;
-      while ((result = ChannDispatcher::pollEvent(0.5 * MNET_SECOND_MS)) && result->chann_count > 0) {
+      while ((result = ChannDispatcher::pollEvent(0.5 * MNET_MILLI_SECOND)) && result->chann_count > 0) {
       }
 
       cout << "\nall cnt tested, exit !" << endl;      

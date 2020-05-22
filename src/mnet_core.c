@@ -59,7 +59,9 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <ctype.h>
-#include <sys/time.h>   
+#include <sys/time.h>
+#else
+#include "wepoll.h"
 #endif  /* MACOSX, FreeBSD, LINUX */
 
 #include "mnet_core.h"
@@ -80,6 +82,8 @@
 #undef  EWOULDBLOCK
 #define EWOULDBLOCK WSAEWOULDBLOCK
 
+int _evt_del(chann_t *n, int set);
+
 #endif  /* WIN */
 
 enum {
@@ -89,10 +93,9 @@ enum {
 };
 
 enum {
-   MNET_SET_READ,
+   MNET_SET_READ = 0,
    MNET_SET_WRITE,
-   MNET_SET_ERROR,
-   MNET_SET_MAX,
+   MNET_SET_DEL,
 };
 
 struct sk_link {
@@ -149,25 +152,28 @@ struct s_mchann {
    uint8_t active_send_event;   /* notify user send data buffer empty */
    skipnode_t *timer_node;      /* timer node */
    chann_msg_t msg;             /* chann message body */
-#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
    struct s_mchann *del_next;   /* for delete */
    uint32_t epoll_events;
-#endif
    struct s_mchann *tmp_next;   /* for pull style */
 };
 
-#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
 typedef struct kevent mevent_t;
 #else
 typedef struct epoll_event mevent_t;
 #endif
+
+#if MNET_OS_WIN
+typedef HANDLE kq_t;
+#else
+typedef int kq_t;
+#endif
+
 struct s_event {
    int size;
    int count;
    mevent_t *array;
 };
-#endif
 
 typedef struct {
    int init;
@@ -176,14 +182,10 @@ typedef struct {
    skiplist_t *tm_clock;
    int tm_count;
    int tm_capacity;
-#if MNET_OS_WIN
-   fd_set fdset[MNET_SET_MAX];  /* win select */
-#else
-   int kq;                      /* kqueue or epoll fd */
+   kq_t kq;                     /* kqueue or epoll fd */
    struct s_event chg;
    struct s_event evt;
    chann_t *del_channs;
-#endif
    int api_style;               /* 0:callback 1:pull style */
    poll_result_t poll_result;
    rw_result_t rw_result;
@@ -508,7 +510,7 @@ _tm_active(skiplist_t *clock, chann_t *n, int64_t interval) {
    it->time = _tm_current() + interval;
    it->chann = n;
    n->timer_node = skiplist_insert(clock, it->time, it);
-   mm_log(n, MNET_LOG_VERBOSE, "chann create timer , %p -> %zd (%d)\n", n, interval, _tm_count(clock));
+   mm_log(n, MNET_LOG_VERBOSE, "chann create timer , %p -> %zd microsecond (%d)\n", n, interval, _tm_count(clock));
    return it;
 }
 
@@ -520,7 +522,7 @@ _tm_update(skiplist_t *clock, chann_t *n, int64_t interval) {
    tm->time = _tm_current() + tm->interval;
    skiplist_remove_skipnode(clock, snode);
    n->timer_node = skiplist_insert(clock, tm->time, tm);
-   mm_log(n, MNET_LOG_VERBOSE, "chann update timer, %p -> %zd (%d)\n", n, interval, _tm_count(clock));
+   mm_log(n, MNET_LOG_VERBOSE, "chann update timer, %p -> %zd microsecond (%d)\n", n, interval, _tm_count(clock));
 }
 
 static void
@@ -691,13 +693,14 @@ static int
 _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
    if (n->fd > 0 && n->state > CHANN_STATE_DISCONNECT) {
       mm_log(n, MNET_LOG_VERBOSE, "chann disconnect fd:%d, %p\n", n->fd, n);
+#if MNET_OS_WIN
+      _evt_del(n, MNET_SET_DEL);
+#endif
       close(n->fd);
       _rwb_destroy(&n->rwb_send);
       n->fd = -1;
       n->state = CHANN_STATE_DISCONNECT;
-#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
       n->epoll_events = 0;
-#endif
       return 1;
    }
    return 0;
@@ -706,10 +709,8 @@ _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
 static void
 _chann_close_socket(mnet_t *ss, chann_t *n) {
    if (n->state > CHANN_STATE_CLOSED) {
-#if (MNET_OS_MACOX || MNET_OS_LINUX || MNET_OS_FreeBSD)
       n->del_next = ss->del_channs;
       ss->del_channs = n;
-#endif
       n->state = CHANN_STATE_CLOSED;
       n->cb = NULL;
       n->opaque = NULL;
@@ -815,154 +816,6 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
    return -1;
 }
 
-#if MNET_OS_WIN
-
-/* select op
- */
-static inline void
-_select_add(mnet_t *ss, int fd, int set) {
-   FD_SET(fd, &ss->fdset[set]);
-}
-
-static inline int
-_select_isset(fd_set *set, int fd) {
-   return FD_ISSET(fd, set);
-}
-
-static inline void
-_select_zero(mnet_t *ss, int set) {
-   FD_ZERO(&ss->fdset[set]);
-}
-
-static poll_result_t*
-_select_poll(uint32_t microseconds) {
-   int nfds = 0;
-   chann_t *n = NULL;
-   struct timeval tv;
-   mnet_t *ss = _gmnet();
-   fd_set *sr, *sw, *se;
-
-   memset(&ss->poll_result, 0, sizeof(ss->poll_result));
-
-   /* timer has highest prority */
-   if (_tm_schedule(ss->tm_clock) && !_is_callback_style_api()) {
-      ss->poll_result.chann_count = ss->chann_count;
-      return &ss->poll_result;
-   }
-
-   /* select read/write/error event */
-   _select_zero(ss, MNET_SET_READ);
-   _select_zero(ss, MNET_SET_WRITE);
-   _select_zero(ss, MNET_SET_ERROR);
-
-   nfds = 0;   
-   n = ss->channs;
-   while ( n ) {
-      switch (n->state) {
-         case CHANN_STATE_LISTENING:
-         case CHANN_STATE_CONNECTED:
-            nfds = nfds<=n->fd ? n->fd+1 : nfds;
-            _select_add(ss, n->fd, MNET_SET_READ);
-            if ((_rwb_count(&n->rwb_send)>0) || n->active_send_event) {
-               _select_add(ss, n->fd, MNET_SET_WRITE);
-            }
-            break;
-         case CHANN_STATE_CONNECTING:
-            nfds = nfds<=n->fd ? n->fd+1 : nfds;
-            _select_add(ss, n->fd, MNET_SET_WRITE);
-            _select_add(ss, n->fd, MNET_SET_ERROR);
-            break;
-         default:
-            break;
-      }
-      n = n->next;
-   }
-
-   sr = &ss->fdset[MNET_SET_READ];
-   sw = &ss->fdset[MNET_SET_WRITE];
-   se = &ss->fdset[MNET_SET_ERROR];
-
-   microseconds = ((microseconds << 1) >> 1) | 1;
-   tv.tv_sec = microseconds / MNET_SECOND_MS;
-   tv.tv_usec = microseconds - tv.tv_sec * MNET_SECOND_MS;
-
-   if (select(nfds, sr, sw, se, &tv) < 0) {
-      if (errno != EINTR) {
-         mm_log(NULL, MNET_LOG_VERBOSE, "select error %d:%s!\n", errno, strerror(errno));
-         ss->poll_result.chann_count = -1;
-         return &ss->poll_result;
-      }
-   }
-
-   n = ss->channs;
-   while ( n ) {
-      chann_t *nn = n->next;
-      memset(&n->msg, 0, sizeof(n->msg));
-
-      switch ( n->state ) {
-         case CHANN_STATE_LISTENING:
-            if ( _select_isset(sr, n->fd) ) {
-               if (n->type == CHANN_TYPE_STREAM) {
-                  chann_t *c = _chann_accept(ss, n);
-                  if (c) {
-                     _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0);
-                  }
-               } else {
-                  _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
-               }
-            }
-            break;
-
-         case CHANN_STATE_CONNECTING:
-            if ( _select_isset(sw, n->fd) ) {
-               int err = _chann_get_err(n);
-               if (err == 0) {
-                  n->state = CHANN_STATE_CONNECTED;
-                  _chann_msg(n, CHANN_EVENT_CONNECTED, NULL, 0);
-               } else {
-                  _chann_disconnect_socket(ss, n);
-                  _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
-               }
-            }
-            if ( _select_isset(se, n->fd) ) {
-               _chann_disconnect_socket(ss, n);
-               _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
-            }
-            break;
-
-         case CHANN_STATE_CONNECTED:
-            if ( _select_isset(se, n->fd) ) {
-               _chann_disconnect_socket(ss, n);
-               _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, 0);
-            } else {
-               if ( _select_isset(sr, n->fd) ) {
-                  _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
-               }
-               if ( _select_isset(sw, n->fd) ) {
-                  if (!_chann_try_send_rwb(n) && n->active_send_event) {
-                     _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
-                  }
-               }
-            }
-            break;
-
-         default:
-            break;
-      }
-      if (n->state <= CHANN_STATE_CLOSED) {
-         _chann_destroy(ss, n);
-      }
-      n = nn;
-   }
-   ss->poll_result.chann_count = ss->chann_count;
-   return &ss->poll_result;
-}
-
-#define _evt_add(...)
-#define _evt_del(...)
-
-#else
-
 /* kqueue/epoll op
  */
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
@@ -975,7 +828,7 @@ _select_poll(uint32_t microseconds) {
 #define _KEV_EVENT_READ  EVFILT_READ
 #define _KEV_EVENT_WRITE EVFILT_WRITE
 
-#else  /* Linux */
+#else  /* Linux, WIN */
 
 #define _KEV_CHG_ARRAY_SIZE 4
 #define _KEV_EVT_ARRAY_SIZE 256
@@ -1073,7 +926,11 @@ static void
 _evt_fini(void) {
    mnet_t *ss = _gmnet();
    if (ss->kq) {
+#if MNET_OS_WIN
+      epoll_close(ss->kq);
+#else
       close(ss->kq);
+#endif
       mm_free(ss->chg.array);
       mm_free(ss->evt.array);
       memset(&ss->chg, 0, sizeof(ss->chg));
@@ -1141,7 +998,7 @@ _evt_add(chann_t *n, int set) {
    return 0;
 }
 
-static int
+int
 _evt_del(chann_t *n, int set) {
    mnet_t *ss = _gmnet();
    struct s_event *chg = &ss->chg;
@@ -1196,7 +1053,7 @@ _evt_del_channs(mnet_t *ss) {
 }
 
 static poll_result_t*
-_evt_poll(uint32_t microseconds) {
+_evt_poll(uint32_t milliseconds) {
    int nfd = 0;
    mnet_t *ss = _gmnet();
    struct s_event *evt = &ss->evt;
@@ -1213,14 +1070,13 @@ _evt_poll(uint32_t microseconds) {
    }
    
    /* kqueue/epoll read/write/error event */
-   microseconds = ((microseconds << 1) >> 1) | 1;
 #if (MNET_OS_MACOX || MNET_OS_FreeBSD)
    struct timespec tsp;
-   tsp.tv_sec = microseconds / MNET_SECOND_MS;
-   tsp.tv_nsec = (uint64_t)(microseconds - tsp.tv_sec * MNET_SECOND_MS) * 1000;
+   tsp.tv_sec = milliseconds / MNET_MILLI_SECOND;
+   tsp.tv_nsec = (uint64_t)(milliseconds - tsp.tv_sec * MNET_MILLI_SECOND) * 1000000;
    nfd = kevent(ss->kq, NULL, 0, evt->array, evt->size, &tsp);
 #else  /* LINUX */
-   nfd = epoll_wait(ss->kq, evt->array, evt->size, microseconds);
+   nfd = epoll_wait(ss->kq, evt->array, evt->size, milliseconds);
 #endif
    
    if (nfd<0 && errno!=EINTR) {
@@ -1314,7 +1170,6 @@ _evt_poll(uint32_t microseconds) {
    ss->poll_result.chann_count = ss->chann_count;
    return &ss->poll_result;
 }
-#endif /* WIN */
 
 /* mnet api
  */
@@ -1331,13 +1186,13 @@ mnet_init(int api_style) {
       mm_log(NULL, MNET_LOG_VERBOSE, "init with select\n");
 #else
       signal(SIGPIPE, SIG_IGN);
-      _evt_init();
 #endif
+      _evt_init();      
       srand(_tm_current());
       ss->tm_clock = skiplist_create();
       ss->api_style = api_style;      
       ss->init = 1;
-      return 1;
+      return 20200522;
    }
    return 0;
 }
@@ -1354,17 +1209,16 @@ mnet_fini() {
          _chann_destroy(ss, n);
          n = next;
       }
-#if MNET_OS_WIN
-      WSACleanup();
-#else
       _kev_get_flags(NULL); // for compile warning
       _kev_get_events(NULL);
       _evt_fini();
-#endif
       skiplist_destroy(ss->tm_clock);
       ss->init = 0;
       memset(ss, 0, sizeof(*ss));
-      mm_log(NULL, MNET_LOG_VERBOSE, "fini\n");
+#if MNET_OS_WIN
+      WSACleanup();
+#endif
+      mm_log(NULL, MNET_LOG_VERBOSE, "fini\n");      
    }
 }
 
@@ -1590,9 +1444,9 @@ mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value) {
       skiplist_t *clock = _gmnet()->tm_clock;
       if (value > 0) {
          if (n->timer_node) {
-            _tm_update(clock, n, value);
+            _tm_update(clock, n, value * 1000);
          } else{
-            _tm_active(clock, n, value);
+            _tm_active(clock, n, value * 1000);
          }
       } else if (n->timer_node) {
          _tm_kill(clock, n);
@@ -1727,12 +1581,8 @@ mnet_result_next(poll_result_t *result) {
 }
 
 poll_result_t*
-mnet_poll(uint32_t microseconds) {
-#if MNET_OS_WIN
-   return _select_poll(microseconds);
-#else
-   return _evt_poll(microseconds);
-#endif
+mnet_poll(uint32_t milliseconds) {
+   return _evt_poll(milliseconds);
 }
 
 #undef _is_callback_style_api

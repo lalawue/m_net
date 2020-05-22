@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define MNET_BUF_SIZE (64*1024) /* 64kb default */
-#define MNET_SECOND_MS (1000000) /* micro seconds */
+#define MNET_MILLI_SECOND (1000) /* milliseconds */
 
 typedef enum {
    CHANN_TYPE_STREAM = 1,       /* TCP */
@@ -82,10 +82,11 @@ void mnet_setlog(int level, mnet_log_cb);
 
 
 /* init before use chann
- * 0: callback style
- * 1: pull style API
+ * style 0: callback style
+ * style 1: pull style API
+ * return 0 on error, version > 0
  */   
-int mnet_init(int);
+int mnet_init(int style);
 void mnet_fini(void);
 
 /* report mnet chann status
@@ -97,10 +98,10 @@ int mnet_report(int level);
 /* micro seconds */
 int64_t mnet_current(void);
 
-/* dispatch chann event, microseconds > 0, and it will cause
+/* dispatch chann event, milliseconds > 0, and it will cause
  * CHANN_EVENT_TIMER accurate
 */
-poll_result_t* mnet_poll(uint32_t microseconds);
+poll_result_t* mnet_poll(uint32_t milliseconds);
 
 /* next msg for pull style */   
 chann_msg_t* mnet_result_next(poll_result_t *result);
@@ -122,7 +123,7 @@ void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb); /* only for callback style 
 void mnet_chann_set_opaque(chann_t *n, void *opaque); /* user defined data, return with chann_msg_t */
 
 /* CHANN_EVENT_SEND: send buffer empty event, 0 to inactive, postive to active
- * CHANN_EVENT_TIMER: repeated timeout event, 0 to inactive, postive for micro second interval
+ * CHANN_EVENT_TIMER: repeated timeout event, 0 to inactive, postive for milli second interval
  */
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
 

@@ -12,12 +12,11 @@
 
 # About
 
-m_net was a [single file](https://github.com/lalawue/m_net/blob/master/src/mnet_core.c)
-cross platform network library, provide a simple and efficient interface for covenient use.
+m_net was a  [single file](https://github.com/lalawue/m_net/blob/master/src/mnet_core.c) cross platform network library, provide a simple and efficient interface for covenient use.
 
 Also support LuaJIT with pull style API interface.
 
-Support Linux/MacOS/FreeBSD/Windows, using epoll/kqueue/select underlying.
+Support Linux/MacOS/FreeBSD/Windows, using epoll/kqueue/[wepoll](https://github.com/piscisaureus/wepoll) underlying.
 
 Please use gmake to build demo under FreeBSD.
 
@@ -28,7 +27,7 @@ Please use gmake to build demo under FreeBSD.
 - simple API in C++ wrapper
 - with TCP/UDP support
 - nonblocking & event driven interface
-- using epoll/kqueue/select in Linux/MacOS/FreeBSD/Windows
+- using epoll/kqueue/[wepoll](https://github.com/piscisaureus/wepoll) in Linux/MacOS/FreeBSD/Windows
 - support LuaJIT with pull style API (Lua interface was deprecate)
 - buildin timer event
 
@@ -164,7 +163,6 @@ only point to point testing, with callback/pull Style API, no unit test right no
 - test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
 - test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
 - test_timer: test client invoke with random seconds, send data to server, close when running duration over 10 seconds
-
 
 
 # Example

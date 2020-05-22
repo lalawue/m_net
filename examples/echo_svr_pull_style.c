@@ -28,10 +28,10 @@ int main(int argc, char *argv[]) {
    printf("svr start listen: %s\n", ipaddr);
 
    // server will receive timer event every 5 second   
-   mnet_chann_active_event(svr, CHANN_EVENT_TIMER, 5 * MNET_SECOND_MS);
+   mnet_chann_active_event(svr, CHANN_EVENT_TIMER, 5 * MNET_MILLI_SECOND);
 
    for (;;) {
-      results = mnet_poll(0.1 * MNET_SECOND_MS);
+      results = mnet_poll(0.1 * MNET_MILLI_SECOND);
       if (results->chann_count <= 0) {
          break;
       }

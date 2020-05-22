@@ -28,7 +28,6 @@ typedef enum {
    CHANN_EVENT_ACCEPT,       /* socket accept */
    CHANN_EVENT_CONNECTED,    /* socket connected */
    CHANN_EVENT_DISCONNECT,   /* socket disconnect when EOF or error */
-   CHANN_EVENT_TIMER,        /* user defined interval, highest priority */
 } chann_event_t;
 
 typedef struct s_mchann chann_t;
@@ -66,7 +65,7 @@ int mnet_report(int level);     /* 0: chann_count
 /* micro seconds */
 int64_t mnet_current(void);
 
-poll_result_t* mnet_poll(uint32_t microseconds); /* dispatch chann event,  */
+poll_result_t* mnet_poll(uint32_t milliseconds); /* dispatch chann event,  */
 chann_msg_t* mnet_result_next(poll_result_t *result); /* next msg */
 
 
@@ -193,11 +192,11 @@ function Core.report(level)
 end
 
 function Core.current()
-    return mnet_current()
+   return mnet_current()
 end
 
-function Core.poll(microseconds)
-    _result = mnet_poll(microseconds)
+function Core.poll(milliseconds)
+    _result = mnet_poll(milliseconds)
     if _result.chann_count < 0 then
         return -1
     elseif _result.chann_count > 0 then
@@ -210,7 +209,6 @@ function Core.poll(microseconds)
                 accept.m_chann = msg.r
                 accept.m_type = ChannTypesTable[tonumber(mnet_chann_type(msg.r))]
                 AllOpenedChannsTable[tostring(msg.r)] = accept
-                ffi.gc(msg.r, mnet_chann_close)
             end
             local chann = AllOpenedChannsTable[tostring(msg.n)]
             if chann and chann.m_callback then
@@ -288,13 +286,12 @@ function Core.allChanns()
 end
 
 function Chann:close()
-    if self.m_chann then
-        AllOpenedChannsTable[tostring(self.m_chann)] = nil
-        self.m_chann = nil
-        self.m_callback = nil
-        self.m_addr = nil
-        self.m_type = nil
-    end
+    AllOpenedChannsTable[tostring(self.m_chann)] = nil
+    mnet_chann_close(self.m_chann)
+    self.m_chann = nil
+    self.m_callback = nil
+    self.m_addr = nil
+    self.m_type = nil
 end
 
 function Chann:channFd()
@@ -322,15 +319,13 @@ function Chann:setCallback(callback)
     self.m_callback = callback
 end
 
--- 'event_send' : send buffer empty event, false to inactive, true to active
--- 'event_timer' : repeated timeout event, 0 to inactive, postive for micro second interval
 function Chann:activeEvent(event_name, value)
     if event_name == "event_send" then
         _int64value = value
         mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
     elseif event_name == "event_timer" then
         _int64value = value
-        mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_TIMER, _int64value)
+        mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
     end
 end
 
