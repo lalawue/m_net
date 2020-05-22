@@ -57,7 +57,7 @@ public:
          }
 
          case CHANN_EVENT_TIMER: {
-            m_duration = (int64_t)(ChannDispatcher::currentTime() - m_connected_time) / MNET_MILLI_SECOND;
+            m_duration = (int64_t)(ChannDispatcher::currentTime() - m_connected_time) / (MNET_MILLI_SECOND * 1000);
             if (m_duration > 10) {
                cout << m_idx << ": over 10 seconds, time " << ChannDispatcher::currentTime() << endl;
                delete this;               

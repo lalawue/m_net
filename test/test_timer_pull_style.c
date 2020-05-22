@@ -100,7 +100,7 @@ _as_client(chann_addr_t *addr) {
             mnet_chann_recv(msg->n, buf, kBufSize);
             printf("%d: recv '%s'\n", ctx->idx, buf);
          } else if (msg->event == CHANN_EVENT_TIMER) {
-            ctx->duration = (mnet_current() - ctx->connected_time) / MNET_MILLI_SECOND;
+            ctx->duration = (mnet_current() - ctx->connected_time) / (MNET_MILLI_SECOND * 1000);
             if (ctx->duration > 10) {
                printf("%d: over 10 seconds, time %lld\n", ctx->idx, mnet_current());
                mnet_chann_close(msg->n);
