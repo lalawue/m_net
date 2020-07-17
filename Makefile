@@ -27,12 +27,11 @@ LIBS= -lc -lmnet -Lbuild
 
 LIB_SRCS := $(shell find src -name "*.c")
 E_SRCS := $(shell find examples -name "*.c")
-T_SRCS += $(shell find test -name "*.c")
+T_SRCS := $(shell find test -name "*.c")
+L_SRCS := $(shell find extension/lua -name "*.c")
 
 CPP_SRCS := $(shell find test -name "*.cpp")
 CPP_SRCS += $(shell find examples -name "*.cpp")
-
-
 
 DIRS := $(shell find src -type d)
 
@@ -69,6 +68,9 @@ _debug_cpp: $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_timer.out $^ $(LIBS) -DTEST_TIMER
 
 luajit: lib
+
+lua: lib
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(LUA_INCS) $(LUA_LIBS) -o build/mnet.so $(L_SRCS) -shared -fPIC -llua -lmnet -Lbuild -I/usr/local/include/lua5.3
 
 clean:
 	rm -rf build

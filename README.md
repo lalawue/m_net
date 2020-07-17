@@ -12,9 +12,10 @@
 
 # About
 
-m_net was a  [single file](https://github.com/lalawue/m_net/blob/master/src/mnet_core.c) cross platform network library, provide a simple and efficient interface for covenient use.
+m_net was a  [single file](https://github.com/lalawue/m_net/blob/master/src/mnet_core.c) cross platform network library,
+provide a simple and efficient interface for covenient use.
 
-Also support LuaJIT with pull style API interface.
+Also support Lua/LuaJIT with pull style API interface.
 
 Support Linux/MacOS/FreeBSD/Windows, using epoll/kqueue/[wepoll](https://github.com/piscisaureus/wepoll) underlying.
 
@@ -28,7 +29,7 @@ Please use gmake to build demo under FreeBSD.
 - with TCP/UDP support
 - nonblocking & event driven interface
 - using epoll/kqueue/[wepoll](https://github.com/piscisaureus/wepoll) in Linux/MacOS/FreeBSD/Windows
-- support LuaJIT with pull style API (Lua interface was deprecate)
+- support Lua/LuaJIT with pull style API (Lua interface was deprecate)
 - buildin timer event
 
 
@@ -139,18 +140,23 @@ In the other hand, the C interface with more flexible options.
 
 
 
-# LuaJIT Wrapper
+# Lua/LuaJIT Wrapper
 
-try 'make luajit' then run [luajit example](https://github.com/lalawue/m_net/blob/master/examples/chann_web_luajit.lua)
+try 'make luajit' then run [luajit example](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua)
 
 for LuaJIT's ffi.load() ignore package.cpath, first add 'build' directory into your system's library search path:
 
 ```
-env DYLD_LIBRARY_PATH=$PWD/build luajit examples/chann_web_luajit.lua   # in MacOS
-env LD_LIBRARY_PATH=$PWD/build luajit examples/chann_web_luajit.lua     # in Linux
+$ env DYLD_LIBRARY_PATH=$PWD/build lua examples/chann_web.lua   # in MacOS
+$ env LD_LIBRARY_PATH=$PWD/build lua examples/chann_web.lua     # in Linux
 ```
 
-open your browser to visit '127.0.0.1:8080'.
+or 
+
+```
+$ env DYLD_LIBRARY_PATH=$PWD/build luajit examples/chann_web.lua   # in MacOS
+$ env LD_LIBRARY_PATH=$PWD/build luajit examples/chann_web.lua     # in Linux
+```
 
 
 
