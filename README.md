@@ -142,16 +142,14 @@ In the other hand, the C interface with more flexible options.
 
 # Lua/LuaJIT Wrapper
 
-try 'make luajit' then run [luajit example](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua)
-
-for LuaJIT's ffi.load() ignore package.cpath, first add 'build' directory into your system's library search path:
+try 'make lua' then run [example](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua)
 
 ```
 $ env DYLD_LIBRARY_PATH=$PWD/build lua examples/chann_web.lua   # in MacOS
 $ env LD_LIBRARY_PATH=$PWD/build lua examples/chann_web.lua     # in Linux
 ```
 
-or 
+or 'make luajit' then run, for LuaJIT's ffi.load() ignore package.cpath, first add 'build' directory into your system's library search path:
 
 ```
 $ env DYLD_LIBRARY_PATH=$PWD/build luajit examples/chann_web.lua   # in MacOS
