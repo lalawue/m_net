@@ -173,14 +173,14 @@ only point to point testing, with callback/pull Style API, no unit test right no
 
 take simple example above, or details in [examples](https://github.com/lalawue/m_net/tree/master/examples).
 
-including UDP/TCP, C/C++, callback/pull style API, timer event examples, also prvode LuaJIT one as a tiny web server.
+including UDP/TCP, C/C++, callback/pull style API, timer event examples, also prvode Lua/LuaJIT one as a tiny web server.
 
 
 
 
 # Benchmark
 
-benchmark for LuaJIT's examples/chann_web_luajit.lua '127.0.0.1:8080', under MacBook Pro (13-inch, 2017, Four Thunderbolt 3 Ports)
+benchmark for LuaJIT's examples/chann_web.lua '127.0.0.1:8080', under MacBook Pro (13-inch, 2017, Four Thunderbolt 3 Ports)
 
 ```
 # ab -c 100 -n 5000 http://127.0.0.1:8080/empty
