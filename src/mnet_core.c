@@ -1425,6 +1425,11 @@ mnet_chann_set_opaque(chann_t *n, void *opaque) {
    }
 }
 
+void*
+mnet_chann_get_opaque(chann_t *n) {
+   return n ? n->opaque : NULL;
+}
+
 void
 mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value) {
    if (n == NULL) {
