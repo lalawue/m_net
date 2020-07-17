@@ -303,7 +303,7 @@ function Chann:channType()
 end
 
 function Chann:listen(host, port, backlog)
-    return mnet_chann_listen(self.m_chann, host, tonumber(port), backlog)
+    return mnet_chann_listen(self.m_chann, host, tonumber(port), backlog or 1)
 end
 
 function Chann:connect(host, port)
@@ -320,10 +320,10 @@ function Chann:setCallback(callback)
 end
 
 function Chann:activeEvent(event_name, value)
-    if event_name == "event_send" then
-        _int64value = value
+    if event_name == "event_send" then -- true or false
+        _int64value = value and 1 or 0
         mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
-    elseif event_name == "event_timer" then
+    elseif event_name == "event_timer" then -- milliseconds
         _int64value = value
         mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
     end
