@@ -155,15 +155,14 @@ local AllOpenedChannsTable = {} -- all opened channs
 local Chann = {
     m_type = nil, -- 'tcp', 'udp', 'broadcast'
     m_chann = nil, -- chann_t
-    m_callback = nil, -- callback
-    m_addr = nil -- self addr
+    m_callback = nil -- callback
 }
 Chann.__index = Chann
 
 -- mnet core, shared by all channs
 local Core = {
     m_recvsize = 256, -- default recv buf size
-    m_sendsize = 256, -- default send buf size
+    m_sendsize = 256 -- default send buf size
 }
 
 -- C level local veriable
@@ -192,7 +191,7 @@ function Core.report(level)
 end
 
 function Core.current()
-   return mnet_current()
+    return mnet_current()
 end
 
 function Core.poll(milliseconds)
@@ -290,7 +289,6 @@ function Chann:close()
     mnet_chann_close(self.m_chann)
     self.m_chann = nil
     self.m_callback = nil
-    self.m_addr = nil
     self.m_type = nil
 end
 
@@ -366,13 +364,11 @@ function Chann:cachedSize()
 end
 
 function Chann:addr()
-    if not self.m_addr then
+    if self:state() == "state_connected" then
         mnet_chann_addr(self.m_chann, _addr[0])
-        self.m_addr = {}
-        self.m_addr.ip = ffistring(_addr[0].ip, 16)
-        self.m_addr.port = tonumber(_addr[0].port)
+        return {ip = ffistring(_addr[0].ip, 16), port = tonumber(_addr[0].port)}
     end
-    return self.m_addr
+    return nil
 end
 
 function Chann:state()
