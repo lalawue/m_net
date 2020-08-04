@@ -123,7 +123,7 @@ local mnet_current = mnet_core.mnet_current
 
 local ffinew = ffi.new
 local fficopy = ffi.copy
-local fficast = ffi.cast
+local ffigc = ffi.gc
 local ffistring = ffi.string
 
 local EventNamesTable = {
@@ -208,6 +208,7 @@ function Core.poll(milliseconds)
                 accept.m_chann = msg.r
                 accept.m_type = ChannTypesTable[tonumber(mnet_chann_type(msg.r))]
                 AllOpenedChannsTable[tostring(msg.r)] = accept
+                ffigc(accept.m_chann, mnet_chann_close)
             end
             local chann = AllOpenedChannsTable[tostring(msg.n)]
             if chann and chann.m_callback then
@@ -270,7 +271,7 @@ function Core.openChann(chann_type)
     end
     chann.m_type = chann_type
     AllOpenedChannsTable[tostring(chann.m_chann)] = chann
-    ffi.gc(chann.m_chann, mnet_chann_close)
+    ffigc(chann.m_chann, mnet_chann_close)
     return chann
 end
 
@@ -285,11 +286,14 @@ function Core.allChanns()
 end
 
 function Chann:close()
-    AllOpenedChannsTable[tostring(self.m_chann)] = nil
-    mnet_chann_close(self.m_chann)
-    self.m_chann = nil
-    self.m_callback = nil
-    self.m_type = nil
+    if self.m_chann then
+        ffigc(self.m_chann, nil)
+        AllOpenedChannsTable[tostring(self.m_chann)] = nil
+        mnet_chann_close(self.m_chann)
+        self.m_chann = nil
+        self.m_callback = nil
+        self.m_type = nil
+    end
 end
 
 function Chann:channFd()
@@ -322,7 +326,7 @@ function Chann:activeEvent(event_name, value)
         _int64value = value and 1 or 0
         mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
     elseif event_name == "event_timer" then -- milliseconds
-        _int64value = value
+        _int64value = tonumber(value)
         mnet_chann_active_event(self.m_chann, mnet_core.CHANN_EVENT_SEND, _int64value)
     end
 end

@@ -167,11 +167,13 @@ function Core.allChanns()
 end
 
 function Chann:close()
-    AllOpenedChannsTable[tostring(self.m_chann)] = nil
-    mnet_chann_close(self.m_chann)
-    self.m_chann = nil
-    self.m_callback = nil
-    self.m_type = nil
+    if self.m_chann then
+        AllOpenedChannsTable[tostring(self.m_chann)] = nil
+        mnet_chann_close(self.m_chann)
+        self.m_chann = nil
+        self.m_callback = nil
+        self.m_type = nil
+    end
 end
 
 function Chann:channFd()
