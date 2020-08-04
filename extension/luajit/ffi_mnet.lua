@@ -149,7 +149,7 @@ local ChannTypesTable = {
     "broadcast"
 }
 
-local AllOpenedChannsTable = {} -- all opened channs
+local AllOpenedChannsTable = setmetatable({}, {__mode = "k"}) -- all opened channs
 
 -- chann
 local Chann = {
@@ -194,6 +194,13 @@ function Core.current()
     return mnet_current()
 end
 
+local function _gcChannInstance(c_chann)
+    local chann = AllOpenedChannsTable[tostring(c_chann)]
+    if chann then
+        chann:close()
+    end
+end
+
 function Core.poll(milliseconds)
     _result = mnet_poll(milliseconds)
     if _result.chann_count < 0 then
@@ -208,7 +215,7 @@ function Core.poll(milliseconds)
                 accept._chann = msg.r
                 accept._type = ChannTypesTable[tonumber(mnet_chann_type(msg.r))]
                 AllOpenedChannsTable[tostring(msg.r)] = accept
-                ffigc(accept._chann, mnet_chann_close)
+                ffigc(accept._chann, _gcChannInstance)
             end
             local chann = AllOpenedChannsTable[tostring(msg.n)]
             if chann and chann._callback then
@@ -271,7 +278,7 @@ function Core.openChann(chann_type)
     end
     chann._type = chann_type
     AllOpenedChannsTable[tostring(chann._chann)] = chann
-    ffigc(chann._chann, mnet_chann_close)
+    ffigc(chann._chann, _gcChannInstance)
     return chann
 end
 
