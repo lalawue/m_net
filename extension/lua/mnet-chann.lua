@@ -55,16 +55,16 @@ local AllOpenedChannsTable = {} -- all opened channs
 
 -- chann
 local Chann = {
-    m_type = nil, -- 'tcp', 'udp', 'broadcast'
-    m_chann = nil, -- chann_t
-    m_callback = nil -- callback
+    _type = nil, -- 'tcp', 'udp', 'broadcast'
+    _chann = nil, -- chann_t
+    _callback = nil -- callback
 }
 Chann.__index = Chann
 
 -- mnet core, shared by all channs
 local Core = {
-    m_recvsize = 256, -- default recv buf size
-    m_sendsize = 256, -- default send buf size
+    _recvsize = 256, -- default recv buf size
+    _sendsize = 256, -- default send buf size
     CHANN_TYPE_STREAM = 1,
     CHANN_TYPE_DGRAM = 2,
     CHANN_TYPE_BROADCAST = 3,
@@ -107,13 +107,13 @@ function Core.poll(milliseconds)
             if r ~= nil then
                 accept = {}
                 setmetatable(accept, Chann)
-                accept.m_chann = r
-                accept.m_type = ChannTypesTable[tonumber(mnet_chann_type(r))]
+                accept._chann = r
+                accept._type = ChannTypesTable[tonumber(mnet_chann_type(r))]
                 AllOpenedChannsTable[tostring(r)] = accept
             end
             local chann = AllOpenedChannsTable[tostring(n)]
-            if chann and chann.m_callback then
-                chann.m_callback(chann, EventNamesTable[tonumber(event)], accept)
+            if chann and chann._callback then
+                chann._callback(chann, EventNamesTable[tonumber(event)], accept)
             end
         end
     end
@@ -132,8 +132,8 @@ function Core.parseIpPort(ipport)
 end
 
 function Core.setBufSize(sendsize, recvsize)
-    Core.m_sendsize = math.max(32, sendsize)
-    Core.m_recvsize = math.max(32, recvsize)
+    Core._sendsize = math.max(32, sendsize)
+    Core._recvsize = math.max(32, recvsize)
 end
 
 --
@@ -144,15 +144,15 @@ function Core.openChann(chann_type)
     local chann = {}
     setmetatable(chann, Chann)
     if chann_type == "broadcast" then
-        chann.m_chann = mnet_chann_open(Core.CHANN_TYPE_BROADCAST)
+        chann._chann = mnet_chann_open(Core.CHANN_TYPE_BROADCAST)
     elseif chann_type == "udp" then
-        chann.m_chann = mnet_chann_open(Core.NN_TYPE_DGRAM)
+        chann._chann = mnet_chann_open(Core.CHANN_TYPE_DGRAM)
     else
         chann_type = "tcp"
-        chann.m_chann = mnet_chann_open(Core.CHANN_TYPE_STREAM)
+        chann._chann = mnet_chann_open(Core.CHANN_TYPE_STREAM)
     end
-    chann.m_type = chann_type
-    AllOpenedChannsTable[tostring(chann.m_chann)] = chann
+    chann._type = chann_type
+    AllOpenedChannsTable[tostring(chann._chann)] = chann
     return chann
 end
 
@@ -167,86 +167,86 @@ function Core.allChanns()
 end
 
 function Chann:close()
-    if self.m_chann then
-        AllOpenedChannsTable[tostring(self.m_chann)] = nil
-        mnet_chann_close(self.m_chann)
-        self.m_chann = nil
-        self.m_callback = nil
-        self.m_type = nil
+    if self._chann then
+        AllOpenedChannsTable[tostring(self._chann)] = nil
+        mnet_chann_close(self._chann)
+        self._chann = nil
+        self._callback = nil
+        self._type = nil
     end
 end
 
 function Chann:channFd()
-    return mnet_chann_fd(self.m_chann)
+    return mnet_chann_fd(self._chann)
 end
 
 function Chann:channType()
-    return self.m_type
+    return self._type
 end
 
 function Chann:listen(host, port, backlog)
-    return mnet_chann_listen(self.m_chann, host, tonumber(port), backlog or 1)
+    return mnet_chann_listen(self._chann, host, tonumber(port), backlog or 1)
 end
 
 function Chann:connect(host, port)
-    return mnet_chann_connect(self.m_chann, host, tonumber(port))
+    return mnet_chann_connect(self._chann, host, tonumber(port))
 end
 
 function Chann:disconnect()
-    mnet_chann_disconnect(self.m_chann)
+    mnet_chann_disconnect(self._chann)
 end
 
 -- callback params should be (self, event_name, accept_chann, c_msg)
 function Chann:setCallback(callback)
-    self.m_callback = callback
+    self._callback = callback
 end
 
 function Chann:activeEvent(event_name, value)
     if event_name == "event_send" then -- true or false
-        mnet_chann_active_event(self.m_chann, Core.CHANN_EVENT_SEND, value and 1 or 0)
+        mnet_chann_active_event(self._chann, Core.CHANN_EVENT_SEND, value and 1 or 0)
     elseif event_name == "event_timer" then -- milliseconds
-        mnet_chann_active_event(self.m_chann, Core.CHANN_EVENT_TIMER, tonumber(value))
+        mnet_chann_active_event(self._chann, Core.CHANN_EVENT_TIMER, tonumber(value))
     end
 end
 
 function Chann:recv()
-    return mnet_chann_recv(self.m_chann)
+    return mnet_chann_recv(self._chann)
 end
 
 function Chann:send(data)
     if type(data) ~= "string" then
         return false
     end
-    mnet_chann_send(self.m_chann, data)
+    mnet_chann_send(self._chann, data)
     return true
 end
 
 function Chann:setSocketBufSize(size)
-    mnet_core.chann_set_bufsize(self.m_chann, tonumber(size))
+    mnet_core.chann_set_bufsize(self._chann, tonumber(size))
 end
 
 function Chann:cachedSize()
-    return mnet_chann_cached(self.m_chann)
+    return mnet_chann_cached(self._chann)
 end
 
 function Chann:addr()
     if self:state() == "state_connected" then
-        local ip, port = mnet_chann_addr(self.m_chann)
+        local ip, port = mnet_chann_addr(self._chann)
         return {ip = ip, port = tonumber(port)}
     end
     return nil
 end
 
 function Chann:state()
-    return StateNamesTable[tonumber(mnet_chann_state(self.m_chann)) + 1]
+    return StateNamesTable[tonumber(mnet_chann_state(self._chann)) + 1]
 end
 
 function Chann:recvBytes()
-    return tonumber(mnet_chann_bytes(self.m_chann, 0))
+    return tonumber(mnet_chann_bytes(self._chann, 0))
 end
 
 function Chann:sendByes()
-    return tonumber(mnet_chann_bytes(self.m_chann, 1))
+    return tonumber(mnet_chann_bytes(self._chann, 1))
 end
 
 return Core
