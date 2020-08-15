@@ -101,30 +101,7 @@ int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 ]]
 
-local mnet_core = ffi.load("mnet")
-
-local mnet_poll = mnet_core.mnet_poll
-local mnet_result_next = mnet_core.mnet_result_next
-local mnet_chann_open = mnet_core.mnet_chann_open
-local mnet_chann_close = mnet_core.mnet_chann_close
-local mnet_chann_fd = mnet_core.mnet_chann_fd
-local mnet_chann_type = mnet_core.mnet_chann_type
-local mnet_chann_listen = mnet_core.mnet_chann_listen
-local mnet_chann_connect = mnet_core.mnet_chann_connect
-local mnet_chann_disconnect = mnet_core.mnet_chann_disconnect
-local mnet_chann_active_event = mnet_core.mnet_chann_active_event
-local mnet_chann_recv = mnet_core.mnet_chann_recv
-local mnet_chann_send = mnet_core.mnet_chann_send
-local mnet_chann_cached = mnet_core.mnet_chann_cached
-local mnet_chann_addr = mnet_core.mnet_chann_addr
-local mnet_chann_state = mnet_core.mnet_chann_state
-local mnet_chann_bytes = mnet_core.mnet_chann_bytes
-local mnet_current = mnet_core.mnet_current
-
-local ffinew = ffi.new
-local fficopy = ffi.copy
-local ffigc = ffi.gc
-local ffistring = ffi.string
+local core = ffi.load("mnet")
 
 local EventNamesTable = {
     "event_recv",
@@ -166,32 +143,32 @@ local Core = {
 }
 
 -- C level local veriable
-local _addr = ffinew("chann_addr_t[1]")
-local _ctype = ffinew("chann_type_t", 0)
+local _addr = ffi.new("chann_addr_t[1]")
+local _ctype = ffi.new("chann_type_t", 0)
 
-local _sendbuf = ffinew("uint8_t[?]", Core._sendsize)
-local _recvbuf = ffinew("uint8_t[?]", Core._recvsize)
+local _sendbuf = ffi.new("uint8_t[?]", Core._sendsize)
+local _recvbuf = ffi.new("uint8_t[?]", Core._recvsize)
 
-local _result = ffinew("poll_result_t *")
-local _rw = ffinew("rw_result_t *")
+local _result = ffi.new("poll_result_t *")
+local _rw = ffi.new("rw_result_t *")
 
-local _intvalue = ffinew("int", 0)
-local _int64value = ffinew("int64_t", 0)
+local _intvalue = ffi.new("int", 0)
+local _int64value = ffi.new("int64_t", 0)
 
 function Core.init()
-    mnet_core.mnet_init(1)
+    core.mnet_init(1)
 end
 
 function Core.fini()
-    mnet_core.mnet_fini()
+    core.mnet_fini()
 end
 
 function Core.report(level)
-    mnet_core.mnet_report(level)
+    core.mnet_report(level)
 end
 
 function Core.current()
-    return mnet_current()
+    return core.mnet_current()
 end
 
 local function _gcChannInstance(c_chann)
@@ -202,26 +179,26 @@ local function _gcChannInstance(c_chann)
 end
 
 function Core.poll(milliseconds)
-    _result = mnet_poll(milliseconds)
+    _result = core.mnet_poll(milliseconds)
     if _result.chann_count < 0 then
         return -1
     elseif _result.chann_count > 0 then
-        local msg = mnet_result_next(_result)
+        local msg = core.mnet_result_next(_result)
         while msg ~= nil do
             local accept = nil
             if msg.r ~= nil then
                 accept = {}
                 setmetatable(accept, Chann)
                 accept._chann = msg.r
-                accept._type = ChannTypesTable[tonumber(mnet_chann_type(msg.r))]
+                accept._type = ChannTypesTable[tonumber(core.mnet_chann_type(msg.r))]
                 AllOpenedChannsTable[tostring(msg.r)] = accept
-                ffigc(accept._chann, _gcChannInstance)
+                ffi.gc(accept._chann, _gcChannInstance)
             end
             local chann = AllOpenedChannsTable[tostring(msg.n)]
             if chann and chann._callback then
                 chann._callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
             end
-            msg = mnet_result_next(_result)
+            msg = core.mnet_result_next(_result)
         end
     end
     return _result.chann_count
@@ -230,12 +207,12 @@ end
 function Core.resolve(host, port, chann_type)
     local buf = _sendbuf
     if host:len() > Core._sendsize then
-        buf = ffinew("char[?]", host:len())
+        buf = ffi.new("char[?]", host:len())
     end
-    fficopy(buf, host, host:len())
-    if mnet_core.mnet_resolve(buf, tonumber(port), _ctype, _addr[0]) > 0 then
+    ffi.copy(buf, host, host:len())
+    if core.mnet_resolve(buf, tonumber(port), _ctype, _addr[0]) > 0 then
         local tbl = {}
-        tbl.ip = ffistring(_addr[0].ip, 16)
+        tbl.ip = ffi.string(_addr[0].ip)
         tbl.port = tonumber(_addr[0].port)
         return tbl
     else
@@ -244,9 +221,9 @@ function Core.resolve(host, port, chann_type)
 end
 
 function Core.parseIpPort(ipport)
-    if mnet_core.mnet_parse_ipport(ipport, _addr[0]) > 0 then
+    if core.mnet_parse_ipport(ipport, _addr[0]) > 0 then
         local tbl = {}
-        tbl.ip = ffistring(_addr[0].ip, 16)
+        tbl.ip = ffi.string(_addr[0].ip)
         tbl.port = tonumber(_addr[0].port)
         return tbl
     else
@@ -257,8 +234,8 @@ end
 function Core.setBufSize(sendsize, recvsize)
     Core._sendsize = math.max(32, sendsize)
     Core._recvsize = math.max(32, recvsize)
-    _sendbuf = ffinew("uint8_t[?]", Core._sendsize)
-    _recvbuf = ffinew("uint8_t[?]", Core._recvsize)
+    _sendbuf = ffi.new("uint8_t[?]", Core._sendsize)
+    _recvbuf = ffi.new("uint8_t[?]", Core._recvsize)
 end
 
 --
@@ -269,16 +246,16 @@ function Core.openChann(chann_type)
     local chann = {}
     setmetatable(chann, Chann)
     if chann_type == "broadcast" then
-        chann._chann = mnet_chann_open(mnet_core.CHANN_TYPE_BROADCAST)
+        chann._chann = core.mnet_chann_open(core.CHANN_TYPE_BROADCAST)
     elseif chann_type == "udp" then
-        chann._chann = mnet_chann_open(mnet_core.CHANN_TYPE_DGRAM)
+        chann._chann = core.mnet_chann_open(core.CHANN_TYPE_DGRAM)
     else
         chann_type = "tcp"
-        chann._chann = mnet_chann_open(mnet_core.CHANN_TYPE_STREAM)
+        chann._chann = core.mnet_chann_open(core.CHANN_TYPE_STREAM)
     end
     chann._type = chann_type
     AllOpenedChannsTable[tostring(chann._chann)] = chann
-    ffigc(chann._chann, _gcChannInstance)
+    ffi.gc(chann._chann, _gcChannInstance)
     return chann
 end
 
@@ -294,9 +271,9 @@ end
 
 function Chann:close()
     if self._chann then
-        ffigc(self._chann, nil)
+        ffi.gc(self._chann, nil)
         AllOpenedChannsTable[tostring(self._chann)] = nil
-        mnet_chann_close(self._chann)
+        core.mnet_chann_close(self._chann)
         self._chann = nil
         self._callback = nil
         self._type = nil
@@ -304,7 +281,7 @@ function Chann:close()
 end
 
 function Chann:channFd()
-    return mnet_chann_fd(self._chann)
+    return core.mnet_chann_fd(self._chann)
 end
 
 function Chann:channType()
@@ -312,15 +289,15 @@ function Chann:channType()
 end
 
 function Chann:listen(host, port, backlog)
-    return mnet_chann_listen(self._chann, host, tonumber(port), backlog or 1)
+    return core.mnet_chann_listen(self._chann, host, tonumber(port), backlog or 1)
 end
 
 function Chann:connect(host, port)
-    return mnet_chann_connect(self._chann, host, tonumber(port))
+    return core.mnet_chann_connect(self._chann, host, tonumber(port))
 end
 
 function Chann:disconnect()
-    mnet_chann_disconnect(self._chann)
+    core.mnet_chann_disconnect(self._chann)
 end
 
 -- callback params should be (self, event_name, accept_chann, c_msg)
@@ -331,20 +308,20 @@ end
 function Chann:activeEvent(event_name, value)
     if event_name == "event_send" then -- true or false
         _int64value = value and 1 or 0
-        mnet_chann_active_event(self._chann, mnet_core.CHANN_EVENT_SEND, _int64value)
+        core.mnet_chann_active_event(self._chann, core.CHANN_EVENT_SEND, _int64value)
     elseif event_name == "event_timer" then -- milliseconds
         _int64value = tonumber(value)
-        mnet_chann_active_event(self._chann, mnet_core.CHANN_EVENT_SEND, _int64value)
+        core.mnet_chann_active_event(self._chann, core.CHANN_EVENT_SEND, _int64value)
     end
 end
 
 function Chann:recv()
     _intvalue = Core._recvsize
-    _rw = mnet_chann_recv(self._chann, _recvbuf, _intvalue)
+    _rw = core.mnet_chann_recv(self._chann, _recvbuf, _intvalue)
     if _rw.ret <= 0 then
         return nil
     end
-    return ffistring(_recvbuf, _rw.ret)
+    return ffi.string(_recvbuf, _rw.ret)
 end
 
 function Chann:send(data)
@@ -354,8 +331,8 @@ function Chann:send(data)
     local leftsize = data:len()
     repeat
         _intvalue = math.min(leftsize, Core._sendsize)
-        fficopy(_sendbuf, data, _intvalue)
-        _rw = mnet_chann_send(self._chann, _sendbuf, _intvalue)
+        ffi.copy(_sendbuf, data, _intvalue)
+        _rw = core.mnet_chann_send(self._chann, _sendbuf, _intvalue)
         if _rw.ret <= 0 then
             return false
         else
@@ -367,33 +344,33 @@ function Chann:send(data)
 end
 
 function Chann:setSocketBufSize(size)
-    mnet_core.mnet_chann_set_bufsize(self._chann, tonumber(size))
+    core.mnet_chann_set_bufsize(self._chann, tonumber(size))
 end
 
 function Chann:cachedSize()
-    return mnet_chann_cached(self._chann)
+    return core.mnet_chann_cached(self._chann)
 end
 
 function Chann:addr()
     if self:state() == "state_connected" then
-        mnet_chann_addr(self._chann, _addr[0])
-        return {ip = ffistring(_addr[0].ip, 16), port = tonumber(_addr[0].port)}
+        core.mnet_chann_addr(self._chann, _addr[0])
+        return {ip = ffi.string(_addr[0].ip), port = tonumber(_addr[0].port)}
     end
     return nil
 end
 
 function Chann:state()
-    return StateNamesTable[tonumber(mnet_chann_state(self._chann)) + 1]
+    return StateNamesTable[tonumber(core.mnet_chann_state(self._chann)) + 1]
 end
 
 function Chann:recvBytes()
     _intvalue = 0
-    return tonumber(mnet_chann_bytes(self._chann, _intvalue))
+    return tonumber(core.mnet_chann_bytes(self._chann, _intvalue))
 end
 
 function Chann:sendByes()
     _intvalue = 1
-    return tonumber(mnet_chann_bytes(self._chann, _intvalue))
+    return tonumber(core.mnet_chann_bytes(self._chann, _intvalue))
 end
 
 return Core
