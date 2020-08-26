@@ -202,7 +202,7 @@ Transfer rate:          945.55 [Kbytes/sec] received
 # Projects
 
 - [cincau](https://github.com/lalawue/cincau): a fast, minimalist and high configurable framework for LuaJIT based on m_net or openresty (nginx)
-- [m_rpc_framework](https://github.com/lalawue/m_rpc_framework): LuaJIT base network RPC framework for MacOS/Linux/FreeBSD/Windows.
+- [rpc_framework](https://github.com/lalawue/rpc_framework): LuaJIT base network RPC framework for MacOS/Linux/FreeBSD/Windows.
 - [m_dnscnt](https://github.com/lalawue/m_dnscnt): asynchronous DNS query client/library, query every DNS server in list at one time.
 
 
