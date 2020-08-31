@@ -29,7 +29,7 @@ Please use gmake to build demo under FreeBSD.
 - with TCP/UDP support
 - nonblocking & event driven interface
 - using epoll/kqueue/[wepoll](https://github.com/piscisaureus/wepoll) in Linux/MacOS/FreeBSD/Windows
-- support Lua/LuaJIT with pull style API (Lua interface was deprecate)
+- support Lua/LuaJIT with pull style API
 - buildin timer event
 
 
