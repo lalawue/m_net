@@ -63,8 +63,8 @@ Chann.__index = Chann
 
 -- mnet core, shared by all channs
 local Core = {
-    _recvsize = 256, -- default recv buf size
-    _sendsize = 256, -- default send buf size
+    _recvsize = 65536, -- default recv buf size
+    _sendsize = 65536, -- default send buf size
     CHANN_TYPE_STREAM = 1,
     CHANN_TYPE_DGRAM = 2,
     CHANN_TYPE_BROADCAST = 3,
