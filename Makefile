@@ -67,10 +67,7 @@ _debug_cpp: $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_rwdata.out $^ $(LIBS) -DTEST_RWDATA
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_timer.out $^ $(LIBS) -DTEST_TIMER
 
-luajit: lib
-
-lua: lib
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(LUA_INCS) $(LUA_LIBS) -o build/mnet.so $(L_SRCS) -shared -fPIC -llua -lmnet -Lbuild -I/usr/local/include/lua5.3
-
 clean:
 	rm -rf build
+	rm -f src/*.o
+	rm -f extension/lua/*.o

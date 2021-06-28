@@ -142,20 +142,28 @@ In the other hand, the C interface with more flexible options.
 
 # Lua/LuaJIT Wrapper
 
-try 'make lua' then run [example](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua)
+## Lua
+
+recommand using Luarocks to build, then run [examples/chann_web.lua](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua)
+
+```sh
+$ luarocks make
+$ lua examples/chann_web.lua
+```
+
+open browser to visit 'http://127.0.0.1:8080' and get 'hello, world !'
+
+## LuaJIT
+
+try 'make lib' to build library, then run [examples/chann_web.lua](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua)
 
 ```
+$ make lib
 $ env DYLD_LIBRARY_PATH=$PWD/build lua examples/chann_web.lua   # in MacOS
 $ env LD_LIBRARY_PATH=$PWD/build lua examples/chann_web.lua     # in Linux
 ```
 
-or 'make luajit' then run, for LuaJIT's ffi.load() ignore package.cpath, first add 'build' directory into your system's library search path:
-
-```
-$ env DYLD_LIBRARY_PATH=$PWD/build luajit examples/chann_web.lua   # in MacOS
-$ env LD_LIBRARY_PATH=$PWD/build luajit examples/chann_web.lua     # in Linux
-```
-
+for LuaJIT's ffi.load() ignore package.cpath, we setup library search path first.
 
 
 # Tests

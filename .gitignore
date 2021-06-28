@@ -4,3 +4,5 @@
 *.so
 TAGS
 build
+src/*.o
+extension/lua/*.o
