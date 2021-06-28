@@ -1,4 +1,4 @@
-package = 'MNet'
+package = 'mnet'
 version = '0.3.20210628-1'
 source = {
    url = 'git+https://github.com/lalawue/m_net.git',
@@ -7,8 +7,8 @@ source = {
 description = {
    summary = 'Cross platform network library support pull style API',
    detailed = [[
-      MNet is a cross platform network library, support pull style API,
-      using epoll/kqueue/wepoll underlying.
+      mnet is a cross platform network library, support pull style API,
+      using epoll/kqueue/wepoll underlying, support Lua/LuaJIT.
    ]],
    homepage = 'https://github.com/lalawue/m_net',
    maintainer = 'lalawue <suchaaa@gmail.com>',
