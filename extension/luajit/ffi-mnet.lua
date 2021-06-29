@@ -101,7 +101,17 @@ int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 ]]
 
-local core = ffi.load("mnet")
+-- try to load mnet in package.cpath
+local ret, core = nil, nil
+for cpath in package.cpath:gmatch("[^;]+") do
+    local path = cpath:sub(1, cpath:len() - 4) .. "mnet.so"
+    ret, core = pcall(ffi.load, path)
+    if ret then
+        goto SUCCESS_LOAD_LABEL
+    end
+end
+error(core)
+::SUCCESS_LOAD_LABEL::
 
 local EventNamesTable = {
     "event_recv",

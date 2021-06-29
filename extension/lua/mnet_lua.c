@@ -386,7 +386,7 @@ _chann_active_event(lua_State *L) {
    return 0;
 }
 
-static const luaL_Reg mnet_core_lib[] = {
+static const luaL_Reg mnet_lib[] = {
     { "init", _mnet_init },
     { "fini", _mnet_fini },
 
@@ -427,7 +427,7 @@ static const luaL_Reg mnet_core_lib[] = {
 };
 
 LUALIB_API int
-luaopen_mnet_core(lua_State *L) {
-   luaL_newlib(L, mnet_core_lib);
+luaopen_mnet(lua_State *L) {
+   luaL_newlib(L, mnet_lib);
    return 1;
 }

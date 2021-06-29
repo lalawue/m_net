@@ -9,12 +9,9 @@ local Core = nil
 local ipport = ...
 
 if jit then
-    package.path = package.path .. ";../extension/luajit/?.lua;./extension/luajit/?.lua;"
-    Core = require("ffi_mnet")
+    Core = require("ffi-mnet")
     print("using jit", _VERSION)
 else
-    package.cpath = package.cpath .. ";./?.so;./build/?.so"
-    package.path = package.path .. ";../extension/lua/?.lua;./extension/lua/?.lua;"
     Core = require("mnet-chann")
     print("using", _VERSION)
 end

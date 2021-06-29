@@ -69,5 +69,7 @@ _debug_cpp: $(CPP_SRCS)
 
 clean:
 	rm -rf build
+	rm -f *.so
 	rm -f src/*.o
+	rm -f src/*.so
 	rm -f extension/lua/*.o

@@ -5,7 +5,7 @@
 -- under the terms of the MIT license. See LICENSE for details.
 --
 
-local mnet_core = require("mnet.core")
+local mnet_core = require("mnet")
 
 local mnet_poll = mnet_core.poll
 local mnet_result_count = mnet_core.result_count
