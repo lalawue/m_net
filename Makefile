@@ -73,3 +73,4 @@ clean:
 	rm -f src/*.o
 	rm -f src/*.so
 	rm -f extension/lua/*.o
+	rm -f extension/mdns_utils/*.o

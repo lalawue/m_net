@@ -151,6 +151,20 @@ $ lua examples/chann_web.lua
 
 open browser to visit 'http://127.0.0.1:8080' and get 'hello, world !'
 
+
+# DNS query
+
+add DNS query interface with LuaJIT binding, in 'extension/mdns_utils' dir, default query 'www.baidu.com'
+
+```sh
+$ luajit examples/test_mdns.lua www.github.com www.sina.com
+using LuaJIT 2.1.0-beta3
+---
+query   www.baidu.com   14.215.177.39
+query   www.github.com  13.250.177.223
+query   www.sina.com    113.96.179.243
+```
+
 # Tests
 
 in [test](https://github.com/lalawue/m_net/tree/master/test) dir.

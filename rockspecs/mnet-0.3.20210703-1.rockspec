@@ -25,7 +25,12 @@ build = {
          sources = { "src/mnet_core.c", "extension/lua/mnet_lua.c" },
          incdirs = { "src" }
       },
+      ["mdns_utils"] = {
+         sources = { "extension/mdns_utils/mdns_utils.c" },
+         incdirs = { "extension/mdns_utils" }
+      },
       ["mnet-chann"] = "extension/lua/mnet-chann.lua",
       ["ffi-mnet"] = "extension/luajit/ffi-mnet.lua",
+      ["ffi-mdns"] = "extension/mdns_utils/ffi-mdns.lua",
    }
 }
