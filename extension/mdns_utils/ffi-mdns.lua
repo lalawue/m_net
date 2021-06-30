@@ -46,18 +46,7 @@ ffi.cdef([[
 ]])
 
 local NetCore = require("ffi-mnet")
-
--- try to load mdns in package.cpath
-local ret, DnsCore = nil, nil
-for cpath in package.cpath:gmatch("[^;]+") do
-    local path = cpath:sub(1, cpath:len() - 4) .. "mdns_utils.so"
-    ret, DnsCore = pcall(ffi.load, path)
-    if ret then
-        goto SUCCESS_LOAD_LABEL
-    end
-end
-error(DnsCore)
-::SUCCESS_LOAD_LABEL::
+local mNet = NetCore.core
 
 local _copy = ffi.copy
 local _fill = ffi.fill
@@ -72,7 +61,7 @@ local function _sendRequest(self, domain, callback)
     local qid = math.random(65535)
     _fill(_domain, 256)
     _copy(_domain, domain)
-    local query_size = DnsCore.mdns_query_build(_buf, qid, _domain)
+    local query_size = mNet.mdns_query_build(_buf, qid, _domain)
     if query_size <= 0 then
         return false
     end
@@ -109,14 +98,14 @@ local function _recvResponse(self, pkg_data)
     end
     -- check response
     _copy(_buf, pkg_data, pkg_data:len())
-    local qid = tonumber(DnsCore.mdns_response_fetch_qid(_buf, pkg_data:len()))
+    local qid = tonumber(mNet.mdns_response_fetch_qid(_buf, pkg_data:len()))
     local item = self._qid_tbl[qid]
     if item == nil then
         return
     end
     _fill(_domain, 256)
     _copy(_domain, item.domain)
-    local ret = DnsCore.mdns_response_parse(_buf, pkg_data:len(), item.query_size, _domain, _out_ipv4)
+    local ret = mNet.mdns_response_parse(_buf, pkg_data:len(), item.query_size, _domain, _out_ipv4)
     if ret <= 0 then
         _rpcResponse(self, item.domain, nil)
     else
@@ -140,10 +129,10 @@ _M.__index = _M
 function _M:init()
     NetCore.init()
     math.randomseed(os.time())
-    self._svr_tbl = {}
+    self._svr_tbl = {} -- UDP chann
     self._qid_tbl = {} -- processing list as [tonumber(qid)] = { domain, query_size }
     self._domain_tbl = {} -- ["domain"] = "ipv4"
-    self._wait_tbl = {}
+    self._wait_tbl = {} -- waiting response
 end
 
 -- UDP DNS Query

@@ -26,9 +26,9 @@ RELEASE= -O2
 LIBS= -lc -lmnet -Lbuild
 
 LIB_SRCS := $(shell find src -name "*.c")
+LIB_SRCS += $(shell find extension/mdns_utils -name "*.c")
 E_SRCS := $(shell find examples -name "*.c")
 T_SRCS := $(shell find test -name "*.c")
-L_SRCS := $(shell find extension/lua -name "*.c")
 
 CPP_SRCS := $(shell find test -name "*.cpp")
 CPP_SRCS += $(shell find examples -name "*.cpp")
@@ -69,8 +69,5 @@ _debug_cpp: $(CPP_SRCS)
 
 clean:
 	rm -rf build
-	rm -f *.so
-	rm -f src/*.o
-	rm -f src/*.so
-	rm -f extension/lua/*.o
-	rm -f extension/mdns_utils/*.o
+	find . -name "*.so" -exec rm {} \;
+	find . -name "*.o" -exec rm {} \;
