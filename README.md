@@ -142,7 +142,7 @@ In the other hand, the C interface with more flexible options.
 
 # Lua/LuaJIT Wrapper
 
-recommand using Luarocks to build, then run [examples/chann_web.lua](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua)
+recommand using [LuaRocks](https://luarocks.org/) to build, then run [examples/chann_web.lua](https://github.com/lalawue/m_net/blob/master/examples/chann_web.lua)
 
 ```sh
 $ luarocks make
