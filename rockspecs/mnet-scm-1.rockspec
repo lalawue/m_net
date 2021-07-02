@@ -1,8 +1,7 @@
 package = 'mnet'
-version = '0.3.20210703-1'
+version = 'scm-1'
 source = {
-   url = 'git+https://github.com/lalawue/m_net.git',
-   tag = '0.3.20210703',
+   url = 'git+https://github.com/lalawue/m_net.git'
 }
 description = {
    summary = 'Cross platform network library support pull style API for Lua/LuaJIT',
