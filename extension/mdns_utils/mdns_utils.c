@@ -170,7 +170,8 @@ _response_fetch_res(const uint8_t *buf,
 
    int prev_size = query_size;
    
-   for (int i=0; i<ntohs(rh->ancount); i++) {
+   int i = 0;
+   for ( i=0; i<ntohs(rh->ancount); i++) {
       //printf("prev_size: %d\n", prev_size);
        
       if (content_len <= (prev_size + 2 + (int)sizeof(dns_header_t))) {

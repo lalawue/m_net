@@ -407,7 +407,8 @@ skiplist_create(void) {
    if (list) {
       list->level = 1;
       list->count = 0;
-      for (size_t i = 0; i < sizeof(list->head) / sizeof(list->head[0]); i++) {
+      size_t i = 0;
+      for (i = 0; i < sizeof(list->head) / sizeof(list->head[0]); i++) {
          list_init(&list->head[i]);
       }
    }
@@ -1086,7 +1087,8 @@ _evt_poll(uint32_t milliseconds) {
    } else if (nfd > 0) {
       chg->count = 0;
 
-      for (int i=0; i<nfd; i++) {
+      int i = 0;
+      for (i=0; i<nfd; i++) {
          mevent_t *kev = &evt->array[i];
          chann_t *n = (chann_t*)_kev_opaque(kev);
 

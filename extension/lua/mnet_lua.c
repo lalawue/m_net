@@ -43,7 +43,8 @@ _destroy_lua_chann(lua_chann_t *lc) {
 /* check types in lua stack */
 static int
 _check_type(lua_State *L, int *types, int count, int nline) {
-   for (int i=0; i<count; i++) {
+   int i = 0;
+   for (i=0; i<count; i++) {
       if (lua_type(L, i+1) != types[i]) {
          fprintf(stderr,
                  "invalid type idx %d: wanted %d, actual %d, in line %d\n",
