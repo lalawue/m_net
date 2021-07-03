@@ -103,15 +103,22 @@ int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 
 -- try to load mnet in package.cpath
 local ret, mNet = nil, nil
-for cpath in package.cpath:gmatch("[^;]+") do
-    local path = cpath:sub(1, cpath:len() - 4) .. "mnet.so"
-    ret, mNet = pcall(ffi.load, path)
-    if ret then
-        goto SUCCESS_LOAD_LABEL
+do
+    local suffix = "so"
+    if jit.os == "Windows" then
+        suffix = "dll"
     end
+    local count = 2 + suffix:len()
+    for cpath in package.cpath:gmatch("[^;]+") do
+        local path = cpath:sub(1, cpath:len() - count) .. "mnet." .. suffix
+        ret, mNet = pcall(ffi.load, path)
+        if ret then
+            goto SUCCESS_LOAD_LABEL
+        end
+    end
+    error(mNet)
+    ::SUCCESS_LOAD_LABEL::
 end
-error(mNet)
-::SUCCESS_LOAD_LABEL::
 
 local EventNamesTable = {
     "event_recv",
