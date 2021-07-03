@@ -9,8 +9,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <arpa/inet.h>
 #include "mdns_utils.h"
+#if defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 
 /* structures for DNS query
  */
