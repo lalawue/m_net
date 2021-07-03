@@ -104,13 +104,9 @@ int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 -- try to load mnet in package.cpath
 local ret, mNet = nil, nil
 do
-    local suffix = "so"
-    if jit.os == "Windows" then
-        suffix = "dll"
-    end
-    local count = 2 + suffix:len()
+    local suffix = (jit.os == "Windows") and "dll" or "so"
     for cpath in package.cpath:gmatch("[^;]+") do
-        local path = cpath:sub(1, cpath:len() - count) .. "mnet." .. suffix
+        local path = cpath:sub(1, cpath:len() - 2 - suffix:len()) .. "mnet." .. suffix
         ret, mNet = pcall(ffi.load, path)
         if ret then
             goto SUCCESS_LOAD_LABEL
