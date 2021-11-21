@@ -5,6 +5,14 @@
 -- under the terms of the MIT license. See LICENSE for details.
 --
 
+type = type
+tostring = tostring
+tonumber = tonumber
+pairs = pairs
+setmetatable = setmetatable
+mmin = math.min
+mmax = math.max
+
 local ffi = require "ffi"
 
 ffi.cdef [[
@@ -246,8 +254,8 @@ function Core.parseIpPort(ipport)
 end
 
 function Core.setBufSize(sendsize, recvsize)
-    Core._sendsize = math.max(32, sendsize)
-    Core._recvsize = math.max(32, recvsize)
+    Core._sendsize = mmax(32, sendsize)
+    Core._recvsize = mmax(32, recvsize)
     _sendbuf = ffi.new("uint8_t[?]", Core._sendsize)
     _recvbuf = ffi.new("uint8_t[?]", Core._recvsize)
 end
@@ -344,7 +352,7 @@ function Chann:send(data)
     end
     local leftsize = data:len()
     repeat
-        _intvalue = math.min(leftsize, Core._sendsize)
+        _intvalue = mmin(leftsize, Core._sendsize)
         ffi.copy(_sendbuf, data, _intvalue)
         _rw = mNet.mnet_chann_send(self._chann, _sendbuf, _intvalue)
         if _rw.ret <= 0 then

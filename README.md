@@ -193,15 +193,33 @@ benchmark for LuaJIT's examples/chann_web.lua '127.0.0.1:8080', under MacBook Pr
 # ab -c 100 -n 5000 http://127.0.0.1:8080/empty
 
 Concurrency Level:      100
-Time taken for tests:   0.547 seconds
+Time taken for tests:   0.300 seconds
 Complete requests:      5000
 Failed requests:        0
-Total transferred:      530000 bytes
-HTML transferred:       65000 bytes
-Requests per second:    9134.39 [#/sec] (mean)
-Time per request:       10.948 [ms] (mean)
-Time per request:       0.109 [ms] (mean, across all concurrent requests)
-Transfer rate:          945.55 [Kbytes/sec] received
+Total transferred:      540000 bytes
+HTML transferred:       85000 bytes
+Requests per second:    16691.87 [#/sec] (mean)
+Time per request:       5.991 [ms] (mean)
+Time per request:       0.060 [ms] (mean, across all concurrent requests)
+Transfer rate:          1760.47 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    3   0.5      3       5
+Processing:     2    3   0.6      3       6
+Waiting:        1    3   0.5      3       5
+Total:          4    6   0.6      6       8
+
+Percentage of the requests served within a certain time (ms)
+  50%      6
+  66%      6
+  75%      6
+  80%      6
+  90%      6
+  95%      7
+  98%      8
+  99%      8
+ 100%      8 (longest request)
 ```
 
 

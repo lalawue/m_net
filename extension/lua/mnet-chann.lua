@@ -5,6 +5,12 @@
 -- under the terms of the MIT license. See LICENSE for details.
 --
 
+type = type
+tostring = tostring
+tonumber = tonumber
+pairs = pairs
+setmetatable = setmetatable
+
 local mnet_core = require("mnet")
 
 local mnet_poll = mnet_core.poll
