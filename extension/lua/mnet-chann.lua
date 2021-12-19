@@ -5,11 +5,11 @@
 -- under the terms of the MIT license. See LICENSE for details.
 --
 
-type = type
-tostring = tostring
-tonumber = tonumber
-pairs = pairs
-setmetatable = setmetatable
+local type = type
+local tostring = tostring
+local tonumber = tonumber
+local pairs = pairs
+local setmetatable = setmetatable
 
 local mnet_core = require("mnet")
 

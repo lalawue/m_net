@@ -149,7 +149,7 @@ $ luarocks make
 $ lua examples/chann_web.lua
 ```
 
-open browser to visit 'http://127.0.0.1:8080' and get 'hello, world !'
+open browser to visit 'http://127.0.0.1:8080' and get 'hello, world !', and you will get browser's request infomation in terminal side.
 
 
 # DNS query
@@ -187,39 +187,63 @@ including UDP/TCP, C/C++, callback/pull style API, timer event examples, also pr
 
 # Benchmark
 
-benchmark for LuaJIT's examples/chann_web.lua '127.0.0.1:8080', under MacBook Pro (13-inch, 2017, Four Thunderbolt 3 Ports)
+benchmark for 'luajit examples/chann_web.lua > /dev/null', under MacBook Pro (13-inch, 2017, Four Thunderbolt 3 Ports)
 
 ```
-# ab -c 100 -n 5000 http://127.0.0.1:8080/empty
+$ ab -c 1 -n 10000 http://127.0.0.1:8080/
+This is ApacheBench, Version 2.3 <$Revision: 1807734 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
 
-Concurrency Level:      100
-Time taken for tests:   0.300 seconds
-Complete requests:      5000
+Benchmarking 127.0.0.1 (be patient)
+Completed 1000 requests
+Completed 2000 requests
+Completed 3000 requests
+Completed 4000 requests
+Completed 5000 requests
+Completed 6000 requests
+Completed 7000 requests
+Completed 8000 requests
+Completed 9000 requests
+Completed 10000 requests
+Finished 10000 requests
+
+
+Server Software:        MnetChannWeb/0.1
+Server Hostname:        127.0.0.1
+Server Port:            8080
+
+Document Path:          /
+Document Length:        17 bytes
+
+Concurrency Level:      1
+Time taken for tests:   2.250 seconds
+Complete requests:      10000
 Failed requests:        0
-Total transferred:      540000 bytes
-HTML transferred:       85000 bytes
-Requests per second:    16691.87 [#/sec] (mean)
-Time per request:       5.991 [ms] (mean)
-Time per request:       0.060 [ms] (mean, across all concurrent requests)
-Transfer rate:          1760.47 [Kbytes/sec] received
+Total transferred:      1080000 bytes
+HTML transferred:       170000 bytes
+Requests per second:    4443.82 [#/sec] (mean)
+Time per request:       0.225 [ms] (mean)
+Time per request:       0.225 [ms] (mean, across all concurrent requests)
+Transfer rate:          468.68 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0    3   0.5      3       5
-Processing:     2    3   0.6      3       6
-Waiting:        1    3   0.5      3       5
-Total:          4    6   0.6      6       8
+Connect:        0    0   2.1      0     205
+Processing:     0    0   0.1      0       4
+Waiting:        0    0   0.0      0       1
+Total:          0    0   2.1      0     206
 
 Percentage of the requests served within a certain time (ms)
-  50%      6
-  66%      6
-  75%      6
-  80%      6
-  90%      6
-  95%      7
-  98%      8
-  99%      8
- 100%      8 (longest request)
+  50%      0
+  66%      0
+  75%      0
+  80%      0
+  90%      0
+  95%      0
+  98%      0
+  99%      0
+ 100%    206 (longest request)
 ```
 
 

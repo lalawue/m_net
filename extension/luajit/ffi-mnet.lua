@@ -5,13 +5,13 @@
 -- under the terms of the MIT license. See LICENSE for details.
 --
 
-type = type
-tostring = tostring
-tonumber = tonumber
-pairs = pairs
-setmetatable = setmetatable
-mmin = math.min
-mmax = math.max
+local type = type
+local tostring = tostring
+local tonumber = tonumber
+local pairs = pairs
+local setmetatable = setmetatable
+local mmin = math.min
+local mmax = math.max
 
 local ffi = require "ffi"
 
