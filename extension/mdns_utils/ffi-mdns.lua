@@ -136,11 +136,12 @@ function _M:init()
 end
 
 -- UDP DNS Query
-function _M:initUdpChanns()
+function _M:initUdpChanns(ipv4_list)
     local dns_ipv4 = {
         "114.114.114.114",
         "8.8.8.8"
     }
+    dns_ipv4 = ipv4_list or dns_ipv4
     for i = 1, #dns_ipv4, 1 do
         local udp_chann = NetCore.openChann("udp")
         udp_chann:setCallback(function(chann, event_name, _, _)
@@ -154,9 +155,9 @@ function _M:initUdpChanns()
 end
 
 -- init after mnet init
-local function _init()
+local function _init(ipv4_list)
     _M:init()
-    _M:initUdpChanns()
+    _M:initUdpChanns(ipv4_list)
 end
 
 -- query domain, return ipv4 in coroutine
