@@ -7,3 +7,4 @@ build
 src/*.o
 extension/lua/*.o
 extension/mdns_utils/*.o
+.vscode/
