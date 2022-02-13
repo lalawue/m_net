@@ -66,6 +66,7 @@ typedef struct {
 } chann_addr_t;
 
 typedef void (*chann_msg_cb)(chann_msg_t*);
+typedef int (*chann_msg_filter)(chann_msg_t*);
 typedef void (*mnet_log_cb)(chann_t*, int, const char *log_string);
 
 /* set allocator/log before init
@@ -100,10 +101,10 @@ int64_t mnet_current(void);
 
 /* dispatch chann event, milliseconds > 0, and it will cause
  * CHANN_EVENT_TIMER accurate
-*/
+ */
 poll_result_t* mnet_poll(uint32_t milliseconds);
 
-/* next msg for pull style */   
+/* next msg for pull style */
 chann_msg_t* mnet_result_next(poll_result_t *result);
 
 /* channel
@@ -119,7 +120,9 @@ int mnet_chann_listen(chann_t *n, const char *host, int port, int backlog);
 int mnet_chann_connect(chann_t *n, const char *host, int port);
 void mnet_chann_disconnect(chann_t *n);
 
-void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb); /* only for callback style */   
+void mnet_chann_set_filter(chann_t *n, chann_msg_filter filter); /* for extension, both style */
+void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb); /* only for callback style */
+
 void mnet_chann_set_opaque(chann_t *n, void *opaque); /* user defined data, return with chann_msg_t */
 void* mnet_chann_get_opaque(chann_t *n); /* user defined data in chann */
 

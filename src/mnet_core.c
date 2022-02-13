@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2015 lalawue
  * 
  * This library is free software; you can redistribute it and/or modify it
@@ -140,6 +140,7 @@ struct s_mchann {
    void *opaque;                /* user defined data */
    chann_state_t state;         /* chann state */
    chann_type_t type;           /* 'tcp', 'udp', 'broadcast' */
+   chann_msg_filter filter; /* msg filter for extension */
    chann_msg_cb cb;             /* chann callback for callback style */
    struct sockaddr_in addr;     /* socket address */
    socklen_t addr_len;          /* socket address length */
@@ -255,6 +256,7 @@ _reset_msg(poll_result_t *result, chann_t *n) {
 }
 
 void _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err);
+int _chan_filter(chann_t *n, chann_event_t event, chann_t *r, int err);
 
 #define _is_callback_style_api() (_gmnet()->api_style == 0)
 
@@ -624,6 +626,7 @@ _chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
    n->state = state;
    n->type = type;
    n->next = ss->channs;
+   n->filter = _chann_filter;
    if (ss->channs) {
       ss->channs->prev = n;
    }
@@ -726,6 +729,9 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
    n->msg.n = n;
    n->msg.r = r;
    n->msg.opaque = n->opaque;
+   if (!n->filter(&n->msg)) {
+      return;
+   }
    if (_is_callback_style_api()) {
       if ( n->cb ) {
          n->cb( &n->msg );
@@ -739,6 +745,11 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
          ss->poll_result.reserved = n;
       }
    }
+}
+
+int
+_chann_filter(chann_msg_t *msg) {
+   return 1;
 }
 
 
@@ -1192,7 +1203,7 @@ mnet_init(int api_style) {
       _evt_init();      
       srand(_tm_current());
       ss->tm_clock = skiplist_create();
-      ss->api_style = api_style;      
+      ss->api_style = api_style;
       ss->init = 1;
       return 20200522;
    }
@@ -1327,6 +1338,9 @@ mnet_parse_ipport(const char *ipport, chann_addr_t *addr) {
    return 0;
 }
 
+/** Channs
+ */
+
 chann_t*
 mnet_chann_open(chann_type_t type) {
    return _chann_create(_gmnet(), type, CHANN_STATE_DISCONNECT);
@@ -1413,6 +1427,14 @@ mnet_chann_listen(chann_t *n, const char *host, int port, int backlog) {
 
 /* mnet channel api
  */
+
+void
+mnet_chann_set_filter(chann_t *n, chann_msg_filter filter) {
+   if (n && filter) {
+      n->filter = filter;
+   }
+}
+
 void
 mnet_chann_set_cb(chann_t *n, chann_msg_cb cb) {
    if ( n ) {
