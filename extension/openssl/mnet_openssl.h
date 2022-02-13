@@ -20,10 +20,8 @@ typedef struct mnet_openssl mnet_openssl_t;
 /* config ssl from ctx builder */
 typedef void (*mnet_openssl_configurator)(SSL_CTX *ctx);
 
-/* create openssl SSL_CTX, call user to config it */
+/* create openssl SSL_CTX, callback user to config it */
 mnet_openssl_t* mnet_openssl_ctx_config(mnet_openssl_configurator configurator);
-
-/* release openssl ctx */
 void mnet_openssl_ctx_release(mnet_openssl_t *);
 
 chann_t* mnet_openssl_chann_open(mnet_openssl_t *);
@@ -33,6 +31,9 @@ int mnet_openssl_chann_listen(chann_t *n, const char *host, int port, int backlo
 
 int mnet_openssl_chann_connect(chann_t *n, const char *host, int port);
 void mnet_openssl_chann_disconnect(chann_t *n);
+
+// when CHANN_EVENT_ACCEPT, msg->n would be NULL
+void mnet_openssl_chann_set_cb(chann_t *n, chann_msg_cb cb);
 
 void mnet_openssl_chann_set_opaque(chann_t *n, void *opaque);
 void* mnet_openssl_chann_get_opaque(chann_t *n);
