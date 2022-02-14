@@ -13,15 +13,12 @@
 
 typedef struct mnet_openssl mnet_openssl_t;
 
-/*
- * run mnet_init() first !
+/** run these before ctx_config
+ * 1. mnet_init()
+ * 2. SSL_library_init()
+ * 3. SSL_CTX_new()
  */
-
-/* config ssl from ctx builder */
-typedef SSL_CTX* (*mnet_openssl_configurator)(void);
-
-/* create openssl SSL_CTX, callback user to config it */
-mnet_openssl_t* mnet_openssl_ctx_config(mnet_openssl_configurator configurator);
+mnet_openssl_t* mnet_openssl_ctx_config(SSL_CTX *ctx);
 void mnet_openssl_ctx_release(mnet_openssl_t *);
 
 chann_t* mnet_openssl_chann_open(mnet_openssl_t *);

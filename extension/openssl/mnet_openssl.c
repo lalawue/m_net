@@ -41,35 +41,21 @@ _is_valid_wrapper(mnet_openssl_chann_wrapper_t *wt) {
     }
 }
 
-static int _has_init = 0;
-
 mnet_openssl_t*
-mnet_openssl_ctx_config(mnet_openssl_configurator configurator) {
-    SSL_CTX *ctx = NULL;
-    if (configurator == NULL) {
-        goto CTX_FAILED_OUT;
+mnet_openssl_ctx_config(SSL_CTX *ctx) {
+    if (ctx == NULL) {
+        return NULL;
     }
-    if (!_has_init) {
-        _has_init = 1;
-        SSL_library_init();
-    }
-    ctx = configurator();
     if (!SSL_CTX_check_private_key(ctx)) {
-        goto CTX_FAILED_OUT;
+        return NULL;
     }
     mnet_openssl_t *ot = (mnet_openssl_t *)calloc(1, sizeof(mnet_openssl_t));
     if (ot == NULL) {
-        goto CTX_FAILED_OUT;
+        return NULL;
     }
     ot->magic = MNET_OPENSSL_MAGIC;
     ot->ctx = ctx;
     return ot;
-
-CTX_FAILED_OUT:
-    if (ctx) {
-        SSL_CTX_free(ctx);
-    }
-    return NULL;
 }
 
 /* destroy openssl ctx */
@@ -174,7 +160,6 @@ mnet_openssl_chann_open(mnet_openssl_t *ot) {
 
 CHANN_FAILED_OUT:
     if (n) {
-        mnet_chann_disconnect(n);
         mnet_chann_close(n);
     }
     return NULL;
