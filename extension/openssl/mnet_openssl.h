@@ -38,6 +38,12 @@ void mnet_openssl_chann_set_cb(chann_t *n, chann_msg_cb cb);
 void mnet_openssl_chann_set_opaque(chann_t *n, void *opaque);
 void* mnet_openssl_chann_get_opaque(chann_t *n);
 
+/* active openssl chann events after receive connected event
+ * CHANN_EVENT_SEND: send buffer empty event, 0 to inactive, postive to active
+ * CHANN_EVENT_TIMER: repeated timeout event, 0 to inactive, postive for milli second interval
+ */
+void mnet_openssl_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
+
 rw_result_t* mnet_openssl_chann_recv(chann_t *n, void *buf, int len);
 rw_result_t* mnet_openssl_chann_send(chann_t *n, void *buf, int len);
 

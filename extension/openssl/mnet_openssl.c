@@ -11,9 +11,11 @@
 
 #define MNET_OPENSSL_MAGIC 0xbeef8bad
 
-static rw_result_t _rw;
+extern void process_chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err);
+extern int get_chann_errno();
+extern chann_msg_t* get_chann_msg(chann_t *n);
 
-extern void _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err);
+static rw_result_t _rw;
 
 /* mnet openssl ctx configure holder */
 struct mnet_openssl {
@@ -31,7 +33,7 @@ typedef struct {
 } mnet_openssl_chann_wrapper_t;
 
 static inline int
-_is_valid_wrapper(mnet_openssl_chann_wrapper_t *ot) {
+_is_valid_wrapper(mnet_openssl_chann_wrapper_t *wt) {
     if (wt && wt->ot && wt->ot->magic == MNET_OPENSSL_MAGIC) {
         return 1;
     } else {
@@ -39,7 +41,7 @@ _is_valid_wrapper(mnet_openssl_chann_wrapper_t *ot) {
     }
 }
 
-static int _has_init = 0
+static int _has_init = 0;
 
 mnet_openssl_t*
 mnet_openssl_ctx_config(mnet_openssl_configurator configurator) {
@@ -51,10 +53,10 @@ mnet_openssl_ctx_config(mnet_openssl_configurator configurator) {
         _has_init = 1;
         SSL_library_init();
     }
-    SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
+    ctx = SSL_CTX_new(SSLv23_method());
     configurator(ctx);
     if (!SSL_CTX_check_private_key(ctx)) {
-        goto FAILED_OUT;
+        goto CTX_FAILED_OUT;
     }
     mnet_openssl_t *ot = (mnet_openssl_t *)calloc(1, sizeof(mnet_openssl_t));
     if (ot == NULL) {
@@ -102,15 +104,14 @@ _mnet_openssl_msg_filter(chann_msg_t *msg) {
     }
     msg->opaque = wt->opaque;
     switch (msg->event) {
-        case CHANN_EVENT_ACCEPT:
-            chann_t *n = msg->r;
+        case CHANN_EVENT_ACCEPT: {
             mnet_openssl_chann_wrapper_t *rwt = (mnet_openssl_chann_wrapper_t *)calloc(1, sizeof(mnet_openssl_chann_wrapper_t));
             rwt->ot = wt->ot;
-            rwt->state = CHANN_STATE_ACCEPT;
-            rwt->ssl = SSL_new();
-            SSL_set_fd(rwt->ssl, mnet_chann_fd(n));
-            mnet_chann_set_opaque(n, rwt);
-            mnet_chann_set_filter(n, _mnet_openssl_msg_filter);
+            rwt->state = CHANN_STATE_LISTENING;
+            rwt->ssl = SSL_new(wt->ot->ctx);
+            SSL_set_fd(rwt->ssl, mnet_chann_fd(msg->r));
+            mnet_chann_set_opaque(msg->r, rwt);
+            mnet_chann_set_filter(msg->r, _mnet_openssl_msg_filter);
             int ret = SSL_accept(rwt->ssl);
             if (ret == 1) {
                 msg->n = NULL;
@@ -120,19 +121,21 @@ _mnet_openssl_msg_filter(chann_msg_t *msg) {
                 mnet_openssl_chann_disconnect(msg->r);
             }
             return 0;
+        }
         case CHANN_EVENT_CONNECTED:
         case CHANN_EVENT_RECV:
+        case CHANN_EVENT_SEND: {
             if (wt->state == CHANN_STATE_CONNECTED) {
                 return 1;
             }
-            int ret = wt->state == CHANN_STATE_ACCEPT ? SSL_accept(wt->ssl) : SSL_connect(wt->ssl);
+            int ret = wt->state == CHANN_STATE_LISTENING ? SSL_accept(wt->ssl) : SSL_connect(wt->ssl);
             if (ret == 1) {
-                if (wt->state == CHANN_STATE_ACCEPT) {
-                    msg->event = CHANN_STATE_ACCEPT;
+                if (wt->state == CHANN_STATE_LISTENING) {
+                    msg->event = CHANN_EVENT_ACCEPT;
                     msg->r = msg->n;
                     msg->n = NULL;
                 } else {
-                    msg->event = CHANN_STATE_CONNECTED;
+                    msg->event = CHANN_EVENT_CONNECTED;
                 }
                 wt->state = CHANN_STATE_CONNECTED;
                 return 1;
@@ -140,7 +143,7 @@ _mnet_openssl_msg_filter(chann_msg_t *msg) {
             if (_is_ssl_rw(wt->ssl, ret)) {
                 return 0;
             } else {
-                if (wt->state == CHANN_STATE_ACCEPT) {
+                if (wt->state == CHANN_STATE_LISTENING) {
                     mnet_openssl_chann_disconnect(msg->n);
                     return 0;
                 } else {
@@ -149,10 +152,13 @@ _mnet_openssl_msg_filter(chann_msg_t *msg) {
                     return 1;
                 }
             }
-        case CHANN_EVENT_DISCONNECT:
-            wt->state == CHANN_EVENT_DISCONNECT;
+        }
+        case CHANN_EVENT_DISCONNECT: {
             mnet_openssl_chann_disconnect(msg->n);
             return 1;
+        }
+        default:
+            break;
     }
     return 1;
 }
@@ -170,10 +176,10 @@ mnet_openssl_chann_open(mnet_openssl_t *ot) {
         goto CHANN_FAILED_OUT;
     }
     wt->ot = ot;
-    wt->state == CHANN_STATE_DISCONNECT;
+    wt->state = CHANN_STATE_DISCONNECT;
     mnet_chann_set_opaque(n, wt);
     mnet_chann_set_filter(n, _mnet_openssl_msg_filter);
-    return wt;
+    return n;
 
 CHANN_FAILED_OUT:
     if (n) {
@@ -194,7 +200,7 @@ mnet_openssl_chann_close(chann_t *n) {
             SSL_free(wt->ssl);
         }
         free(wt);
-        n->wt = NULL;
+        mnet_chann_set_opaque(n, NULL);
     }
     mnet_chann_close(n);
 }
@@ -208,7 +214,7 @@ mnet_openssl_chann_listen(chann_t *n, const char *host, int port, int backlog) {
     if (!_is_valid_wrapper(wt)) {
         return 0;
     }
-    if (!mnet_chann_listen(n)) {
+    if (!mnet_chann_listen(n, host, port, backlog)) {
         return 0;
     }
     wt->state = CHANN_STATE_LISTENING;
@@ -224,16 +230,16 @@ mnet_openssl_chann_connect(chann_t *n, const char *host, int port) {
     if (!_is_valid_wrapper(wt)) {
         return 0;
     }
-    if (!mnet_chann_connect(n)) {
+    if (!mnet_chann_connect(n, host, port)) {
         return 0;
     }
     if (wt->ssl == NULL) {
-        wt->ssl = SSL_new();
+        wt->ssl = SSL_new(wt->ot->ctx);
     }
     SSL_set_fd(wt->ssl, mnet_chann_fd(n));
     int ret = SSL_connect(wt->ssl);
     if (ret == 1) {
-        wt->state == CHANN_STATE_CONNECTED;
+        wt->state = CHANN_STATE_CONNECTED;
         return 1;
     }
     wt->state = CHANN_STATE_CONNECTING;
@@ -269,24 +275,27 @@ mnet_openssl_chann_set_cb(chann_t *n, chann_msg_cb cb) {
 
 void
 mnet_openssl_chann_set_opaque(chann_t *n, void *opaque) {
-    if (n == NULL) {
-        return;
-    }
     mnet_openssl_chann_wrapper_t *wt = (mnet_openssl_chann_wrapper_t *)mnet_chann_get_opaque(n);
     if (_is_valid_wrapper(wt)) {
         wt->opaque = opaque;
     }
 }
 
-void* mnet_openssl_chann_get_opaque(chann_t *n) {
-    if (n == NULL) {
-        return NULL;
-    }
+void*
+mnet_openssl_chann_get_opaque(chann_t *n) {
     mnet_openssl_chann_wrapper_t *wt = (mnet_openssl_chann_wrapper_t *)mnet_chann_get_opaque(n);
     if (_is_valid_wrapper(wt)) {
         return wt->opaque;
     } else {
         return NULL;
+    }
+}
+
+void
+mnet_openssl_chann_active_event(chann_t *n, chann_event_t et, int64_t value) {
+    mnet_openssl_chann_wrapper_t *wt = (mnet_openssl_chann_wrapper_t *)mnet_chann_get_opaque(n);
+    if (_is_valid_wrapper(wt) && wt->state == CHANN_STATE_CONNECTED) {
+        mnet_chann_active_event(n, et, value);
     }
 }
 
@@ -301,16 +310,15 @@ mnet_openssl_chann_recv(chann_t *n, void *buf, int len) {
     if (!_is_valid_wrapper(wt) || wt->state <= CHANN_STATE_CONNECTING) {
         return &_rw;
     }
-    int ret = SSL_write(wt->ssl, buf, len);
-    if (ret <= 0) {
-        if (_is_ssl_rw(wt->ssl, ret)) {
-            ret = 0;
+    _rw.ret = SSL_write(wt->ssl, buf, len);
+    if (_rw.ret <= 0) {
+        if (_is_ssl_rw(wt->ssl, _rw.ret)) {
+            _rw.ret = 0;
         } else {
             mnet_chann_disconnect(n);
-            _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
+            process_chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, get_chann_errno());
         }
-        _rw.ret = ret;
-        _rw.msg = &n->msg;
+        _rw.msg = get_chann_msg(n);
     }
     return &_rw;
 }
@@ -326,16 +334,15 @@ mnet_openssl_chann_send(chann_t *n, void *buf, int len) {
     if (!_is_valid_wrapper(wt) || wt->state <= CHANN_STATE_CONNECTING) {
         return &_rw;
     }
-    int ret = SSL_read(wt->ssl, buf, len);
-    if (ret <= 0) {
-        if (_is_ssl_rw(wt->ssl, ret)) {
-            ret = 0;
+    _rw.ret = SSL_read(wt->ssl, buf, len);
+    if (_rw.ret <= 0) {
+        if (_is_ssl_rw(wt->ssl, _rw.ret)) {
+            _rw.ret = 0;
         } else {
             mnet_chann_disconnect(n);
-            _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
+            process_chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, get_chann_errno());
         }
-        _rw.ret = ret;
-        _rw.msg = &n->msg;
+        _rw.msg = get_chann_msg(n);
     }
     return &_rw;
 }
@@ -343,8 +350,9 @@ mnet_openssl_chann_send(chann_t *n, void *buf, int len) {
 int
 mnet_openssl_chann_state(chann_t *n) {
     mnet_openssl_chann_wrapper_t *wt = (mnet_openssl_chann_wrapper_t *)mnet_chann_get_opaque(n);
-    if (!_is_valid_wrapper(wt)) {
+    if (_is_valid_wrapper(wt)) {
+        return wt->state;
+    } else {
         return -1;
     }
-    return wt->state;
 }

@@ -256,7 +256,6 @@ _reset_msg(poll_result_t *result, chann_t *n) {
 }
 
 void _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err);
-int _chan_filter(chann_t *n, chann_event_t event, chann_t *r, int err);
 
 #define _is_callback_style_api() (_gmnet()->api_style == 0)
 
@@ -620,6 +619,11 @@ _listen(int fd, int backlog) {
 
 /* channel op
  */
+static int
+_chann_filter(chann_msg_t *msg) {
+   return 1;
+}
+
 static chann_t*
 _chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
    chann_t *n = (chann_t*)mm_malloc(sizeof(*n));
@@ -747,12 +751,6 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
    }
 }
 
-int
-_chann_filter(chann_msg_t *msg) {
-   return 1;
-}
-
-
 static int
 _chann_get_err(chann_t *n) {
    int err = 0;
@@ -827,6 +825,25 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
    }
    return -1;
 }
+
+/* for extention module
+ */
+
+int
+get_chann_errno() {
+   return errno;
+}
+
+chann_msg_t*
+get_chann_msg(chann_t *n) {
+   return n ? &n->msg : NULL;
+}
+
+void
+process_chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
+   _chann_msg(n, event, r, err);
+}
+
 
 /* kqueue/epoll op
  */
