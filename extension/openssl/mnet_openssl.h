@@ -18,7 +18,7 @@ typedef struct mnet_openssl mnet_openssl_t;
  */
 
 /* config ssl from ctx builder */
-typedef void (*mnet_openssl_configurator)(SSL_CTX *ctx);
+typedef SSL_CTX* (*mnet_openssl_configurator)(void);
 
 /* create openssl SSL_CTX, callback user to config it */
 mnet_openssl_t* mnet_openssl_ctx_config(mnet_openssl_configurator configurator);

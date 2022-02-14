@@ -53,8 +53,7 @@ mnet_openssl_ctx_config(mnet_openssl_configurator configurator) {
         _has_init = 1;
         SSL_library_init();
     }
-    ctx = SSL_CTX_new(SSLv23_method());
-    configurator(ctx);
+    ctx = configurator();
     if (!SSL_CTX_check_private_key(ctx)) {
         goto CTX_FAILED_OUT;
     }
@@ -109,22 +108,14 @@ _mnet_openssl_msg_filter(chann_msg_t *msg) {
             rwt->ot = wt->ot;
             rwt->state = CHANN_STATE_LISTENING;
             rwt->ssl = SSL_new(wt->ot->ctx);
+            SSL_set_mode(rwt->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
             SSL_set_fd(rwt->ssl, mnet_chann_fd(msg->r));
             mnet_chann_set_opaque(msg->r, rwt);
             mnet_chann_set_filter(msg->r, _mnet_openssl_msg_filter);
-            int ret = SSL_accept(rwt->ssl);
-            if (ret == 1) {
-                msg->n = NULL;
-                return 1;
-            }
-            if (!_is_ssl_rw(rwt->ssl, ret)) {
-                mnet_openssl_chann_disconnect(msg->r);
-            }
             return 0;
         }
         case CHANN_EVENT_CONNECTED:
-        case CHANN_EVENT_RECV:
-        case CHANN_EVENT_SEND: {
+        case CHANN_EVENT_RECV: {
             if (wt->state == CHANN_STATE_CONNECTED) {
                 return 1;
             }
@@ -236,6 +227,7 @@ mnet_openssl_chann_connect(chann_t *n, const char *host, int port) {
     if (wt->ssl == NULL) {
         wt->ssl = SSL_new(wt->ot->ctx);
     }
+    SSL_set_mode(wt->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
     SSL_set_fd(wt->ssl, mnet_chann_fd(n));
     int ret = SSL_connect(wt->ssl);
     if (ret == 1) {
@@ -307,10 +299,10 @@ mnet_openssl_chann_recv(chann_t *n, void *buf, int len) {
         return &_rw;
     }
     mnet_openssl_chann_wrapper_t *wt = (mnet_openssl_chann_wrapper_t *)mnet_chann_get_opaque(n);
-    if (!_is_valid_wrapper(wt) || wt->state <= CHANN_STATE_CONNECTING) {
+    if (!_is_valid_wrapper(wt) || wt->state < CHANN_STATE_CONNECTED) {
         return &_rw;
     }
-    _rw.ret = SSL_write(wt->ssl, buf, len);
+    _rw.ret = SSL_read(wt->ssl, buf, len);
     if (_rw.ret <= 0) {
         if (_is_ssl_rw(wt->ssl, _rw.ret)) {
             _rw.ret = 0;
@@ -331,10 +323,10 @@ mnet_openssl_chann_send(chann_t *n, void *buf, int len) {
         return &_rw;
     }
     mnet_openssl_chann_wrapper_t *wt = (mnet_openssl_chann_wrapper_t *)mnet_chann_get_opaque(n);
-    if (!_is_valid_wrapper(wt) || wt->state <= CHANN_STATE_CONNECTING) {
+    if (!_is_valid_wrapper(wt) || wt->state < CHANN_STATE_CONNECTED) {
         return &_rw;
     }
-    _rw.ret = SSL_read(wt->ssl, buf, len);
+    _rw.ret = SSL_write(wt->ssl, buf, len);
     if (_rw.ret <= 0) {
         if (_is_ssl_rw(wt->ssl, _rw.ret)) {
             _rw.ret = 0;
