@@ -1570,10 +1570,29 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
    return &ss->rw_result;
 }
 
+int
+mnet_chann_cached(chann_t *n) {
+   if (n) {
+      rwb_head_t *prh = &n->rwb_send;
+      int count = _rwb_count(prh);
+      if (count > 0) {
+         return _rwb_buffered(prh->head) + (count - 1) * MNET_BUF_SIZE;
+      }
+   }
+   return 0;
+}
+
+long long
+mnet_chann_bytes(chann_t *n, int be_send) {
+   if ( n ) {
+      return (be_send ? n->bytes_send : n->bytes_recv);
+   }
+   return -1;
+}
 
 /* set bufsize before connect or listen */
 int
-mnet_chann_set_bufsize(chann_t *n, int bufsize) {
+mnet_chann_socket_set_bufsize(chann_t *n, int bufsize) {
    if (n && bufsize>0) {
       n->buf_size = bufsize;
       if (n->fd > 0) {
@@ -1585,33 +1604,13 @@ mnet_chann_set_bufsize(chann_t *n, int bufsize) {
 }
 
 int
-mnet_chann_cached(chann_t *n) {
-   if (n) {
-      rwb_head_t *prh = &n->rwb_send;
-      int count = _rwb_count(prh);
-      if (count > 0) {
-         return _rwb_buffered(prh->head) + (count - 1) * MNET_BUF_SIZE;
-      }
-   } 
-   return 0;
-}
-
-int
-mnet_chann_addr(chann_t *n, chann_addr_t *addr) {
+mnet_chann_socket_addr(chann_t *n, chann_addr_t *addr) {
    if (n && addr) {
       strncpy(addr->ip, _chann_addr(n), 16);
       addr->port = _chann_port(n);
       return 1;
    }
    return 0;
-}
-
-long long
-mnet_chann_bytes(chann_t *n, int be_send) {
-   if ( n ) {
-      return (be_send ? n->bytes_send : n->bytes_recv);
-   }
-   return -1;
 }
 
 chann_msg_t*

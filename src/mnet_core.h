@@ -96,9 +96,6 @@ void mnet_fini(void);
  */
 int mnet_report(int level);
 
-/* micro seconds */
-int64_t mnet_current(void);
-
 /* dispatch chann event, milliseconds > 0, and it will cause
  * CHANN_EVENT_TIMER accurate
  */
@@ -134,17 +131,21 @@ void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
 rw_result_t* mnet_chann_recv(chann_t *n, void *buf, int len);
 rw_result_t* mnet_chann_send(chann_t *n, void *buf, int len); /* always cached would blocked data */
 
-int mnet_chann_set_bufsize(chann_t *n, int bufsize); /* set socket bufsize */
+/* cached bytes not send
+ */
 int mnet_chann_cached(chann_t *n);
-
-int mnet_chann_addr(chann_t *n, chann_addr_t*);
 
 int mnet_chann_state(chann_t *n);
 long long mnet_chann_bytes(chann_t *n, int be_send);
 
+/* underlying socket for chann
+ */
+int mnet_chann_socket_addr(chann_t *n, chann_addr_t*);
+int mnet_chann_socket_set_bufsize(chann_t *n, int bufsize); /* before listen/connect */
 
 /* tools without init
  */
+int64_t mnet_current(void); /* micro seconds */
 int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 
