@@ -171,7 +171,7 @@ namespace mnet {
       inline ChannAddr& myAddr(void) {
          if (m_addr.addr.port <= 0) {
             chann_addr_t addr;
-            mnet_chann_addr(m_chann, &addr);
+            mnet_chann_socket_addr(m_chann, &addr);
             m_addr.copyAddr(&addr);
          }
          return m_addr;
