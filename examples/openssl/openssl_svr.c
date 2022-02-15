@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
             {
                 /* msg->n is NLLL, sever ssl accept client */
                 chann_addr_t addr;
-                mnet_chann_addr(msg->r, &addr);
+                mnet_chann_socket_addr(msg->r, &addr);
                 printf("svr accept cnt with chann %s:%d\n", addr.ip, addr.port);
             }
             else if (msg->event == CHANN_EVENT_RECV)
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
             else if (msg->event == CHANN_EVENT_DISCONNECT)
             {
                 chann_addr_t addr;
-                mnet_chann_addr(msg->n, &addr);
+                mnet_chann_socket_addr(msg->n, &addr);
                 printf("svr disconnect cnt with chann %s:%d\n", addr.ip, addr.port);
                 mnet_openssl_chann_close(msg->n);
             }
