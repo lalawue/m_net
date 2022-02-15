@@ -182,6 +182,11 @@ mnet_openssl_chann_close(chann_t *n) {
 }
 
 int
+mnet_openssl_chann_fd(chann_t *n) {
+    return mnet_chann_fd(n);
+}
+
+int
 mnet_openssl_chann_listen(chann_t *n, const char *host, int port, int backlog) {
     if (n == NULL || mnet_chann_state(n) != CHANN_STATE_DISCONNECT) {
         return 0;
@@ -333,3 +338,5 @@ mnet_openssl_chann_state(chann_t *n) {
         return -1;
     }
 }
+
+#undef MNET_OPENSSL_MAGIC
