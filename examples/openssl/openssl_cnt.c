@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "mnet_openssl.h"
 
-#ifdef MNET_OPENSSL_SVR
+#ifdef MNET_OPENSSL_CNT
 
 /* config openssl
  */
@@ -54,27 +54,37 @@ int main(int argc, char *argv[])
     poll_result_t *results = NULL;
     uint8_t buf[256];
 
-    mnet_openssl_chann_listen(svr, addr.ip, addr.port, 2);
-    printf("svr start listen: %s\n", ipaddr);
+    mnet_openssl_chann_connect(svr, addr.ip, addr.port);
+    printf("cnt start connect: %s\n", ipaddr);
 
     for (;;)
     {
         results = mnet_poll(0.1 * MNET_MILLI_SECOND);
         if (results->chann_count <= 0)
         {
-            printf("cnt no more channs, exit mnet_poll\n");
             break;
         }
 
         chann_msg_t *msg = NULL;
         while ((msg = mnet_result_next(results)))
         {
-            if (msg->event == CHANN_EVENT_ACCEPT)
+            if (msg->event == CHANN_EVENT_CONNECTED)
             {
                 /* msg->n is NLLL, sever ssl accept client */
                 chann_addr_t addr;
-                mnet_chann_addr(msg->r, &addr);
-                printf("svr accept cnt with chann %s:%d\n", addr.ip, addr.port);
+                mnet_chann_addr(msg->n, &addr);
+                printf("cnt connected with chann %s:%d\n", addr.ip, addr.port);
+
+                int ret = snprintf((char *)buf, 256, "GET / HTTP/1.1\r\nUser-Agent: MNet/OpenSSL\r\nAccept: */*\r\n\r\n");
+                rw_result_t *rw = mnet_openssl_chann_send(msg->n, buf, ret);
+                if (rw->ret > 0)
+                {
+                    printf("cnt send request to serevr with ret: %d, wanted: %d\n---\n%s\n---\n", rw->ret, ret, buf);
+                }
+                else
+                {
+                    printf("cnt failed to write with ret %d\n", rw->ret);
+                }
             }
             else if (msg->event == CHANN_EVENT_RECV)
             {
@@ -82,24 +92,20 @@ int main(int argc, char *argv[])
                 if (rw->ret > 0)
                 {
                     buf[rw->ret] = 0;
-                    printf("svr recv resquest: %d\n---\n", rw->ret);
+                    printf("cnt recv response: %d\n---\n", rw->ret);
                     fwrite(buf, rw->ret, 1, stdout);
                     printf("\n---\n");
-                    //
-                    char welcome[] = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 18\r\n\r\nHello MNet/OpenSSL\r\n\r\n";
-                    rw = mnet_openssl_chann_send(msg->n, welcome, sizeof(welcome));
-                    printf("svr send response %d\n---\n%s\n---\n", rw->ret, welcome);
                 }
                 else if (rw->ret < 0)
                 {
-                    printf("svr failed to recv with ret: %d\n", rw->ret);
+                    printf("cnt failed to recv with ret: %d\n", rw->ret);
                 }
             }
             else if (msg->event == CHANN_EVENT_DISCONNECT)
             {
                 chann_addr_t addr;
                 mnet_chann_addr(msg->n, &addr);
-                printf("svr disconnect cnt with chann %s:%d\n", addr.ip, addr.port);
+                printf("cnt disconnect svr with chann %s:%d\n", addr.ip, addr.port);
                 mnet_openssl_chann_close(msg->n);
             }
         }
