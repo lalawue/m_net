@@ -1297,7 +1297,7 @@ mnet_current() {
 
 /* sync funciton will block thread */
 int
-mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t *addr) {
+mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t *addr) {
    int ret = 0;
    if (host && addr) {
       struct sockaddr_in *valid_in = NULL;

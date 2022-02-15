@@ -27,11 +27,14 @@ local mnet_chann_active_event = mnet_core.chann_active_event
 local mnet_chann_recv = mnet_core.chann_recv
 local mnet_chann_send = mnet_core.chann_send
 local mnet_chann_cached = mnet_core.chann_cached
-local mnet_chann_addr = mnet_core.chann_addr
 local mnet_chann_state = mnet_core.chann_state
 local mnet_chann_bytes = mnet_core.chann_bytes
---local mnet_chann_set_bufsize = mnet_core.chann_set_bufsize
+
+local mnet_chann_socket_set_bufsize = mnet_core.chann_socket_set_bufsize
+local mnet_chann_socket_addr = mnet_core.chann_socket_addr
+
 local mnet_current = mnet_core.current
+local mnet_resolve = mnet_core.mnet_resolve
 local mnet_parse_ipport = mnet_core.parse_ipport
 
 local EventNamesTable = {
@@ -88,10 +91,6 @@ function Core.fini()
     mnet_core.fini()
 end
 
-function Core.report(level)
-    -- not implement
-end
-
 function Core.current()
     return mnet_current()
 end
@@ -125,7 +124,10 @@ function Core.poll(milliseconds)
 end
 
 function Core.resolve(host, port, chann_type)
-    -- not implement
+    local ctype = ChannTypesTable[chann_type]
+    if ctype then
+        return mnet_resolve(host, port, ctype)
+    end
 end
 
 function Core.parseIpPort(ipport)
@@ -133,9 +135,6 @@ function Core.parseIpPort(ipport)
     if ip and port then
         return {["ip"] = ip, ["port"] = tonumber(port)}
     end
-end
-
-function Core.setBufSize(sendsize, recvsize)
 end
 
 --
@@ -223,20 +222,8 @@ function Chann:send(data)
     return true
 end
 
-function Chann:setSocketBufSize(size)
-    mnet_core.chann_set_bufsize(self._chann, tonumber(size))
-end
-
 function Chann:cachedSize()
     return mnet_chann_cached(self._chann)
-end
-
-function Chann:addr()
-    if self:state() == "state_connected" then
-        local ip, port = mnet_chann_addr(self._chann)
-        return {ip = ip, port = tonumber(port)}
-    end
-    return nil
 end
 
 function Chann:state()
@@ -249,6 +236,18 @@ end
 
 function Chann:sendByes()
     return tonumber(mnet_chann_bytes(self._chann, 1))
+end
+
+function Chann:setSocketBufSize(size)
+    mnet_chann_socket_set_bufsize(self._chann, tonumber(size))
+end
+
+function Chann:addr()
+    if self:state() == "state_connected" then
+        local ip, port = mnet_chann_socket_addr(self._chann)
+        return {ip = ip, port = tonumber(port)}
+    end
+    return nil
 end
 
 return Core

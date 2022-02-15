@@ -146,7 +146,7 @@ int mnet_chann_socket_set_bufsize(chann_t *n, int bufsize); /* before listen/con
 /* tools without init
  */
 int64_t mnet_current(void); /* micro seconds */
-int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
+int mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 
 #ifdef __cplusplus

@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2017 lalawue
  * 
  * This library is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ _check_type(lua_State *L, int *types, int count, int nline) {
                  types[i],                 
                  lua_type(L, i+1),
                  nline);
-         return 0;         
+         return 0;
       }
    }
    return 1;
@@ -145,6 +145,27 @@ _mnet_parse_ipport(lua_State *L) {
       return 2;
    }
    return 0;
+}
+
+static int
+_mnet_resolve(lua_State *L) {
+   int types[3] = { LUA_TSTRING, LUA_TNUMBER, LUA_TNUMBER};
+   if ( !_check_type(L, types, 1, __LINE__) ) {
+      return 0;
+   }
+
+   const char *host = lua_tostring(L, 1);
+   int port = (int)lua_tointeger(L, 2);
+   int ctype = (int)lua_tointeger(L, 3);
+   chann_addr_t addr;
+   if (mnet_resolve(host, port, ctype, &addr)) {
+      lua_pushstring(L, addr.ip);
+      lua_pushinteger(L, addr.port);
+      return 2;
+   } else {
+      lua_pushnil(L);
+      return 1;
+   }
 }
 
 /* open chann with type */
