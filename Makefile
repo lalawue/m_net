@@ -78,12 +78,14 @@ callback: $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_rwdata.out $^ $(LIBS) -DTEST_RWDATA
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_timer.out $^ $(LIBS) -DTEST_TIMER
 
-openssl: $(LIB_SRCS) $(OE_SRCS) $(OL_SRCS)
+openssl: $(OE_SRCS) $(OL_SRCS)
 	@mkdir -p build
 	@echo "export MNET_OPENSSL_DIR=$(MNET_OPENSSL_DIR)"
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_svr $^ $(MNET_OPENSSL_DIR)/lib/libcrypto.a $(MNET_OPENSSL_DIR)/lib/libssl.a -DMNET_OPENSSL_SVR
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_cnt $^ $(MNET_OPENSSL_DIR)/lib/libcrypto.a $(MNET_OPENSSL_DIR)/lib/libssl.a -DMNET_OPENSSL_CNT
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) -o build/$(MNET_LIBNAME) $^ -lc -shared -fPIC $(MNET_OPENSSL_DIR)/lib/libcrypto.a $(MNET_OPENSSL_DIR)/lib/libssl.a
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(MNET_OPENSSL_DIR)/lib/libcrypto.a $(MNET_OPENSSL_DIR)/lib/libssl.a
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_svr $^ -Lbuild -lmnet -DMNET_OPENSSL_SVR
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_cnt $^ -Lbuild -lmnet -DMNET_OPENSSL_CNT
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_reconnect $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
+
 
 
 clean:
