@@ -25,12 +25,13 @@ Please use gmake to build demo under FreeBSD.
 
 # Features
 
-- simple API in C++ wrapper
 - with TCP/UDP support
 - nonblocking & event driven interface
 - using epoll/kqueue/[wepoll](https://github.com/piscisaureus/wepoll) in Linux/MacOS/FreeBSD/Windows
 - support Lua/LuaJIT with pull style API
 - buildin timer event
+- simple API in C++ wrapper
+- support SSL/TLS chann with [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl/)
 
 
 
@@ -165,6 +166,33 @@ query   www.github.com  13.250.177.223
 query   www.sina.com    113.96.179.243
 ```
 
+# OpenSSL extension
+
+provide [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl) to wrap a SSL/TLS chann.
+
+first build with openssl extension with command below, I install openssl with brew under MacOS.
+
+```
+$ export MNET_OPENSSL_DIR=/usr/local/Cellar/openssl@1.1/1.1.1k/
+$ export DYLD_LIBRARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/lib/
+$ make openssl
+```
+
+then run server
+
+```
+$ ./build/openssl_svr
+```
+
+and client
+
+```
+$ ./build/openssl_cnt
+```
+
+get detailed testing code under example/openssl/ dir.
+
+
 # Tests
 
 in [test](https://github.com/lalawue/m_net/tree/master/test) dir.
@@ -217,22 +245,22 @@ Document Path:          /
 Document Length:        17 bytes
 
 Concurrency Level:      1
-Time taken for tests:   2.250 seconds
+Time taken for tests:   1.481 seconds
 Complete requests:      10000
 Failed requests:        0
 Total transferred:      1080000 bytes
 HTML transferred:       170000 bytes
-Requests per second:    4443.82 [#/sec] (mean)
-Time per request:       0.225 [ms] (mean)
-Time per request:       0.225 [ms] (mean, across all concurrent requests)
-Transfer rate:          468.68 [Kbytes/sec] received
+Requests per second:    6752.47 [#/sec] (mean)
+Time per request:       0.148 [ms] (mean)
+Time per request:       0.148 [ms] (mean, across all concurrent requests)
+Transfer rate:          712.17 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0    0   2.1      0     205
-Processing:     0    0   0.1      0       4
-Waiting:        0    0   0.0      0       1
-Total:          0    0   2.1      0     206
+Connect:        0    0   0.0      0       0
+Processing:     0    0   3.5      0     347
+Waiting:        0    0   3.5      0     347
+Total:          0    0   3.5      0     347
 
 Percentage of the requests served within a certain time (ms)
   50%      0
@@ -243,7 +271,7 @@ Percentage of the requests served within a certain time (ms)
   95%      0
   98%      0
   99%      0
- 100%    206 (longest request)
+ 100%    347 (longest request)
 ```
 
 
