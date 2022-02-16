@@ -25,6 +25,7 @@ chann_t* mnet_openssl_chann_open(mnet_openssl_t *);
 void mnet_openssl_chann_close(chann_t *);
 
 int mnet_openssl_chann_fd(chann_t *n);
+SSL* mnet_openssl_chann_ssl(chann_t *n);
 
 int mnet_openssl_chann_listen(chann_t *n, const char *host, int port, int backlog);
 

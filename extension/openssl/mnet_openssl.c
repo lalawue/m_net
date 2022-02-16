@@ -46,9 +46,6 @@ mnet_openssl_ctx_config(SSL_CTX *ctx) {
     if (ctx == NULL) {
         return NULL;
     }
-    if (!SSL_CTX_check_private_key(ctx)) {
-        return NULL;
-    }
     mnet_openssl_t *ot = (mnet_openssl_t *)calloc(1, sizeof(mnet_openssl_t));
     if (ot == NULL) {
         return NULL;
@@ -186,9 +183,19 @@ mnet_openssl_chann_fd(chann_t *n) {
     return mnet_chann_fd(n);
 }
 
+SSL*
+mnet_openssl_chann_ssl(chann_t *n) {
+    mnet_openssl_chann_wrapper_t *wt = (mnet_openssl_chann_wrapper_t *)mnet_chann_get_opaque(n);
+    if (_is_valid_wrapper(wt)) {
+        return wt->ssl;
+    } else {
+        return NULL;
+    }
+}
+
 int
 mnet_openssl_chann_listen(chann_t *n, const char *host, int port, int backlog) {
-    if (n == NULL || mnet_chann_state(n) != CHANN_STATE_DISCONNECT) {
+    if (mnet_chann_state(n) != CHANN_STATE_DISCONNECT) {
         return 0;
     }
     mnet_openssl_chann_wrapper_t *wt = (mnet_openssl_chann_wrapper_t *)mnet_chann_get_opaque(n);

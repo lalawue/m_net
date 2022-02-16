@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "mnet_openssl.h"
 
 #ifdef MNET_OPENSSL_CNT
@@ -18,10 +19,15 @@ _openssl_ctx(void)
 {
     SSL_library_init();
     SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
+    #if 0
     SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+    #else
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
     SSL_CTX_load_verify_locations(ctx, "examples/openssl/ca.crt", NULL);
     SSL_CTX_use_certificate_file(ctx, "examples/openssl/server.crt", SSL_FILETYPE_PEM);
     SSL_CTX_use_PrivateKey_file(ctx, "examples/openssl/server.key", SSL_FILETYPE_PEM);
+    assert(SSL_CTX_check_private_key(ctx) == 1);
+    #endif
     return ctx;
 }
 
