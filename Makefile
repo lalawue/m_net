@@ -85,7 +85,7 @@ openssl: $(OE_SRCS) $(OL_SRCS)
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_svr $^ -Lbuild -lmnet -DMNET_OPENSSL_SVR
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_cnt $^ -Lbuild -lmnet -DMNET_OPENSSL_CNT
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_reconnect $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
-
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_rwdata $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RWDATA_PULL_STYLE
 
 
 clean:
