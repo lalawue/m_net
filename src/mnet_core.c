@@ -144,7 +144,7 @@ struct s_mchann {
    chann_msg_cb cb;             /* chann callback for callback style */
    struct sockaddr_in addr;     /* socket address */
    socklen_t addr_len;          /* socket address length */
-   rwb_head_t rwb_send;         /* fifo cached for unsend data*/
+   rwb_head_t rwb_send;         /* fifo cached for unsend data */
    struct s_mchann *prev;       /* double linked prev chann */
    struct s_mchann *next;       /* double linked next chann */
    int64_t bytes_send;          /* bytes sended */
@@ -201,7 +201,10 @@ _gmnet() {
 
 /* declares
  */
-static inline void mnet_log_default(chann_t *n, int level, const char *log_string);
+static inline void mnet_log_default(chann_t *n, int level, const char *log_string) {
+   static const char slev[8] = { 'D', 'E', 'I', 'V'};
+   printf("[%c]%p: %s", slev[level], n, log_string);
+}
 
 /* basic
  */
@@ -236,11 +239,6 @@ static inline void mm_log(chann_t *n, int level, const char *fmt, ...) {
    }
 }
 //#define mm_log(...)             /* use to disable any log handling */
-void
-mnet_log_default(chann_t *n, int level, const char *log_string) {
-   static const char slev[8] = { 'D', 'E', 'I', 'V'};
-   printf("[%c]%p: %s", slev[level], n, log_string);
-}
 
 static inline int
 _min_of(int a, int b) {
@@ -255,7 +253,7 @@ _reset_msg(poll_result_t *result, chann_t *n) {
    }
 }
 
-void _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err);
+static void _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err);
 
 #define _is_callback_style_api() (_gmnet()->api_style == 0)
 
@@ -619,7 +617,7 @@ _listen(int fd, int backlog) {
 
 /* channel op
  */
-static int
+static inline int
 _chann_filter(chann_msg_t *msg) {
    return 1;
 }
@@ -669,16 +667,14 @@ _chann_accept(mnet_t *ss, chann_t *n) {
    struct sockaddr_in addr;
    socklen_t addr_len = sizeof(addr);
    int fd = accept(n->fd, (struct sockaddr*)&addr, &addr_len);
-   if (fd > 0) {
-      if (_set_nonblocking(fd) >= 0) {
-         chann_t *c = _chann_create(ss, n->type, CHANN_STATE_CONNECTED);
-         c->fd = fd;
-         c->addr = addr;
-         c->addr_len = addr_len;
-         mm_log(n, MNET_LOG_VERBOSE, "chann accept %p fd %d, from %s, count %d\n",
-                c, c->fd, _chann_addr(c), ss->chann_count);
-         return c;
-      }
+   if (fd > 0 && _set_nonblocking(fd) >= 0) {
+      chann_t *c = _chann_create(ss, n->type, CHANN_STATE_CONNECTED);
+      c->fd = fd;
+      c->addr = addr;
+      c->addr_len = addr_len;
+      mm_log(n, MNET_LOG_VERBOSE, "chann accept %p fd %d, from %s, count %d\n",
+            c, c->fd, _chann_addr(c), ss->chann_count);
+      return c;
    }
    return NULL;
 }
@@ -764,24 +760,24 @@ _chann_get_err(chann_t *n) {
 static int
 _chann_try_send_rwb(chann_t *n) {
    rwb_head_t *prh = &n->rwb_send;
-   if (_rwb_count(prh) > 0) {
-      int ret=0, len=0;
-      do {
-         uint8_t *buf = _rwb_drain_param(prh, &len);
-         ret = _chann_send(n, buf, len);
-         if (ret > 0) {
-            _rwb_drain(prh, ret);
-         } else if (ret < 0 && errno != EWOULDBLOCK) {
-            mnet_t *ss = _gmnet();
-            mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
-                   n, n->fd, errno, strerror(errno));
-            _chann_disconnect_socket(ss, n);
-            _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
-         }
-      } while (ret>=len && _rwb_count(prh)>0);
-      return 1;
+   if (_rwb_count(prh) <= 0) {
+      return 0;
    }
-   return 0;
+   int ret=0, len=0;
+   do {
+      uint8_t *buf = _rwb_drain_param(prh, &len);
+      ret = _chann_send(n, buf, len);
+      if (ret > 0) {
+         _rwb_drain(prh, ret);
+      } else if (ret < 0 && errno != EWOULDBLOCK) {
+         mnet_t *ss = _gmnet();
+         mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
+                  n, n->fd, errno, strerror(errno));
+         _chann_disconnect_socket(ss, n);
+         _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
+      }
+   } while (ret>=len && _rwb_count(prh)>0);
+   return 1;
 }
 
 static void
@@ -819,9 +815,6 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
          close(fd);
          perror("chann open socket: ");
       }
-   }
-   else if (n->type==CHANN_TYPE_DGRAM || n->type==CHANN_TYPE_BROADCAST) {
-      return n->fd;
    }
    return -1;
 }
