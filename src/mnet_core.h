@@ -66,7 +66,6 @@ typedef struct {
 } chann_addr_t;
 
 typedef void (*chann_msg_cb)(chann_msg_t*);
-typedef int (*chann_msg_filter)(chann_msg_t*);
 typedef void (*mnet_log_cb)(chann_t*, int, const char *log_string);
 
 /* set allocator/log before init
@@ -117,7 +116,6 @@ int mnet_chann_listen(chann_t *n, const char *host, int port, int backlog);
 int mnet_chann_connect(chann_t *n, const char *host, int port);
 void mnet_chann_disconnect(chann_t *n);
 
-void mnet_chann_set_filter(chann_t *n, chann_msg_filter filter); /* for extension, both style */
 void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb); /* only for callback style */
 
 void mnet_chann_set_opaque(chann_t *n, void *opaque); /* user defined data, return with chann_msg_t */
@@ -148,6 +146,44 @@ int mnet_chann_socket_set_bufsize(chann_t *n, int bufsize); /* before listen/con
 int64_t mnet_current(void); /* micro seconds */
 int mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
+
+/* extension interface
+ */
+
+/* return 0 to skip this chann msg
+ */
+typedef int (*mnet_ext_chann_raw_type)(void *ext_ctx, chann_type_t ctype);
+typedef int (*mnet_ext_chann_msg_filter)(void *ext_ctx, chann_msg_t *msg);
+typedef void (*mnet_ext_chann_op_cb)(void *ext_ctx, chann_t *n);
+typedef int (*mnet_ext_chann_state_wrapper)(void *ext_ctx, chann_t *n);
+typedef int (*mnet_ext_chann_data_wrapper)(void *ext_ctx, chann_t *n, void *buf, int len);
+
+typedef struct {
+   uint8_t reserved;                      /* will be used by internal */
+   void *ext_ctx;                         /* context for this chann_type */
+   mnet_ext_chann_raw_type raw_fn;        /* internal chann_type_t */
+   mnet_ext_chann_msg_filter filter_fn;   /* filter chann msg */
+   mnet_ext_chann_op_cb open_cb;          /* after open chann */
+   mnet_ext_chann_op_cb listen_cb;        /* after listen chann */
+   mnet_ext_chann_op_cb connect_cb;       /* after connect chann */
+   mnet_ext_chann_op_cb disconnect_cb;    /* before disconnect chann */
+   mnet_ext_chann_op_cb close_cb;         /* before close chann */
+   mnet_ext_chann_state_wrapper state_fn; /* actual state */
+   mnet_ext_chann_data_wrapper recv_fn;   /* internal recv */
+   mnet_ext_chann_data_wrapper send_fn;   /* internal send */
+} mnet_ext_t;
+
+/* register chann ext type
+ * ctype: chan extension type between (CHANN_TYPE_BROADCAST, 7]
+ * ext_ctx: extension contex for this chann type
+ */
+int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext);
+
+/* set extension userdata for chann */
+void mnet_ext_chann_set_ud(chann_t *n, void *ext_ud);
+
+/* get extension userdata for chann */
+void* mnet_ext_chann_get_ud(chann_t *n);
 
 #ifdef __cplusplus
 }

@@ -138,9 +138,9 @@ typedef struct {
 struct s_mchann {
    int fd;                      /* socket */
    void *opaque;                /* user defined data */
+   void *ext_ud;                /* ext ud */
    chann_state_t state;         /* chann state */
    chann_type_t type;           /* 'tcp', 'udp', 'broadcast' */
-   chann_msg_filter filter; /* msg filter for extension */
    chann_msg_cb cb;             /* chann callback for callback style */
    struct sockaddr_in addr;     /* socket address */
    socklen_t addr_len;          /* socket address length */
@@ -183,11 +183,12 @@ typedef struct {
    skiplist_t *tm_clock;
    int tm_count;
    int tm_capacity;
-   kq_t kq;                     /* kqueue or epoll fd */
+   kq_t kq;                      /* kqueue or epoll fd */
    struct s_event chg;
    struct s_event evt;
    chann_t *del_channs;
-   int api_style;               /* 0:callback 1:pull style */
+   int api_style;                /* 0:callback 1:pull style */
+   mnet_ext_t ext_config[8];     /* key is (CHANN_TYPE_BROADCAST, 7] */
    poll_result_t poll_result;
    rw_result_t rw_result;
 } mnet_t;
@@ -615,20 +616,29 @@ _listen(int fd, int backlog) {
    return listen(fd, backlog > 0 ? backlog : 3);
 }
 
-/* channel op
+/* mnet extension internal
  */
-static inline int
-_chann_filter(chann_msg_t *msg) {
-   return 1;
+mnet_ext_t*
+_ext(chann_type_t ctype) {
+   mnet_t *ss = _gmnet();
+   if (ctype >= CHANN_TYPE_STREAM && ctype <= CHANN_TYPE_BROADCAST) {
+      return &ss->ext_config[0];
+   }
+   if (ctype > CHANN_TYPE_BROADCAST && ctype <= 7) {
+      int index = ctype - CHANN_TYPE_BROADCAST;
+      return ss->ext_active[index] ? &ss->ext_config[index] : NULL;
+   }
+   return NULL;
 }
 
+/* channel op
+ */
 static chann_t*
 _chann_create(mnet_t *ss, chann_type_t type, chann_state_t state) {
    chann_t *n = (chann_t*)mm_malloc(sizeof(*n));
    n->state = state;
    n->type = type;
    n->next = ss->channs;
-   n->filter = _chann_filter;
    if (ss->channs) {
       ss->channs->prev = n;
    }
@@ -700,6 +710,10 @@ _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
 #if MNET_OS_WIN
       _evt_del(n, MNET_SET_DEL);
 #endif
+      mnet_ext_t *ext = _mnet_ext(n->type);
+      if (ext->reserved) {
+         ext->disconnect_cb(ext->ext_ctx, n);
+      }
       close(n->fd);
       _rwb_destroy(&n->rwb_send);
       n->fd = -1;
@@ -713,6 +727,10 @@ _chann_disconnect_socket(mnet_t *ss, chann_t *n) {
 static void
 _chann_close_socket(mnet_t *ss, chann_t *n) {
    if (n->state > CHANN_STATE_CLOSED) {
+      mnet_ext_t *ext = _mnet_ext(n->type);
+      if (ext->reserved) {
+         ext->close_cb(ext->ext_ctx, n);
+      }
       n->del_next = ss->del_channs;
       ss->del_channs = n;
       n->state = CHANN_STATE_CLOSED;
@@ -729,9 +747,9 @@ _chann_msg(chann_t *n, chann_event_t event, chann_t *r, int err) {
    n->msg.n = n;
    n->msg.r = r;
    n->msg.opaque = n->opaque;
-   if (!n->filter(&n->msg)) {
-      return;
-   }
+   // if (!n->filter(&n->msg)) {
+   //    return;
+   // }
    if (_is_callback_style_api()) {
       if ( n->cb ) {
          n->cb( &n->msg );
@@ -1352,8 +1370,15 @@ mnet_parse_ipport(const char *ipport, chann_addr_t *addr) {
  */
 
 chann_t*
-mnet_chann_open(chann_type_t type) {
-   return _chann_create(_gmnet(), type, CHANN_STATE_DISCONNECT);
+mnet_chann_open(chann_type_t ctype) {
+   mnet_ext_t *ext = _mnet_ext(ctype);
+   if (ext == NULL) {
+      return NULL;
+   }
+   chann_t *n = _chann_create(_gmnet(), ctype, CHANN_STATE_DISCONNECT);
+   if (ext->reserved) {
+      ext->open_cb(ext->ext_ctx, n);
+   }
 }
 
 void
@@ -1383,7 +1408,15 @@ mnet_chann_type(chann_t *n) {
 
 int
 mnet_chann_state(chann_t *n) {
-   return n ? n->state : -1;
+   if (n) {
+      mnet_ext_t *ext = _mnet_ext(n->type);
+      if (ext->reserved) {
+         return ext->state_fn(ext->ext_ctx, n);
+      } else {
+         return n->state;
+      }
+   }
+   return -1;
 }
 
 int
@@ -1437,14 +1470,6 @@ mnet_chann_listen(chann_t *n, const char *host, int port, int backlog) {
 
 /* mnet channel api
  */
-
-void
-mnet_chann_set_filter(chann_t *n, chann_msg_filter filter) {
-   if (n && filter) {
-      n->filter = filter;
-   }
-}
-
 void
 mnet_chann_set_cb(chann_t *n, chann_msg_cb cb) {
    if (n) {
@@ -1526,7 +1551,7 @@ mnet_chann_recv(chann_t *n, void *buf, int len) {
 
 rw_result_t*
 mnet_chann_send(chann_t *n, void *buf, int len) {
-   mnet_t *ss = _gmnet();   
+   mnet_t *ss = _gmnet();
    if (n && buf && len>0 && n->state>=CHANN_STATE_CONNECTED) {
       int ret = len;
       rwb_head_t *prh = &n->rwb_send;
@@ -1624,3 +1649,27 @@ mnet_poll(uint32_t milliseconds) {
 }
 
 #undef _is_callback_style_api
+
+/** mnet extension
+ */
+
+int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
+   if (ext==NULL || ctype<=CHANN_TYPE_BROADCAST || ctype>(chann_type_t)7) {
+      return 0;
+   }
+   ext->reserved = 1;
+   _gmnet()->ext_config[ctype] = *ext;
+   return 1;
+}
+
+/* set extension userdata for chann */
+void mnet_ext_chann_set_ud(chann_t *n, void *ext_ud) {
+   if (n) {
+      n->ext_ud = ext_ud;
+   }
+}
+
+/* get extension userdata for chann */
+void* mnet_ext_chann_get_ud(chann_t *n) {
+   return n ? n->ext_ud : NULL;
+}
