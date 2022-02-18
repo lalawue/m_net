@@ -27,7 +27,7 @@ typedef enum {
    CHANN_STATE_CLOSED = 0,      /* only for closed */
    CHANN_STATE_DISCONNECT,      /* for opened/disconnected */
    CHANN_STATE_CONNECTING,      /* for connecting */
-   CHANN_STATE_CONNECTED,       /* for connected */
+   CHANN_STATE_CONNECTED,       /* for connected, can read/write data to peer */
    CHANN_STATE_LISTENING,       /* only for listening */
 } chann_state_t;
 

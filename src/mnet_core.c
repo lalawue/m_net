@@ -801,17 +801,17 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
 
          _chann_fill_addr(n, host, port);
 
-         if (_set_reuseaddr(fd) < 0) goto fail;
-         if (backlog && _bind(fd, &n->addr) < 0) goto fail;
-         if (backlog && istcp && _listen(fd,backlog) < 0) goto fail;
-         if (_set_nonblocking(fd) < 0) goto fail;
-         if (istcp && _set_keepalive(fd)<0) goto fail;
-         if (isbc && _set_broadcast(fd)<0) goto fail;
-         if (_set_bufsize(fd, buf_size) < 0) goto fail;
+         if (_set_reuseaddr(fd) < 0) goto FAILED_OUT;
+         if (backlog && _bind(fd, &n->addr) < 0) goto FAILED_OUT;
+         if (backlog && istcp && _listen(fd,backlog) < 0) goto FAILED_OUT;
+         if (_set_nonblocking(fd) < 0) goto FAILED_OUT;
+         if (istcp && _set_keepalive(fd)<0) goto FAILED_OUT;
+         if (isbc && _set_broadcast(fd)<0) goto FAILED_OUT;
+         if (_set_bufsize(fd, buf_size) < 0) goto FAILED_OUT;
          mm_log(n, MNET_LOG_VERBOSE, "open socket chann:%p fd:%d\n", n, fd);
          return fd;
 
-        fail:
+      FAILED_OUT:
          close(fd);
          perror("chann open socket: ");
       }
@@ -1447,7 +1447,7 @@ mnet_chann_set_filter(chann_t *n, chann_msg_filter filter) {
 
 void
 mnet_chann_set_cb(chann_t *n, chann_msg_cb cb) {
-   if ( n ) {
+   if (n) {
       n->cb = cb;
    }
 }
