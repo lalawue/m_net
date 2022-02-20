@@ -1694,10 +1694,12 @@ mnet_poll(uint32_t milliseconds) {
  */
 
 int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
-   if (ext==NULL || ctype<=CHANN_TYPE_BROADCAST || ctype>(chann_type_t)7) {
+   if (ext==NULL || ctype<=CHANN_TYPE_BROADCAST || ctype>=(chann_type_t)MNET_EXT_MAX_SIZE) {
       return 0;
    }
-   if (ext->type_fn &&
+   mnet_t *ss = _gmnet();
+   if (!ss->ext_config[ctype].reserved &&
+       ext->type_fn &&
        ext->filter_fn &&
        ext->open_cb &&
        ext->close_cb &&
@@ -1708,8 +1710,7 @@ int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
        ext->state_fn)
    {
       int raw_type = ext->type_fn(ext->ext_ctx, ctype);
-      if (raw_type >= CHANN_TYPE_STREAM && raw_type <= CHANN_TYPE_BROADCAST) {
-         mnet_t *ss = _gmnet();
+      if (raw_type >= CHANN_TYPE_STREAM && ctype <= CHANN_TYPE_BROADCAST) {
          ss->ext_config[ctype] = *ext;
          ss->ext_config[ctype].reserved = 1;
          return 1;
