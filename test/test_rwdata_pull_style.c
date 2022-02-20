@@ -146,7 +146,7 @@ _as_server(chann_addr_t *addr) {
          }
          if (msg->event == CHANN_EVENT_RECV) {
             rw_result_t *rw = mnet_chann_recv(msg->n, ctx->buf, kBufSize);
-            if (_check_data_buf(ctx, ctx->recved, rw->ret)) {
+            if (rw->ret>0 && _check_data_buf(ctx, ctx->recved, rw->ret)) {
                int ret = rw->ret;
                ctx->recved += ret;
                rw = mnet_chann_send(msg->n, ctx->buf, ret);
