@@ -1,11 +1,11 @@
-// 
-// 
+//
+//
 // Copyright (c) 2017 lalawue
-// 
+//
 // This library is free software; you can redistribute it and/or modify it
 // under the terms of the MIT license. See LICENSE for details.
-// 
-// 
+//
+//
 
 #ifdef TEST_RWDATA
 
@@ -99,7 +99,7 @@ public:
          return true;
       } else {
          cout << "c failed to checked data: " << rw->ret << endl;
-         return false;         
+         return false;
       }
    }
 
@@ -118,7 +118,7 @@ public:
             sendBatchData();
          } else {
             cout << "send enough data " << m_sended << endl;
-            channActiveEvent(CHANN_EVENT_SEND, 0);  
+            channActiveEvent(CHANN_EVENT_SEND, 0);
          }
       }
       if (event == CHANN_EVENT_DISCONNECT) {

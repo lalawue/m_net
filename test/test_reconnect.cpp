@@ -1,11 +1,11 @@
-// 
-// 
+//
+//
 // Copyright (c) 2017 lalawue
-// 
+//
 // This library is free software; you can redistribute it and/or modify it
 // under the terms of the MIT license. See LICENSE for details.
-// 
-// 
+//
+//
 
 #ifdef TEST_RECONNECT
 
@@ -15,7 +15,7 @@
 #include "mnet_wrapper.h"
 
 #define kMultiChannCount 256    // default for 'ulimit -n'
-#define kTestCount 5            // disconnect/connect count for each chann 
+#define kTestCount 5            // disconnect/connect count for each chann
 
 using std::cout;
 using std::endl;
@@ -29,14 +29,14 @@ using mnet::ChannDispatcher;
 class SvrChann : public Chann {
 public:
    SvrChann(Chann *c) : Chann(c) {}
-   
+
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
          rw_result_t *rw = channRecv(m_buf, sizeof(m_buf));
          channActiveEvent(CHANN_EVENT_SEND, 1);
          channSend(m_buf, rw->ret);
       }
-      else if (event == CHANN_EVENT_SEND || 
+      else if (event == CHANN_EVENT_SEND ||
                event == CHANN_EVENT_DISCONNECT)
       {
          cout << "cnt " << this << " disconnect" << endl;
@@ -65,14 +65,14 @@ public:
          }
 
          case CHANN_EVENT_DISCONNECT: {
-            
+
             m_test_count += 1;
             if (m_test_count >= kTestCount) {
                delete this;
                return;
             }
 
-            usleep(1000);            
+            usleep(1000);
 
             cout << m_idx << ": disconnect, try to connect " << peerAddr().addrString << endl;
             if ( !channConnect( peerAddr().addrString ) ) {
@@ -133,12 +133,12 @@ int main(int argc, char *argv[]) {
          } else {
             delete cnt;
          }
-      } 
+      }
 
       while (ChannDispatcher::pollEvent(1000)->chann_count > 0) {
       }
 
-      cout << "\nall cnt tested, exit !" << endl;      
+      cout << "\nall cnt tested, exit !" << endl;
    }
 
    return 0;

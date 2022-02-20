@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (c) 2020 lalawue
- * 
+ *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
@@ -77,29 +77,29 @@ _as_client(chann_addr_t *addr) {
    memset(ctx, 0, sizeof(*ctx));
 
    for (;;) {
-      
-      results = mnet_poll(1000000);
+
+      results = mnet_poll(MNET_MILLI_SECOND);
       if (results->chann_count <= 0) {
          break;
       }
-      
-      chann_msg_t *msg = NULL;      
+
+      chann_msg_t *msg = NULL;
       while ((msg = mnet_result_next(results))) {
-         
+
          if (msg->event == CHANN_EVENT_CONNECTED) {
             printf("client connected\n");
             mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
          }
-         
+
          if (msg->event == CHANN_EVENT_RECV) {
             if (_client_recv_batch_data(msg->n, ctx) && ctx->recved < kSendedPoint) {
-            } else {               
+            } else {
                _print_data_info(ctx);
                mnet_chann_close(msg->n);
                continue;
             }
          }
-         
+
          if (msg->event == CHANN_EVENT_SEND) {
             if (ctx->sended < kSendedPoint) {
                _client_send_batch_data(msg->n, ctx);
@@ -108,11 +108,11 @@ _as_client(chann_addr_t *addr) {
                mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 0);
             }
          }
-         
+
          if (msg->event == CHANN_EVENT_DISCONNECT) {
-            _print_data_info(ctx);            
+            _print_data_info(ctx);
             mnet_chann_close(msg->n);
-         }         
+         }
       }
    }
 }
@@ -122,7 +122,7 @@ _as_server(chann_addr_t *addr) {
    chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
    mnet_chann_listen(svr, addr->ip, addr->port, 1);
    printf("svr listen %s:%d\n", addr->ip, addr->port);
-   
+
    poll_result_t *results = NULL;
    ctx_t *ctx = malloc(sizeof(*ctx));
    memset(ctx, 0, sizeof(*ctx));
@@ -133,7 +133,7 @@ _as_server(chann_addr_t *addr) {
          printf("poll error !\n");
          break;
       }
-      chann_msg_t *msg = NULL;      
+      chann_msg_t *msg = NULL;
       while ((msg = mnet_result_next(results))) {
          if (msg->n == svr) {
             // ignore this
@@ -155,7 +155,7 @@ _as_server(chann_addr_t *addr) {
                   assert(ctx->recved == ctx->sended);
                } else {
                   printf("invalid send\n");
-                  mnet_chann_close(msg->n);                  
+                  mnet_chann_close(msg->n);
                }
             } else {
                printf("svr failed to recv rw code: %d\n", rw->ret);
@@ -169,7 +169,7 @@ _as_server(chann_addr_t *addr) {
 static void
 _print_help(char *argv[]) {
    printf("%s: [-s|-c] [ip:port]\n", argv[0]);
-}   
+}
 
 int
 main(int argc, char *argv[]) {
@@ -187,7 +187,7 @@ main(int argc, char *argv[]) {
       return 0;
    }
 
-   mnet_init(1);                /* use pull style api */   
+   mnet_init(1);                /* use pull style api */
 
    if (strcmp(option, "-s") == 0) {
       _as_server(&addr);

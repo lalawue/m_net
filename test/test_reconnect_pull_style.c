@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (c) 2020 lalawue
- * 
+ *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
@@ -83,20 +83,20 @@ _as_client(chann_addr_t *addr) {
 
    char buf[128];
    poll_result_t *results = NULL;
-   
+
    for (;;) {
-      
-      results = mnet_poll(1000000);
+
+      results = mnet_poll(MNET_MILLI_SECOND);
       if (results->chann_count <= 0) {
          printf("all cnt tested, exit !\n");
          break;
       }
-      
-      chann_msg_t *msg = NULL;      
+
+      chann_msg_t *msg = NULL;
       while ((msg = mnet_result_next(results))) {
 
          ctx_t *ctx = (ctx_t *)msg->opaque;
-         
+
          if (msg->event == CHANN_EVENT_CONNECTED) {
             int ret = snprintf(buf, sizeof(buf), "HelloServ %d", ctx->idx);
             if (ret == mnet_chann_send(msg->n, buf, ret)->ret) {
@@ -115,14 +115,14 @@ _as_client(chann_addr_t *addr) {
                continue;
             }
 
-            usleep(1000);            
-            
+            usleep(1000);
+
             printf("%d: disconnect, try to connect %s:%d\n", ctx->idx, addr->ip, addr->port);
             if ( !mnet_chann_connect(msg->n, addr->ip, addr->port) ) {
                printf("%d: disconnect, fail to connect !\n", ctx->idx);
                mnet_chann_close(msg->n);
             }
-         }         
+         }
       }
    }
 }
