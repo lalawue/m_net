@@ -14,135 +14,118 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
-#include "mnet_openssl.h"
+#include "mnet_tls.h"
 
-#define kMultiChannCount 256 // default for 'ulimit -n'
-#define kTestCount 5        // disconnect/connect count for each chann
+#define kMultiChannCount 256  // default for 'ulimit -n'
+#define kTestCount 5          // disconnect/connect count for each chann
 
-typedef struct
-{
-    int idx;
-    int count;
+typedef struct {
+   int idx;
+   int count;
 } ctx_t;
 
 static void
-_print_help(char *argv[])
-{
-    printf("%s: [-s|-c] [ip:port]\n", argv[0]);
+_print_help(char *argv[]) {
+   printf("%s: [-s|-c] [ip:port]\n", argv[0]);
 }
 
 static void
-_as_server(mnet_openssl_t *ot, chann_addr_t *addr)
-{
-    chann_t *svr = mnet_openssl_chann_open(ot);
-    mnet_openssl_chann_listen(svr, addr->ip, addr->port, kMultiChannCount * kTestCount);
-    printf("svr listen %s:%d\n", addr->ip, addr->port);
+_as_server(chann_addr_t *addr) {
+   chann_t *svr = mnet_chann_open(CHANN_TYPE_TLS);
+   mnet_chann_listen(svr, addr->ip, addr->port, kMultiChannCount * kTestCount);
+   printf("svr listen %s:%d\n", addr->ip, addr->port);
 
-    char buf[128];
-    poll_result_t *results = NULL;
+   char buf[128];
+   poll_result_t *results = NULL;
 
-    for (;;)
-    {
-        results = mnet_poll(MNET_MILLI_SECOND);
-        if (results->chann_count < 0)
-        {
-            printf("poll error !\n");
-            break;
-        }
+   for (;;) {
+      results = mnet_poll(MNET_MILLI_SECOND);
+      if (results->chann_count < 0) {
+         printf("poll error !\n");
+         break;
+      }
 
-        chann_msg_t *msg = NULL;
-        while ((msg = mnet_result_next(results)))
-        {
-            if (msg->event == CHANN_EVENT_ACCEPT)
-            {
-                printf("accept cnt %p\n", msg->r);
-                continue;
+      chann_msg_t *msg = NULL;
+      while ((msg = mnet_result_next(results))) {
+         if (msg->n == svr) {
+            if (msg->event == CHANN_EVENT_ACCEPT) {
+               printf("accept cnt %p\n", msg->r);
             }
-            else if (msg->event == CHANN_EVENT_RECV)
-            {
-                rw_result_t *rw = mnet_openssl_chann_recv(msg->n, buf, sizeof(buf));
-                mnet_openssl_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
-                mnet_openssl_chann_send(msg->n, buf, rw->ret);
-            }
-            else if (msg->event == CHANN_EVENT_SEND ||
-                     msg->event == CHANN_EVENT_DISCONNECT)
-            {
-                printf("cnt %p disconnect\n", msg->n);
-                mnet_openssl_chann_close(msg->n);
-            }
-        }
-    }
+            continue;
+         }
+         if (msg->event == CHANN_EVENT_RECV) {
+            rw_result_t *rw = mnet_chann_recv(msg->n, buf, sizeof(buf));
+            mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
+            mnet_chann_send(msg->n, buf, rw->ret);
+         }
+         else if (msg->event == CHANN_EVENT_SEND ||
+                  msg->event == CHANN_EVENT_DISCONNECT)
+         {
+            printf("cnt %p disconnect\n", msg->n);
+            mnet_chann_close(msg->n);
+         }
+      }
+   }
 }
 
 static void
-_as_client(mnet_openssl_t *ot, chann_addr_t *addr)
-{
-    for (size_t i = 0; i < kMultiChannCount; i++)
-    {
-        chann_t *cnt = mnet_openssl_chann_open(ot);
-        ctx_t *ctx = calloc(1, sizeof(ctx_t));
-        ctx->idx = i;
-        mnet_openssl_chann_set_opaque(cnt, ctx); /* set opaque */
-        if (mnet_openssl_chann_connect(cnt, addr->ip, addr->port))
-        {
-            printf("%d begin connect %s:%d\n", (int)i, addr->ip, addr->port);
-        }
-        else
-        {
-            mnet_openssl_chann_close(cnt);
-        }
-    }
+_as_client(chann_addr_t *addr) {
+   for (size_t i=0; i<kMultiChannCount; i++) {
+      chann_t *cnt = mnet_chann_open(CHANN_TYPE_TLS);
+      ctx_t *ctx = calloc(1, sizeof(ctx_t));
+      ctx->idx = i;
+      mnet_chann_set_opaque(cnt, ctx); /* set opaque */
+      if (mnet_chann_connect(cnt, addr->ip, addr->port)) {
+         printf("%d begin connect %s:%d\n", (int)i, addr->ip, addr->port);
+      } else {
+         mnet_chann_close(cnt);
+      }
+   }
 
-    char buf[128];
-    poll_result_t *results = NULL;
+   char buf[128];
+   poll_result_t *results = NULL;
 
-    for (;;)
-    {
-        results = mnet_poll(MNET_MILLI_SECOND);
-        if (results->chann_count <= 0)
-        {
-            printf("all cnt tested, exit !\n");
-            break;
-        }
+   for (;;) {
+      
+      results = mnet_poll(MNET_MILLI_SECOND);
+      if (results->chann_count <= 0) {
+         printf("all cnt tested, exit !\n");
+         break;
+      }
 
-        chann_msg_t *msg = NULL;
-        while ((msg = mnet_result_next(results)))
-        {
-            ctx_t *ctx = (ctx_t *)mnet_openssl_chann_get_opaque(msg->n);
+      chann_msg_t *msg = NULL;      
+      while ((msg = mnet_result_next(results))) {
 
-            if (msg->event == CHANN_EVENT_CONNECTED)
-            {
-                int ret = snprintf(buf, sizeof(buf), "HelloServ %d", ctx->idx);
-                if (ret == mnet_openssl_chann_send(msg->n, buf, ret)->ret)
-                {
-                    printf("%d: connected, send '%s'\n", ctx->idx, buf);
-                }
-                else
-                {
-                    printf("%d: connected, fail to send with ret %d\n", ctx->idx, ret);
-                    mnet_openssl_chann_close(msg->n);
-                }
+         ctx_t *ctx = (ctx_t *)msg->opaque;
+
+         if (msg->event == CHANN_EVENT_CONNECTED) {
+            int ret = snprintf(buf, sizeof(buf), "HelloServ %d", ctx->idx);
+            if (ret == mnet_chann_send(msg->n, buf, ret)->ret) {
+               printf("%d: connected, send '%s'\n", ctx->idx, buf);
+            } else {
+               printf("%d: connected, fail to send with ret %d\n", ctx->idx, ret);
+               mnet_chann_close(msg->n);
             }
-            else if (msg->event == CHANN_EVENT_DISCONNECT)
-            {
-                ctx->count += 1;
-                if (ctx->count >= kTestCount)
-                {
-                    mnet_openssl_chann_close(msg->n);
-                    continue;
-                }
+         }
 
-                usleep(1000);
+         if (msg->event == CHANN_EVENT_DISCONNECT) {
 
-                printf("%d: disconnect, try to connect %s:%d\n", ctx->idx, addr->ip, addr->port);
-                if (!mnet_openssl_chann_connect(msg->n, addr->ip, addr->port))
-                {
-                    printf("%d: disconnect, fail to connect !\n", ctx->idx);
-                    mnet_openssl_chann_close(msg->n);
-                }
+            ctx->count += 1;
+            if (ctx->count >= kTestCount) {
+               mnet_chann_close(msg->n);
+               continue;
             }
-        }
-    }
+
+            usleep(1000);
+
+            printf("%d: disconnect, try to connect %s:%d\n", ctx->idx, addr->ip, addr->port);
+            if ( !mnet_chann_connect(msg->n, addr->ip, addr->port) ) {
+               printf("%d: disconnect, fail to connect !\n", ctx->idx);
+               mnet_chann_close(msg->n);
+            }
+         }
+      }
+   }
 }
 
 int main(int argc, char *argv[])
@@ -173,15 +156,18 @@ int main(int argc, char *argv[])
     SSL_CTX_use_PrivateKey_file(ctx, "examples/openssl/server.key", SSL_FILETYPE_PEM);
     assert(SSL_CTX_check_private_key(ctx) == 1);
 
-    mnet_openssl_t *ot = mnet_openssl_ctx_config(ctx);
+    if (!mnet_tls_config(ctx)) {
+        printf("cnt failed to config tls !\n");
+        return 0;
+    }
 
     if (strcmp(option, "-s") == 0)
     {
-        _as_server(ot, &addr);
+        _as_server(&addr);
     }
     else if (strcmp(option, "-c") == 0)
     {
-        _as_client(ot, &addr);
+        _as_client(&addr);
     }
     else
     {
@@ -189,7 +175,6 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    mnet_openssl_ctx_release(ot);
     mnet_fini();
 
     return 0;

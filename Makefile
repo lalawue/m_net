@@ -53,10 +53,10 @@ O_INCS := -I$(MNET_OPENSSL_DIR)/include
 all:
 	@echo "try make with these"
 	@echo "$$ make clean"
-	@echo "$$ make lib"
-	@echo "$$ make pull"
-	@echo "$$ make callback"
-	@echo "$$ make openssl"
+	@echo "$$ make lib		# only make library"
+	@echo "$$ make pull		# make pull style example"
+	@echo "$$ make callback		# make callback style example"
+	@echo "$$ make openssl		# make openssl example"
 
 lib: $(LIB_SRCS)
 	@mkdir -p build
@@ -64,6 +64,7 @@ lib: $(LIB_SRCS)
 
 pull: $(E_SRCS) $(T_SRCS)
 	@mkdir -p build
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $(LIB_SRCS) -lc -shared -fPIC
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_pull_style.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_PULL_STYLE
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_reconnect_pull_style.out $^ $(LIBS) -DTEST_RECONNECT_PULL_STYLE
@@ -72,6 +73,7 @@ pull: $(E_SRCS) $(T_SRCS)
 
 callback: $(CPP_SRCS)
 	@mkdir -p build
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $(LIB_SRCS) -lc -shared -fPIC
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_svr.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/echo_cnt.out $^ $(LIBS) -DEXAMPLE_ECHO_CNT
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_reconnect.out $^ $(LIBS) -DTEST_RECONNECT
@@ -86,7 +88,6 @@ openssl: $(OE_SRCS) $(OL_SRCS)
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_cnt $^ -Lbuild -lmnet -DMNET_OPENSSL_CNT
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_reconnect $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_rwdata $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RWDATA_PULL_STYLE
-
 
 clean:
 	rm -rf build
