@@ -14,6 +14,7 @@
 #else
    #define MNET_OS_LINUX 1
    #define _BSD_SOURCE
+   #define _DEFAULT_SOURCE
 #endif
 
 #if MNET_OS_WIN

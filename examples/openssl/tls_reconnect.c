@@ -8,6 +8,7 @@
 #ifdef MNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
 
 #define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>

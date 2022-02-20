@@ -28,7 +28,7 @@ LIBS= -lc -lmnet -Lbuild
 
 LIB_SRCS := $(shell find src -name "*.c")
 LIB_SRCS += $(shell find extension/mdns_utils -name "*.c")
-E_SRCS := $(shell find examples -name "*.c" -depth 1)
+E_SRCS := $(shell find examples -maxdepth 1 -name "*.c")
 T_SRCS := $(shell find test -name "*.c")
 OE_SRCS := $(shell find examples/openssl -name "*.c")
 OL_SRCS := $(shell find extension/openssl -name "*.c")
@@ -42,6 +42,8 @@ DIRS += $(shell find extension/openssl -type d)
 INCS := $(foreach n, $(DIRS), -I$(n))
 
 O_INCS := -I$(MNET_OPENSSL_DIR)/include
+O_DIRS := -L$(MNET_OPENSSL_DIR)/lib -Lbuild
+O_LIBS := -lssl -lcrypto
 
 .PHONY : all
 .PHONY : lib
@@ -83,11 +85,11 @@ callback: $(CPP_SRCS)
 openssl: $(OE_SRCS) $(OL_SRCS)
 	@mkdir -p build
 	@echo "export MNET_OPENSSL_DIR=$(MNET_OPENSSL_DIR)"
-	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(MNET_OPENSSL_DIR)/lib/libcrypto.a $(MNET_OPENSSL_DIR)/lib/libssl.a
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/tls_svr $^ -Lbuild -lmnet -DMNET_OPENSSL_SVR
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/tls_cnt $^ -Lbuild -lmnet -DMNET_OPENSSL_CNT
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/tls_reconnect $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/tls_rwdata $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RWDATA_PULL_STYLE
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(O_LIBS)
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_svr $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_SVR
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_cnt $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_CNT
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_reconnect $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_rwdata $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_TEST_RWDATA_PULL_STYLE
 
 clean:
 	rm -rf build
