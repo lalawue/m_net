@@ -654,7 +654,7 @@ _ext_stream_recv(void *ext_ctx, chann_t *n, void *buf, int len) {
 
 static int
 _ext_dgram_recv(void *ext_ctx, chann_t *n, void *buf, int len) {
-   int ret = (int)recvfrom(n->fd, buf, len, 0, (struct sockaddr*)&(n->addr), &(n->addr_len));
+   int ret = (int)recvfrom(n->fd, buf, len, 0, (struct sockaddr *)&n->addr, &n->addr_len);
    if (ret<0 && errno==EWOULDBLOCK) {
       ret = 0;
    }
@@ -672,7 +672,7 @@ _ext_stream_send(void *ext_ctx, chann_t *n, void *buf, int len) {
 
 static int
 _ext_dgram_send(void *ext_ctx, chann_t *n, void *buf, int len) {
-   int ret = (int)sendto(n->fd, buf, len, 0, (struct sockaddr*)&n->addr, n->addr_len);
+   int ret = (int)sendto(n->fd, buf, len, 0, (struct sockaddr *)&n->addr, n->addr_len);
    if (ret<0 && errno==EWOULDBLOCK) {
       ret = 0;
    }
@@ -680,19 +680,19 @@ _ext_dgram_send(void *ext_ctx, chann_t *n, void *buf, int len) {
 }
 
 mnet_ext_t _ext_internal_config = {
-   0,
-   NULL,
-   _ext_type_fn,
-   _ext_filter_fn,
-   _ext_op_cb,
-   _ext_op_cb,
-   _ext_op_cb,
-   _ext_op_cb,
-   _ext_op_cb,
-   _ext_op_cb,
-   _ext_state_fn,
-   NULL,
-   NULL,
+   .reserved = 0,
+   .ext_ctx = NULL,
+   .type_fn = _ext_type_fn,
+   .filter_fn = _ext_filter_fn,
+   .open_cb = _ext_op_cb,
+   .close_cb = _ext_op_cb,
+   .listen_cb = _ext_op_cb,
+   .accept_cb = _ext_op_cb,
+   .connect_cb = _ext_op_cb,
+   .disconnect_cb = _ext_op_cb,
+   .state_fn = _ext_state_fn,
+   .recv_fn = NULL,
+   .send_fn = NULL,
 };
 
 /* channel op
@@ -748,6 +748,8 @@ _chann_accept(mnet_t *ss, chann_t *n) {
       c->addr_len = addr_len;
       mm_log(n, MNET_LOG_VERBOSE, "chann accept %p fd %d, from %s, count %d\n",
             c, c->fd, _chann_addr(c), ss->chann_count);
+      mnet_ext_t *ext = _ext_config(n->ctype);
+      ext->accept_cb(ext->ext_ctx, c);
       return c;
    }
    return NULL;
@@ -872,7 +874,6 @@ _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
       int fd = socket(AF_INET, istcp ? SOCK_STREAM : SOCK_DGRAM, 0);
       if (fd > 0) {
          int buf_size = n->buf_size>0 ? n->buf_size : MNET_BUF_SIZE;
-         n->state = CHANN_STATE_DISCONNECT;
 
          _chann_fill_addr(n, host, port);
 
@@ -1480,14 +1481,14 @@ mnet_chann_connect(chann_t *n, const char *host, int port) {
                n->state = CHANN_STATE_CONNECTING;
                _evt_add(n, MNET_SET_WRITE);
                mm_log(n, MNET_LOG_VERBOSE, "chann fd:%d ctype:%d connecting...\n", fd, n->ctype);
-               ext->open_cb(ext->ext_ctx, n);
+               ext->connect_cb(ext->ext_ctx, n);
                return 1;
             }
          } else {
             n->state = CHANN_STATE_CONNECTED;
             _evt_add(n, MNET_SET_READ);
             mm_log(n, MNET_LOG_VERBOSE, "chann fd:%d ctype:%d connected\n", fd, n->ctype);
-            ext->open_cb(ext->ext_ctx, n);
+            ext->connect_cb(ext->ext_ctx, n);
             return 1;
          }
       }
@@ -1547,8 +1548,9 @@ mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value) {
    if (n == NULL) {
       return;
    }
+   mnet_ext_t *ext = _ext_config(n->ctype);
    if (et == CHANN_EVENT_SEND &&
-       n->state == CHANN_STATE_CONNECTED &&
+       ext->state_fn(ext->ext_ctx, n, n->state) == CHANN_STATE_CONNECTED &&
        n->active_send_event != !!value)
    {
       n->active_send_event = !!value;
@@ -1573,9 +1575,9 @@ mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value) {
 
 rw_result_t*
 mnet_chann_recv(chann_t *n, void *buf, int len) {
-   mnet_t *ss = _gmnet();         
-   if (n && buf && len>0 && n->state>=CHANN_STATE_CONNECTED) {
-      mnet_ext_t *ext = _ext_config(n->ctype);
+   mnet_t *ss = _gmnet();
+   mnet_ext_t *ext = n ? _ext_config(n->ctype) : NULL;
+   if (n && buf && len>0 && ext && ext->state_fn(ext->ext_ctx, n, n->state)>=CHANN_STATE_CONNECTED) {
       int ret = ext->recv_fn(ext->ext_ctx, n, buf, len);
       if (ret < 0) {
          mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, recv errno %d:%s\n",
@@ -1596,10 +1598,10 @@ mnet_chann_recv(chann_t *n, void *buf, int len) {
 rw_result_t*
 mnet_chann_send(chann_t *n, void *buf, int len) {
    mnet_t *ss = _gmnet();
-   if (n && buf && len>0 && n->state>=CHANN_STATE_CONNECTED) {
+   mnet_ext_t *ext = n ? _ext_config(n->ctype) : NULL;
+   if (n && buf && len>0 && ext && ext->state_fn(ext->ext_ctx, n, n->state)>=CHANN_STATE_CONNECTED) {
       int ret = len;
       rwb_head_t *prh = &n->rwb_send;
-
       if (_rwb_count(prh) > 0) {
          _rwb_cache(prh, (uint8_t *)buf, len);
          mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d still cache %d(%d)!\n",
@@ -1697,8 +1699,8 @@ int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
    if (ext==NULL || ctype<=CHANN_TYPE_BROADCAST || ctype>=(chann_type_t)MNET_EXT_MAX_SIZE) {
       return 0;
    }
-   mnet_t *ss = _gmnet();
-   if (!ss->ext_config[ctype].reserved &&
+   mnet_ext_t *ss_ext = _ext_config(ctype);
+   if (!ss_ext->reserved &&
        ext->type_fn &&
        ext->filter_fn &&
        ext->open_cb &&
@@ -1711,8 +1713,8 @@ int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
    {
       int raw_type = ext->type_fn(ext->ext_ctx, ctype);
       if (raw_type >= CHANN_TYPE_STREAM && ctype <= CHANN_TYPE_BROADCAST) {
-         ss->ext_config[ctype] = *ext;
-         ss->ext_config[ctype].reserved = 1;
+         *ss_ext = *ext;
+         ss_ext->reserved = 1;
          return 1;
       }
    }
@@ -1721,16 +1723,14 @@ int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
 
 /* set extension userdata for chann */
 void mnet_ext_chann_set_ud(chann_t *n, void *ext_ud) {
-   mnet_t *ss = _gmnet();
-   if (n && ss->ext_config[n->ctype].reserved) {
+   if (n && _ext_config(n->ctype)->reserved) {
       n->ext_ud = ext_ud;
    }
 }
 
 /* get extension userdata for chann */
 void* mnet_ext_chann_get_ud(chann_t *n) {
-   mnet_t *ss = _gmnet();
-   if (n && ss->ext_config[n->ctype].reserved) {
+   if (n && _ext_config(n->ctype)->reserved) {
       return n->ext_ud;
    } else {
       return NULL;
