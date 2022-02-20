@@ -84,10 +84,10 @@ openssl: $(OE_SRCS) $(OL_SRCS)
 	@mkdir -p build
 	@echo "export MNET_OPENSSL_DIR=$(MNET_OPENSSL_DIR)"
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(MNET_OPENSSL_DIR)/lib/libcrypto.a $(MNET_OPENSSL_DIR)/lib/libssl.a
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_svr $^ -Lbuild -lmnet -DMNET_OPENSSL_SVR
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_cnt $^ -Lbuild -lmnet -DMNET_OPENSSL_CNT
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_reconnect $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/openssl_rwdata $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RWDATA_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/tls_svr $^ -Lbuild -lmnet -DMNET_OPENSSL_SVR
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/tls_cnt $^ -Lbuild -lmnet -DMNET_OPENSSL_CNT
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/tls_reconnect $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) -o build/tls_rwdata $^ -Lbuild -lmnet -DMNET_OPENSSL_TEST_RWDATA_PULL_STYLE
 
 clean:
 	rm -rf build
