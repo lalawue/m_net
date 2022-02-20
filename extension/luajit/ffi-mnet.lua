@@ -20,6 +20,7 @@ typedef enum {
    CHANN_TYPE_STREAM = 1,
    CHANN_TYPE_DGRAM,
    CHANN_TYPE_BROADCAST,
+   CHANN_TYPE_TLS,
 } chann_type_t;
 
 typedef enum {
@@ -103,6 +104,8 @@ int mnet_chann_socket_set_bufsize(chann_t *n, int bufsize);
 int64_t mnet_current(void); /* micro seconds */
 int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
+
+int mnet_tls_config(void *ssl_ctx);
 ]]
 
 -- try to load mnet in package.cpath
@@ -140,7 +143,8 @@ local StateNamesTable = {
 local ChannTypesTable = {
     "tcp",
     "udp",
-    "broadcast"
+    "broadcast",
+    "tls",
 }
 
 local AllOpenedChannsTable = setmetatable({}, {__mode = "k"}) -- all opened channs
@@ -171,6 +175,12 @@ end
 
 function Core.fini()
     mNet.mnet_fini()
+end
+
+function Core.extConfig(name, ctx)
+    if name == "tls" then
+        mNet.mnet_tls_config(ctx)
+    end
 end
 
 function Core.report(level)
@@ -267,6 +277,9 @@ function Core.openChann(chann_type)
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_BROADCAST)
     elseif chann_type == "udp" then
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_DGRAM)
+    elseif chann_type == "tls" then
+        chann_type = "tls"
+        chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_TLS)
     else
         chann_type = "tcp"
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_STREAM)
