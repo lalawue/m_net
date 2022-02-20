@@ -1,11 +1,11 @@
-// 
-// 
+//
+//
 // Copyright (c) 2020 lalawue
-// 
+//
 // This library is free software; you can redistribute it and/or modify it
 // under the terms of the MIT license. See LICENSE for details.
-// 
-// 
+//
+//
 
 #ifdef TEST_TIMER
 
@@ -28,7 +28,7 @@ using mnet::ChannDispatcher;
 class SvrChann : public Chann {
 public:
    SvrChann(Chann *c) : Chann(c) {}
-   
+
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
          rw_result_t *rw = channRecv(m_buf, sizeof(m_buf));
@@ -60,7 +60,7 @@ public:
             m_duration = (int64_t)(ChannDispatcher::currentTime() - m_connected_time) / (MNET_MILLI_SECOND * 1000);
             if (m_duration > 10) {
                cout << m_idx << ": over 10 seconds, time " << ChannDispatcher::currentTime() << endl;
-               delete this;               
+               delete this;
             } else {
                int ret = snprintf(m_buf, kBufSize, "HelloServ duration %ld", (long)m_duration);
                channSend(m_buf, ret);
@@ -75,9 +75,9 @@ public:
    }
 
    int m_idx;
-   char m_buf[kBufSize];   
+   char m_buf[kBufSize];
    int64_t m_duration;
-   int64_t m_connected_time;   
+   int64_t m_connected_time;
 };
 
 int main(int argc, char *argv[]) {
@@ -122,13 +122,13 @@ int main(int argc, char *argv[]) {
          } else {
             delete cnt;
          }
-      } 
+      }
 
       poll_result_t *result;
       while ((result = ChannDispatcher::pollEvent(0.5 * MNET_MILLI_SECOND)) && result->chann_count > 0) {
       }
 
-      cout << "\nall cnt tested, exit !" << endl;      
+      cout << "\nall cnt tested, exit !" << endl;
    }
 
    return 0;

@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2020 lalawue
+ * Copyright (c) 2022 lalawue
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifdef TEST_RWDATA_PULL_STYLE
+#ifdef MNET_TLS_TEST_RWDATA_PULL_STYLE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +13,8 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
-#include "mnet_core.h"
+#include <assert.h>
+#include "mnet_tls.h"
 
 #define kBufSize 256*1024 // even number
 #define kSendedPoint 1024*1024*1024
@@ -68,7 +69,7 @@ _client_recv_batch_data(chann_t *n, ctx_t *ctx) {
 
 static void
 _as_client(chann_addr_t *addr) {
-   chann_t *cnt = mnet_chann_open(CHANN_TYPE_STREAM);
+   chann_t *cnt = mnet_chann_open(CHANN_TYPE_TLS);
    mnet_chann_connect(cnt, addr->ip, addr->port);
    printf("client connect %s:%d\n", addr->ip, addr->port);
 
@@ -108,18 +109,18 @@ _as_client(chann_addr_t *addr) {
                mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 0);
             }
          }
-
+         
          if (msg->event == CHANN_EVENT_DISCONNECT) {
             _print_data_info(ctx);
             mnet_chann_close(msg->n);
-         }
+         }         
       }
    }
 }
 
 static void
 _as_server(chann_addr_t *addr) {
-   chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
+   chann_t *svr = mnet_chann_open(CHANN_TYPE_TLS);
    mnet_chann_listen(svr, addr->ip, addr->port, 1);
    printf("svr listen %s:%d\n", addr->ip, addr->port);
 
@@ -128,7 +129,7 @@ _as_server(chann_addr_t *addr) {
    memset(ctx, 0, sizeof(*ctx));
 
    for (;;) {
-      results = mnet_poll(1000000);
+      results = mnet_poll(MNET_MILLI_SECOND);
       if (results->chann_count < 0) {
          printf("poll error !\n");
          break;
@@ -154,7 +155,7 @@ _as_server(chann_addr_t *addr) {
                   ctx->sended += rw->ret;
                   assert(ctx->recved == ctx->sended);
                } else {
-                  printf("invalid send\n");
+                  printf("invalid send %d, %p\n", rw->ret, rw->msg);
                   mnet_chann_close(msg->n);
                }
             } else if (rw->ret < 0) {
@@ -171,36 +172,56 @@ _print_help(char *argv[]) {
    printf("%s: [-s|-c] [ip:port]\n", argv[0]);
 }
 
-int
-main(int argc, char *argv[]) {
-   if (argc < 2) {
-      _print_help(argv);
-      return 0;
-   }
+int main(int argc, char *argv[])
+{
+    if (argc < 2)
+    {
+        _print_help(argv);
+        return 0;
+    }
 
-   char *option = argv[1];
-   char *ipport = argc > 2 ? argv[2] : "127.0.0.1:8090";
+    char *option = argv[1];
+    char *ipport = argc > 2 ? argv[2] : "127.0.0.1:8090";
 
-   chann_addr_t addr;
-   if (mnet_parse_ipport(ipport, &addr) <= 0) {
-      _print_help(argv);
-      return 0;
-   }
+    chann_addr_t addr;
+    if (mnet_parse_ipport(ipport, &addr) <= 0)
+    {
+        _print_help(argv);
+        return 0;
+    }
 
-   mnet_init(1);                /* use pull style api */
+    mnet_init(1); /* use pull style api */
 
-   if (strcmp(option, "-s") == 0) {
-      _as_server(&addr);
-   } else if (strcmp(option, "-c") == 0) {
-      _as_client(&addr);
-   } else {
-      _print_help(argv);
-      return 0;
-   }
+    SSL_library_init();
+    SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+    SSL_CTX_load_verify_locations(ctx, "examples/openssl/ca.crt", NULL);
+    SSL_CTX_use_certificate_file(ctx, "examples/openssl/server.crt", SSL_FILETYPE_PEM);
+    SSL_CTX_use_PrivateKey_file(ctx, "examples/openssl/server.key", SSL_FILETYPE_PEM);
+    assert(SSL_CTX_check_private_key(ctx) == 1);
 
-   mnet_fini();
+    if (!mnet_tls_config(ctx)) {
+        printf("svr failed to config tls !\n");
+        return 0;
+    }
 
-   return 0;
+    if (strcmp(option, "-s") == 0)
+    {
+        _as_server(&addr);
+    }
+    else if (strcmp(option, "-c") == 0)
+    {
+        _as_client(&addr);
+    }
+    else
+    {
+        _print_help(argv);
+        return 0;
+    }
+
+    mnet_fini();
+
+    return 0;
 }
 
-#endif  /* TEST_RWDATA_PULL_STYLE */
+#endif /* MNET_TLS_TEST_RWDATA_PULL_STYLE */

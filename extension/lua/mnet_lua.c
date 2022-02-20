@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2017 lalawue
  * 
  * This library is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ _check_type(lua_State *L, int *types, int count, int nline) {
                  types[i],                 
                  lua_type(L, i+1),
                  nline);
-         return 0;         
+         return 0;
       }
    }
    return 1;
@@ -145,6 +145,27 @@ _mnet_parse_ipport(lua_State *L) {
       return 2;
    }
    return 0;
+}
+
+static int
+_mnet_resolve(lua_State *L) {
+   int types[3] = { LUA_TSTRING, LUA_TNUMBER, LUA_TNUMBER};
+   if ( !_check_type(L, types, 1, __LINE__) ) {
+      return 0;
+   }
+
+   const char *host = lua_tostring(L, 1);
+   int port = (int)lua_tointeger(L, 2);
+   int ctype = (int)lua_tointeger(L, 3);
+   chann_addr_t addr;
+   if (mnet_resolve(host, port, ctype, &addr)) {
+      lua_pushstring(L, addr.ip);
+      lua_pushinteger(L, addr.port);
+      return 2;
+   } else {
+      lua_pushnil(L);
+      return 1;
+   }
 }
 
 /* open chann with type */
@@ -297,49 +318,6 @@ _chann_send(lua_State *L) {
    return 0;
 }
 
-
-/* .chann_set_bufsize(n, 64*1024) */
-static int
-_chann_set_bufsize(lua_State *L) {
-   int types[2] = { LUA_TLIGHTUSERDATA, LUA_TNUMBER };
-   if ( !_check_type(L, types, 2, __LINE__) ) {
-      return 0;
-   }
-
-   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
-   int bufsize = (int)lua_tointeger(L, 2);
-   int ret = mnet_chann_set_bufsize(lc->n, bufsize);
-   lua_pushboolean(L, ret);
-   return 1;
-}
-
-static int
-_chann_cached(lua_State *L) {
-   if ( !lua_islightuserdata(L, 1) ) {
-      return 0;
-   }
-
-   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
-   int ret = mnet_chann_cached(lc->n);
-   lua_pushinteger(L, ret);
-   return 1;
-}
-
-
-static int
-_chann_addr(lua_State *L) {
-   if ( !lua_islightuserdata(L, 1) ) {
-      return 0;
-   }
-
-   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
-   chann_addr_t addr;
-   mnet_chann_addr(lc->n, &addr);
-   lua_pushstring(L, addr.ip);
-   lua_pushinteger(L, addr.port);
-   return 2;
-}
-
 static int
 _chann_state(lua_State *L) {
    if ( !lua_islightuserdata(L, 1) ) {
@@ -365,10 +343,15 @@ _chann_bytes(lua_State *L) {
    return 1;
 }
 
-/* get chann count */
+
 static int
-_chann_count(lua_State *L) {
-   int ret = mnet_report(0);
+_chann_cached(lua_State *L) {
+   if ( !lua_islightuserdata(L, 1) ) {
+      return 0;
+   }
+
+   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
+   int ret = mnet_chann_cached(lc->n);
    lua_pushinteger(L, ret);
    return 1;
 }
@@ -385,6 +368,43 @@ _chann_active_event(lua_State *L) {
    int value = lua_tointeger(L, 3);
    mnet_chann_active_event(lc->n, event, value);
    return 0;
+}
+
+/* .chann_set_bufsize(n, 64*1024) */
+static int
+_chann_set_bufsize(lua_State *L) {
+   int types[2] = { LUA_TLIGHTUSERDATA, LUA_TNUMBER };
+   if ( !_check_type(L, types, 2, __LINE__) ) {
+      return 0;
+   }
+
+   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
+   int bufsize = (int)lua_tointeger(L, 2);
+   int ret = mnet_chann_socket_set_bufsize(lc->n, bufsize);
+   lua_pushboolean(L, ret);
+   return 1;
+}
+
+static int
+_chann_addr(lua_State *L) {
+   if ( !lua_islightuserdata(L, 1) ) {
+      return 0;
+   }
+
+   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
+   chann_addr_t addr;
+   mnet_chann_socket_addr(lc->n, &addr);
+   lua_pushstring(L, addr.ip);
+   lua_pushinteger(L, addr.port);
+   return 2;
+}
+
+/* get chann count */
+static int
+_chann_count(lua_State *L) {
+   int ret = mnet_report(0);
+   lua_pushinteger(L, ret);
+   return 1;
 }
 
 static const luaL_Reg mnet_lib[] = {
@@ -410,15 +430,14 @@ static const luaL_Reg mnet_lib[] = {
     { "chann_recv", _chann_recv},
     { "chann_send", _chann_send },
 
-    { "chann_set_bufsize", _chann_set_bufsize },
     { "chann_cached", _chann_cached },
-
-    { "chann_addr", _chann_addr },
 
     { "chann_state", _chann_state },
     { "chann_bytes", _chann_bytes },
-    
+
     { "chann_count", _chann_count },
+
+    { "chann_set_bufsize", _chann_set_bufsize },
     { "chann_addr", _chann_addr },
 
     { "current", _mnet_current },

@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2020 lalawue
+ * Copyright (c) 2022 lalawue
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifdef TEST_RECONNECT_PULL_STYLE
+#ifdef MNET_TLS_TEST_RECONNECT_PULL_STYLE
 
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
@@ -14,7 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "mnet_core.h"
+#include <assert.h>
+#include "mnet_tls.h"
 
 #define kMultiChannCount 256  // default for 'ulimit -n'
 #define kTestCount 5          // disconnect/connect count for each chann
@@ -31,7 +32,7 @@ _print_help(char *argv[]) {
 
 static void
 _as_server(chann_addr_t *addr) {
-   chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
+   chann_t *svr = mnet_chann_open(CHANN_TYPE_TLS);
    mnet_chann_listen(svr, addr->ip, addr->port, kMultiChannCount * kTestCount);
    printf("svr listen %s:%d\n", addr->ip, addr->port);
 
@@ -73,7 +74,7 @@ _as_server(chann_addr_t *addr) {
 static void
 _as_client(chann_addr_t *addr) {
    for (size_t i=0; i<kMultiChannCount; i++) {
-      chann_t *cnt = mnet_chann_open(CHANN_TYPE_STREAM);
+      chann_t *cnt = mnet_chann_open(CHANN_TYPE_TLS);
       ctx_t *ctx = calloc(1, sizeof(ctx_t));
       ctx->idx = i;
       mnet_chann_set_opaque(cnt, ctx); /* set opaque */
@@ -88,14 +89,14 @@ _as_client(chann_addr_t *addr) {
    poll_result_t *results = NULL;
 
    for (;;) {
-
+      
       results = mnet_poll(MNET_MILLI_SECOND);
       if (results->chann_count <= 0) {
          printf("all cnt tested, exit !\n");
          break;
       }
 
-      chann_msg_t *msg = NULL;
+      chann_msg_t *msg = NULL;      
       while ((msg = mnet_result_next(results))) {
 
          ctx_t *ctx = (ctx_t *)msg->opaque;
@@ -130,36 +131,56 @@ _as_client(chann_addr_t *addr) {
    }
 }
 
-int
-main(int argc, char *argv[]) {
-   if (argc < 2) {
-      _print_help(argv);
-      return 0;
-   }
+int main(int argc, char *argv[])
+{
+    if (argc < 2)
+    {
+        _print_help(argv);
+        return 0;
+    }
 
-   char *option = argv[1];
-   char *ipport = argc > 2 ? argv[2] : "127.0.0.1:8090";
+    char *option = argv[1];
+    char *ipport = argc > 2 ? argv[2] : "127.0.0.1:8090";
 
-   chann_addr_t addr;
-   if (mnet_parse_ipport(ipport, &addr) <= 0) {
-      _print_help(argv);
-      return 0;
-   }
+    chann_addr_t addr;
+    if (mnet_parse_ipport(ipport, &addr) <= 0)
+    {
+        _print_help(argv);
+        return 0;
+    }
 
-   mnet_init(1);                /* use pull style api */
+    mnet_init(1); /* use pull style api */
 
-   if (strcmp(option, "-s") == 0) {
-      _as_server(&addr);
-   } else if (strcmp(option, "-c") == 0) {
-      _as_client(&addr);
-   } else {
-      _print_help(argv);
-      return 0;
-   }
+    SSL_library_init();
+    SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+    SSL_CTX_load_verify_locations(ctx, "examples/openssl/ca.crt", NULL);
+    SSL_CTX_use_certificate_file(ctx, "examples/openssl/server.crt", SSL_FILETYPE_PEM);
+    SSL_CTX_use_PrivateKey_file(ctx, "examples/openssl/server.key", SSL_FILETYPE_PEM);
+    assert(SSL_CTX_check_private_key(ctx) == 1);
 
-   mnet_fini();
+    if (!mnet_tls_config(ctx)) {
+        printf("cnt failed to config tls !\n");
+        return 0;
+    }
 
-   return 0;
+    if (strcmp(option, "-s") == 0)
+    {
+        _as_server(&addr);
+    }
+    else if (strcmp(option, "-c") == 0)
+    {
+        _as_client(&addr);
+    }
+    else
+    {
+        _print_help(argv);
+        return 0;
+    }
+
+    mnet_fini();
+
+    return 0;
 }
 
-#endif  /* TEST_RECONNECT_PULL_STYLE */
+#endif /* MNET_TLS_TEST_RECONNECT_PULL_STYLE */

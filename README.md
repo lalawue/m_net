@@ -8,7 +8,22 @@
 [3]: https://travis-ci.org/lalawue/m_net.svg?branch=master
 [4]: https://travis-ci.org/lalawue/m_net
 
-
+- [About](#about)
+- [Features](#features)
+- [Server](#server)
+- [Client](#client)
+- [Lua/LuaJIT Wrapper](#lualuajit-wrapper)
+- [DNS query](#dns-query)
+- [OpenSSL support](#openssl-support)
+  - [Example](#example)
+  - [LuaJIT wrapper](#luajit-wrapper)
+- [Tests](#tests)
+  - [Core Test](#core-test)
+  - [OpenSSL Test](#openssl-test)
+- [Example](#example-1)
+- [Benchmark](#benchmark)
+- [Projects](#projects)
+- [Thanks](#thanks)
 
 # About
 
@@ -25,13 +40,14 @@ Please use gmake to build demo under FreeBSD.
 
 # Features
 
-- simple API in C++ wrapper
 - with TCP/UDP support
 - nonblocking & event driven interface
 - using epoll/kqueue/[wepoll](https://github.com/piscisaureus/wepoll) in Linux/MacOS/FreeBSD/Windows
 - support Lua/LuaJIT with pull style API
 - buildin timer event
-
+- simple API in C++ wrapper
+- support SSL/TLS with [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl/)
+- extension skeleton on top of bare socket TCP/UDP
 
 
 # Server 
@@ -154,7 +170,7 @@ open browser to visit 'http://127.0.0.1:8080' and get 'hello, world !', and you 
 
 # DNS query
 
-add DNS query interface with LuaJIT binding, in 'extension/mdns_utils' dir, default query 'www.baidu.com'
+add DNS query interface with LuaJIT binding, in `extension/mdns_utils` dir, default query 'www.baidu.com'
 
 ```sh
 $ luajit examples/test_mdns.lua www.github.com www.sina.com
@@ -165,15 +181,62 @@ query   www.github.com  13.250.177.223
 query   www.sina.com    113.96.179.243
 ```
 
+# OpenSSL support
+
+provide [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl) to wrap a SSL/TLS chann, two steps to create a TLS chann in C:
+
+```c
+mnet_tls_config(SSL_CTX *ctx);
+chann_t *n = mnet_chann_open(CHANN_TYPE_TLS);
+```
+
+## Example
+
+first build with openssl extension with command below, I install openssl with brew under MacOS.
+
+```
+$ export MNET_OPENSSL_DIR=/usr/local/Cellar/openssl@1.1/1.1.1k/
+$ export DYLD_LIBRARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/lib/
+$ make openssl
+```
+
+then run server
+
+```
+$ ./build/tls_svr
+```
+
+and client
+
+```
+$ ./build/tls_cnt
+```
+
+get testing code and readme under `example/openssl/` dir.
+
+## LuaJIT wrapper
+
+ffi-mnet under `extension/luaji/` also support OpenSSL when you build libary support, details in `examples/openssl/tls_web.lua`.
+
+
 # Tests
 
-in [test](https://github.com/lalawue/m_net/tree/master/test) dir.
-
 only point to point testing, with callback/pull Style API, no unit test right now.
+
+## Core Test
+
+C/C++ core test in [test](https://github.com/lalawue/m_net/tree/master/test) dir.
 
 - test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
 - test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
 - test_timer: test client invoke with random seconds, send data to server, close when running duration over 10 seconds
+
+## OpenSSL Test
+
+OpenSSL test in [test/openssl/](https://github.com/lalawue/m_net/tree/master/test/openssl) dir, only provide pull style test.
+
+- tls_test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
+- tls_test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
 
 
 # Example
@@ -217,22 +280,22 @@ Document Path:          /
 Document Length:        17 bytes
 
 Concurrency Level:      1
-Time taken for tests:   2.250 seconds
+Time taken for tests:   1.481 seconds
 Complete requests:      10000
 Failed requests:        0
 Total transferred:      1080000 bytes
 HTML transferred:       170000 bytes
-Requests per second:    4443.82 [#/sec] (mean)
-Time per request:       0.225 [ms] (mean)
-Time per request:       0.225 [ms] (mean, across all concurrent requests)
-Transfer rate:          468.68 [Kbytes/sec] received
+Requests per second:    6752.47 [#/sec] (mean)
+Time per request:       0.148 [ms] (mean)
+Time per request:       0.148 [ms] (mean, across all concurrent requests)
+Transfer rate:          712.17 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0    0   2.1      0     205
-Processing:     0    0   0.1      0       4
-Waiting:        0    0   0.0      0       1
-Total:          0    0   2.1      0     206
+Connect:        0    0   0.0      0       0
+Processing:     0    0   3.5      0     347
+Waiting:        0    0   3.5      0     347
+Total:          0    0   3.5      0     347
 
 Percentage of the requests served within a certain time (ms)
   50%      0
@@ -243,7 +306,7 @@ Percentage of the requests served within a certain time (ms)
   95%      0
   98%      0
   99%      0
- 100%    206 (longest request)
+ 100%    347 (longest request)
 ```
 
 

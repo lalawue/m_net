@@ -20,6 +20,7 @@ typedef enum {
    CHANN_TYPE_STREAM = 1,
    CHANN_TYPE_DGRAM,
    CHANN_TYPE_BROADCAST,
+   CHANN_TYPE_TLS,
 } chann_type_t;
 
 typedef enum {
@@ -67,11 +68,8 @@ typedef struct {
 int mnet_init(int); /* 0: callback style
                        1: pull style api*/
 void mnet_fini(void);
-int mnet_report(int level);     /* 0: chann_count 
+int mnet_report(int level);     /* 0: chann_count
                                    1: chann_detail */
-
-/* micro seconds */
-int64_t mnet_current(void);
 
 poll_result_t* mnet_poll(uint32_t milliseconds); /* dispatch chann event,  */
 chann_msg_t* mnet_result_next(poll_result_t *result); /* next msg */
@@ -94,19 +92,20 @@ void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t active);
 rw_result_t* mnet_chann_recv(chann_t *n, void *buf, int len);
 rw_result_t* mnet_chann_send(chann_t *n, void *buf, int len);
 
-int mnet_chann_set_bufsize(chann_t *n, int bufsize);
 int mnet_chann_cached(chann_t *n);
-
-int mnet_chann_addr(chann_t *n, chann_addr_t*);
 
 int mnet_chann_state(chann_t *n);
 long long mnet_chann_bytes(chann_t *n, int be_send);
 
-
+int mnet_chann_socket_addr(chann_t *n, chann_addr_t*);
+int mnet_chann_socket_set_bufsize(chann_t *n, int bufsize);
 
 /* tools without init */
+int64_t mnet_current(void); /* micro seconds */
 int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
+
+int mnet_tls_config(void *ssl_ctx);
 ]]
 
 -- try to load mnet in package.cpath
@@ -144,7 +143,8 @@ local StateNamesTable = {
 local ChannTypesTable = {
     "tcp",
     "udp",
-    "broadcast"
+    "broadcast",
+    "tls",
 }
 
 local AllOpenedChannsTable = setmetatable({}, {__mode = "k"}) -- all opened channs
@@ -175,6 +175,12 @@ end
 
 function Core.fini()
     mNet.mnet_fini()
+end
+
+function Core.extConfig(name, ctx)
+    if name == "tls" then
+        mNet.mnet_tls_config(ctx)
+    end
 end
 
 function Core.report(level)
@@ -271,6 +277,9 @@ function Core.openChann(chann_type)
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_BROADCAST)
     elseif chann_type == "udp" then
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_DGRAM)
+    elseif chann_type == "tls" then
+        chann_type = "tls"
+        chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_TLS)
     else
         chann_type = "tcp"
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_STREAM)
@@ -365,20 +374,8 @@ function Chann:send(data)
     return true
 end
 
-function Chann:setSocketBufSize(size)
-    mNet.mnet_chann_set_bufsize(self._chann, tonumber(size))
-end
-
 function Chann:cachedSize()
     return mNet.mnet_chann_cached(self._chann)
-end
-
-function Chann:addr()
-    if self:state() == "state_connected" then
-        mNet.mnet_chann_addr(self._chann, _addr[0])
-        return {ip = ffi.string(_addr[0].ip), port = tonumber(_addr[0].port)}
-    end
-    return nil
 end
 
 function Chann:state()
@@ -393,6 +390,18 @@ end
 function Chann:sendByes()
     _intvalue = 1
     return tonumber(mNet.mnet_chann_bytes(self._chann, _intvalue))
+end
+
+function Chann:setBufSize(size)
+    mNet.mnet_chann_socket_set_bufsize(self._chann, tonumber(size))
+end
+
+function Chann:addr()
+    if self:state() == "state_connected" then
+        mNet.mnet_chann_socket_addr(self._chann, _addr[0])
+        return {ip = ffi.string(_addr[0].ip), port = tonumber(_addr[0].port)}
+    end
+    return nil
 end
 
 return Core

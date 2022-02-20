@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (c) 2020 lalawue
- * 
+ *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
@@ -8,6 +8,7 @@
 #ifdef TEST_TIMER_PULL_STYLE
 
 #define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,7 +73,7 @@ _as_client(chann_addr_t *addr) {
       if (mnet_chann_connect(cnt, addr->ip, addr->port)) {
          printf("%d begin try connect %s:%d\n", (int)i, addr->ip, addr->port);
          int64_t interval = ((rand() + i) % 5 + 1) * MNET_MILLI_SECOND;;
-         mnet_chann_active_event(cnt, CHANN_EVENT_TIMER, interval);         
+         mnet_chann_active_event(cnt, CHANN_EVENT_TIMER, interval);
       } else {
          mnet_chann_close(cnt);
       }
@@ -80,19 +81,19 @@ _as_client(chann_addr_t *addr) {
 
    char buf[kBufSize];
    poll_result_t *results = NULL;
-   
+
    for (;;) {
       results = mnet_poll(0.5 * MNET_MILLI_SECOND);
       if (results->chann_count <= 0) {
          printf("all cnt tested, exit !\n");
          break;
       }
-      
-      chann_msg_t *msg = NULL;      
+
+      chann_msg_t *msg = NULL;
       while ((msg = mnet_result_next(results))) {
 
          ctx_t *ctx = (ctx_t *)msg->opaque;
-         
+
          if (msg->event == CHANN_EVENT_CONNECTED) {
             ctx->connected_time = mnet_current();
             printf("%d: connected time %lld\n", ctx->idx, ctx->connected_time);
