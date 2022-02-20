@@ -14,9 +14,13 @@
 - [Client](#client)
 - [Lua/LuaJIT Wrapper](#lualuajit-wrapper)
 - [DNS query](#dns-query)
-- [OpenSSL extension](#openssl-extension)
+- [OpenSSL support](#openssl-support)
+  - [Example](#example)
+  - [LuaJIT wrapper](#luajit-wrapper)
 - [Tests](#tests)
-- [Example](#example)
+  - [Core Test](#core-test)
+  - [OpenSSL Test](#openssl-test)
+- [Example](#example-1)
 - [Benchmark](#benchmark)
 - [Projects](#projects)
 - [Thanks](#thanks)
@@ -177,9 +181,16 @@ query   www.github.com  13.250.177.223
 query   www.sina.com    113.96.179.243
 ```
 
-# OpenSSL extension
+# OpenSSL support
 
-provide [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl) to wrap a SSL/TLS chann.
+provide [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl) to wrap a SSL/TLS chann, two steps to create a TLS chann in C:
+
+```c
+mnet_tls_config(SSL_CTX *ctx);
+chann_t *n = mnet_chann_open(CHANN_TYPE_TLS);
+```
+
+## Example
 
 first build with openssl extension with command below, I install openssl with brew under MacOS.
 
@@ -201,20 +212,31 @@ and client
 $ ./build/tls_cnt
 ```
 
-get detailed testing code under example/openssl/ dir.
+get testing code and readme under `example/openssl/` dir.
+
+## LuaJIT wrapper
 
 ffi-mnet under `extension/luaji/` also support OpenSSL when you build libary support, details in `examples/openssl/tls_web.lua`.
 
 
 # Tests
 
-C/C++ core test in [test](https://github.com/lalawue/m_net/tree/master/test) dir, and OpenSSL test in `examples/openssl/` dir.
-
 only point to point testing, with callback/pull Style API, no unit test right now.
+
+## Core Test
+
+C/C++ core test in [test](https://github.com/lalawue/m_net/tree/master/test) dir.
 
 - test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
 - test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
 - test_timer: test client invoke with random seconds, send data to server, close when running duration over 10 seconds
+
+## OpenSSL Test
+
+OpenSSL test in [test/openssl/](https://github.com/lalawue/m_net/tree/master/test/openssl) dir, only provide pull style test.
+
+- tls_test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
+- tls_test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
 
 
 # Example

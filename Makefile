@@ -28,10 +28,13 @@ LIBS= -lc -lmnet -Lbuild
 
 LIB_SRCS := $(shell find src -name "*.c")
 LIB_SRCS += $(shell find extension/mdns_utils -name "*.c")
+
 E_SRCS := $(shell find examples -maxdepth 1 -name "*.c")
-T_SRCS := $(shell find test -name "*.c")
+T_SRCS := $(shell find test -maxdepth 1 -name "*.c")
+
 OE_SRCS := $(shell find examples/openssl -name "*.c")
 OL_SRCS := $(shell find extension/openssl -name "*.c")
+OT_SRCS := $(shell find test/openssl -name "*.c")
 
 CPP_SRCS := $(shell find test -name "*.cpp")
 CPP_SRCS += $(shell find examples -name "*.cpp")
@@ -82,15 +85,15 @@ callback: $(CPP_SRCS)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_rwdata.out $^ $(LIBS) -DTEST_RWDATA
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_timer.out $^ $(LIBS) -DTEST_TIMER
 
-openssl: $(OE_SRCS) $(OL_SRCS)
+openssl: $(OE_SRCS) $(OL_SRCS) $(OT_SRCS)
 	@mkdir -p build
 	@echo "export MNET_OPENSSL_DIR=$(MNET_OPENSSL_DIR)"
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(O_LIBS)
 	@ln -sf build/$(MNET_LIBNAME) build/mnet.so
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_svr $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_SVR
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_cnt $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_CNT
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_reconnect $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_rwdata $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_TEST_RWDATA_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_reconnect $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RECONNECT_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_rwdata $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RWDATA_PULL_STYLE
 
 clean:
 	rm -rf build

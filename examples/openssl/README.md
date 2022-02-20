@@ -4,6 +4,7 @@
 - [Run](#run)
   - [Server](#server)
   - [Client](#client)
+- [LuaJIT wrapper](#luajit-wrapper)
 - [Test](#test)
   - [reconnect](#reconnect)
   - [rwdata](#rwdata)
@@ -21,13 +22,11 @@ $ make openssl
 
 # Run
 
-Config `LD_LIBRARY_PATH`, `LUA_CPATH` and `LUA_PATH`
+Config `LD_LIBRARY_PATH`
 
 ```
 $ exoprt LD_LIBARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/
 $ export DY_LD_LIBARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/
-$ export LUA_PATH=$PWD/extension/luajit/?.lua
-$ export LUA_CPATH=$PWD/build/?.so
 ```
 
 ## Server
@@ -81,6 +80,17 @@ Hello MNet/OpenSSL
 
 ---
 ```
+
+# LuaJIT wrapper
+
+After `make openssl`, you need config `LUA_CPATH` and `LUA_PATH`:
+
+```sh
+$ export LUA_PATH=$PWD/extension/luajit/?.lua
+$ export LUA_CPATH=$PWD/build/?.so
+$ luajit examples/openss/tls_web.lua
+```
+
 
 # Test
 

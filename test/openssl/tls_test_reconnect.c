@@ -5,7 +5,7 @@
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifdef MNET_OPENSSL_TEST_RECONNECT_PULL_STYLE
+#ifdef MNET_TLS_TEST_RECONNECT_PULL_STYLE
 
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
@@ -183,4 +183,4 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-#endif /* MNET_OPENSSL_TEST_RECONNECT_PULL_STYLE */
+#endif /* MNET_TLS_TEST_RECONNECT_PULL_STYLE */

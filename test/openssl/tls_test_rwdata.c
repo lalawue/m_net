@@ -5,7 +5,7 @@
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifdef MNET_OPENSSL_TEST_RWDATA_PULL_STYLE
+#ifdef MNET_TLS_TEST_RWDATA_PULL_STYLE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -224,4 +224,4 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-#endif /* MNET_OPENSSL_TEST_RWDATA_PULL_STYLE */
+#endif /* MNET_TLS_TEST_RWDATA_PULL_STYLE */
