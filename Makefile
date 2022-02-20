@@ -89,7 +89,7 @@ openssl: $(OE_SRCS) $(OL_SRCS) $(OT_SRCS)
 	@mkdir -p build
 	@echo "export MNET_OPENSSL_DIR=$(MNET_OPENSSL_DIR)"
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(O_LIBS)
-	@ln -sf build/$(MNET_LIBNAME) build/mnet.so
+	@cd build && ln -sf $(MNET_LIBNAME) mnet.so
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_svr $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_SVR
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_cnt $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_CNT
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_reconnect $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RECONNECT_PULL_STYLE
