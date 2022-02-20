@@ -1,30 +1,41 @@
 
-this dir contains codes for example about how to use mnet_openssl extension.
 
-## Build
+- [Build](#build)
+- [Run](#run)
+  - [Server](#server)
+  - [Client](#client)
+- [Test](#test)
+  - [reconnect](#reconnect)
+  - [rwdata](#rwdata)
+- [Usage](#usage)
 
-first export MNET_OPENSSL_DIR to openssl library dir, below is example for I `brew install openssl` in MacOS.
+
+# Build
+
+First export MNET_OPENSSL_DIR to openssl library dir, here is example for I `brew install openssl` under MacOS.
 
 ```
 $ export MNET_OPENSSL_DIR=/usr/local/Cellar/openssl@1.1/1.1.1k/
+$ make openssl
 ```
 
-## Run
+# Run
 
-first export library path
+Config `LD_LIBRARY_PATH`, `LUA_CPATH` and `LUA_PATH`
 
 ```
 $ exoprt LD_LIBARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/
 $ export DY_LD_LIBARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/
+$ export LUA_PATH=$PWD/extension/luajit/?.lua
+$ export LUA_CPATH=$PWD/build/?.so
 ```
 
-run server like
+## Server
 
 ```
-$ ./build/openssl_svr 127.0.0.1:8080
-config openssl ctx.
+$ ./build/tls_svr
 svr start listen: 127.0.0.1:8080
-svr accept cnt with chann 127.0.0.1:50285
+svr accept cnt with chann 127.0.0.1:63887
 svr recv resquest: 57
 ---
 GET / HTTP/1.1
@@ -45,10 +56,10 @@ Hello MNet/OpenSSL
 ---
 ```
 
-run client like
+## Client
+
 ```
-$ ./build/openssl_cnt
-config openssl ctx.
+$ ./build/tls_cnt
 cnt start connect: 127.0.0.1:8080
 cnt connected with chann 127.0.0.1:8080
 cnt send request to serevr with ret: 57, wanted: 57
@@ -71,11 +82,43 @@ Hello MNet/OpenSSL
 ---
 ```
 
-## Usage
+# Test
 
-You need CA, server cert and private keys, or google how to get it. The example code using self assign CA in example/openssl/.
+## reconnect
 
-And use `mnet_openssl_chann_` instead of `mnet_chann_`, except for `mnet_chann_socket_` and tools API.
+run server as
 
-- examples/openssl/openssl_svr.c using pull style API
-- examples/openssl/openssl_cnt.c using callback style API
+```sh
+$ ./build/tls_test_reconnect -s
+```
+
+run client as
+
+```sh
+$ ./build/tls_test_reconnect -c
+```
+
+## rwdata
+
+run server as
+
+```sh
+$ ./build/tls_test_rwdata -s
+```
+
+run client as
+
+```sh
+$ ./build/tls_test_rwdata -c
+```
+
+# Usage
+
+You need CA, server cert and private keys, the example code using self assign CA in example/openssl/.
+
+Create your own SSL_CTX, and set config with `mnet_tls_config(SSL_CTX *ctx)`, then create chann with CHANN_TYPE_TLS.
+
+That's all.
+
+- examples/openssl/tls_svr.c using pull style API
+- examples/openssl/tls_cnt.c using callback style API

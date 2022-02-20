@@ -8,7 +8,18 @@
 [3]: https://travis-ci.org/lalawue/m_net.svg?branch=master
 [4]: https://travis-ci.org/lalawue/m_net
 
-
+- [About](#about)
+- [Features](#features)
+- [Server](#server)
+- [Client](#client)
+- [Lua/LuaJIT Wrapper](#lualuajit-wrapper)
+- [DNS query](#dns-query)
+- [OpenSSL extension](#openssl-extension)
+- [Tests](#tests)
+- [Example](#example)
+- [Benchmark](#benchmark)
+- [Projects](#projects)
+- [Thanks](#thanks)
 
 # About
 
@@ -31,8 +42,8 @@ Please use gmake to build demo under FreeBSD.
 - support Lua/LuaJIT with pull style API
 - buildin timer event
 - simple API in C++ wrapper
-- support SSL/TLS chann with [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl/)
-
+- support SSL/TLS with [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl/)
+- extension skeleton on top of bare socket TCP/UDP
 
 
 # Server 
@@ -155,7 +166,7 @@ open browser to visit 'http://127.0.0.1:8080' and get 'hello, world !', and you 
 
 # DNS query
 
-add DNS query interface with LuaJIT binding, in 'extension/mdns_utils' dir, default query 'www.baidu.com'
+add DNS query interface with LuaJIT binding, in `extension/mdns_utils` dir, default query 'www.baidu.com'
 
 ```sh
 $ luajit examples/test_mdns.lua www.github.com www.sina.com
@@ -181,21 +192,23 @@ $ make openssl
 then run server
 
 ```
-$ ./build/openssl_svr
+$ ./build/tls_svr
 ```
 
 and client
 
 ```
-$ ./build/openssl_cnt
+$ ./build/tls_cnt
 ```
 
 get detailed testing code under example/openssl/ dir.
 
+ffi-mnet under `extension/luaji/` also support OpenSSL when you build libary support, details in `examples/openssl/tls_web.lua`.
+
 
 # Tests
 
-in [test](https://github.com/lalawue/m_net/tree/master/test) dir.
+C/C++ core test in [test](https://github.com/lalawue/m_net/tree/master/test) dir, and OpenSSL test in `examples/openssl/` dir.
 
 only point to point testing, with callback/pull Style API, no unit test right now.
 
