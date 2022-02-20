@@ -56,8 +56,10 @@ _as_server(chann_addr_t *addr) {
          }
          if (msg->event == CHANN_EVENT_RECV) {
             rw_result_t *rw = mnet_chann_recv(msg->n, buf, sizeof(buf));
-            mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
-            mnet_chann_send(msg->n, buf, rw->ret);
+            if (rw->ret > 0) {
+               mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
+               mnet_chann_send(msg->n, buf, rw->ret);
+            }
          }
          else if (msg->event == CHANN_EVENT_SEND ||
                   msg->event == CHANN_EVENT_DISCONNECT)

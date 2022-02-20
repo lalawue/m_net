@@ -1591,6 +1591,8 @@ mnet_chann_recv(chann_t *n, void *buf, int len) {
       ss->rw_result.ret = ret;
       ss->rw_result.msg = &n->msg;
    } else {
+      mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d recv ext:%p state:%d len:%d!\n",
+            n, n->fd, ext, ext ? ext->state_fn(ext->ext_ctx, n, n->state) : -1, len);
       ss->rw_result.ret = -1;
       ss->rw_result.msg = NULL;
    }
@@ -1626,6 +1628,8 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
       ss->rw_result.ret = ret;
       ss->rw_result.msg = &n->msg;
    } else {
+      mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d send ext:%p state:%d len:%d!\n",
+            n, n->fd, ext, ext ? ext->state_fn(ext->ext_ctx, n, n->state) : -1, len);
       ss->rw_result.ret = -1;
       ss->rw_result.msg = NULL;
    }

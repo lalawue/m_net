@@ -157,7 +157,7 @@ _as_server(chann_addr_t *addr) {
                   printf("invalid send\n");
                   mnet_chann_close(msg->n);
                }
-            } else {
+            } else if (rw->ret < 0) {
                printf("svr failed to recv rw code: %d\n", rw->ret);
                mnet_chann_close(msg->n);
             }

@@ -147,7 +147,7 @@ _as_server(chann_addr_t *addr) {
          }
          if (msg->event == CHANN_EVENT_RECV) {
             rw_result_t *rw = mnet_chann_recv(msg->n, ctx->buf, kBufSize);
-            if (_check_data_buf(ctx, ctx->recved, rw->ret)) {
+            if (rw->ret>0 && _check_data_buf(ctx, ctx->recved, rw->ret)) {
                int ret = rw->ret;
                ctx->recved += ret;
                rw = mnet_chann_send(msg->n, ctx->buf, ret);
@@ -155,10 +155,10 @@ _as_server(chann_addr_t *addr) {
                   ctx->sended += rw->ret;
                   assert(ctx->recved == ctx->sended);
                } else {
-                  printf("invalid send\n");
+                  printf("invalid send %d, %p\n", rw->ret, rw->msg);
                   mnet_chann_close(msg->n);
                }
-            } else {
+            } else if (rw->ret < 0) {
                printf("svr failed to recv rw code: %d\n", rw->ret);
                mnet_chann_close(msg->n);
             }
