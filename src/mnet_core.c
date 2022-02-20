@@ -848,7 +848,7 @@ _chann_try_send_rwb(chann_t *n) {
       if (ret > 0) {
          _rwb_drain(prh, ret);
       } else if (ret < 0) {
-         mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, send errno %d:%s\n",
+         mm_log(n, MNET_LOG_ERR, "chann %p fd:%d, rwb send errno %d:%s\n",
                   n, n->fd, errno, strerror(errno));
          _chann_disconnect_socket(_gmnet(), n);
          _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
