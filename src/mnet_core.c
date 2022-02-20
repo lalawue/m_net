@@ -625,7 +625,7 @@ _ext_config(chann_type_t ctype) {
 }
 
 static int
-_ext_raw_fn(void *ext_ctx, chann_type_t ctype) {
+_ext_type_fn(void *ext_ctx, chann_type_t ctype) {
    return ctype;
 }
 
@@ -679,10 +679,10 @@ _ext_dgram_send(void *ext_ctx, chann_t *n, void *buf, int len) {
    return ret;
 }
 
-mnet_ext_t _ext_template_config = {
+mnet_ext_t _ext_internal_config = {
    0,
    NULL,
-   _ext_raw_fn,
+   _ext_type_fn,
    _ext_filter_fn,
    _ext_op_cb,
    _ext_op_cb,
@@ -691,8 +691,8 @@ mnet_ext_t _ext_template_config = {
    _ext_op_cb,
    _ext_op_cb,
    _ext_state_fn,
-   _ext_stream_recv,
-   _ext_stream_send,
+   NULL,
+   NULL,
 };
 
 /* channel op
@@ -867,8 +867,8 @@ static int
 _chann_open_socket(chann_t *n, const char *host, int port, int backlog) {
    if (n->state == CHANN_STATE_DISCONNECT) {
       mnet_ext_t *ext = _ext_config(n->ctype);
-      int istcp = ext->raw_fn(ext->ext_ctx, n->ctype) == CHANN_TYPE_STREAM;
-      int isbc = ext->raw_fn(ext->ext_ctx, n->ctype) == CHANN_TYPE_BROADCAST;
+      int istcp = ext->type_fn(ext->ext_ctx, n->ctype) == CHANN_TYPE_STREAM;
+      int isbc = ext->type_fn(ext->ext_ctx, n->ctype) == CHANN_TYPE_BROADCAST;
       int fd = socket(AF_INET, istcp ? SOCK_STREAM : SOCK_DGRAM, 0);
       if (fd > 0) {
          int buf_size = n->buf_size>0 ? n->buf_size : MNET_BUF_SIZE;
@@ -1273,7 +1273,7 @@ mnet_init(int api_style) {
       ss->init = 1;
       for (int i=CHANN_TYPE_STREAM; i<=CHANN_TYPE_BROADCAST; i++) {
          mnet_ext_t *ext = &ss->ext_config[i];
-         *ext = _ext_template_config;
+         *ext = _ext_internal_config;
          ext->reserved = 1;
          if (i == CHANN_TYPE_STREAM) {
             ext->recv_fn = _ext_stream_recv;
@@ -1283,7 +1283,7 @@ mnet_init(int api_style) {
             ext->send_fn = _ext_dgram_send;
          }
       }
-      return 20200522;
+      return 20220220;
    }
    return 0;
 }
@@ -1474,7 +1474,7 @@ mnet_chann_connect(chann_t *n, const char *host, int port) {
       if (fd > 0) {
          n->fd = fd;
          mnet_ext_t *ext = _ext_config(n->ctype);
-         if (ext->raw_fn(ext->ext_ctx, n->ctype) == CHANN_TYPE_STREAM) {
+         if (ext->type_fn(ext->ext_ctx, n->ctype) == CHANN_TYPE_STREAM) {
             int r = connect(fd, (struct sockaddr*)&n->addr, n->addr_len);
             if (r >= 0 || errno==EINPROGRESS || errno==EWOULDBLOCK) {
                n->state = CHANN_STATE_CONNECTING;
@@ -1697,8 +1697,7 @@ int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
    if (ext==NULL || ctype<=CHANN_TYPE_BROADCAST || ctype>(chann_type_t)7) {
       return 0;
    }
-   mnet_t *ss = _gmnet();
-   if (ext->raw_fn &&
+   if (ext->type_fn &&
        ext->filter_fn &&
        ext->open_cb &&
        ext->close_cb &&
@@ -1708,8 +1707,9 @@ int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
        ext->disconnect_cb &&
        ext->state_fn)
    {
-      int raw_type = ext->raw_fn(ext->ext_ctx, ctype);
+      int raw_type = ext->type_fn(ext->ext_ctx, ctype);
       if (raw_type >= CHANN_TYPE_STREAM && raw_type <= CHANN_TYPE_BROADCAST) {
+         mnet_t *ss = _gmnet();
          ss->ext_config[ctype] = *ext;
          ss->ext_config[ctype].reserved = 1;
          return 1;

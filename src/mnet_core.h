@@ -152,18 +152,20 @@ int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
  * internal chann_type_t as STREAM/DGRAM/BROADCAST
  */
 
-/* return 0 to skip this chann msg
+/* type/msg/operation/state/data handler
  */
-typedef int (*mnet_ext_chann_raw_type)(void *ext_ctx, chann_type_t ctype);
-typedef int (*mnet_ext_chann_msg_filter)(void *ext_ctx, chann_msg_t *msg);
-typedef void (*mnet_ext_chann_op_cb)(void *ext_ctx, chann_t *n);
-typedef int (*mnet_ext_chann_state_wrapper)(void *ext_ctx, chann_t *n, int state);
-typedef int (*mnet_ext_chann_data_wrapper)(void *ext_ctx, chann_t *n, void *buf, int len);
+typedef int (*mnet_ext_chann_raw_type)(void *ext_ctx, chann_type_t ctype); /* return STREAM/DGRAM/BROADCAST */
+typedef int (*mnet_ext_chann_msg_filter)(void *ext_ctx, chann_msg_t *msg); /* return 0 to skip this event */
+typedef void (*mnet_ext_chann_op_cb)(void *ext_ctx, chann_t *n); /* open/close/listen/accept/connect/disconnect */
+typedef int (*mnet_ext_chann_state_wrapper)(void *ext_ctx, chann_t *n, int state); /* wrapper state */
+typedef int (*mnet_ext_chann_data_wrapper)(void *ext_ctx, chann_t *n, void *buf, int len); /* wrapper recv/send */
 
+/* context for ext chann_type_t
+ */
 typedef struct {
-   uint8_t reserved;                      /* for internal use */
+   uint8_t reserved;                      /* used by internal */
    void *ext_ctx;                         /* context for this chann_type, can be NULL */
-   mnet_ext_chann_raw_type raw_fn;        /* internal chann_type_t, NOT NULL */
+   mnet_ext_chann_raw_type type_fn;       /* internal chann_type_t, NOT NULL */
    mnet_ext_chann_msg_filter filter_fn;   /* filter chann msg, NOT NULL */
    mnet_ext_chann_op_cb open_cb;          /* after open chann, NOT NULL */
    mnet_ext_chann_op_cb close_cb;         /* before close chann, NOT NULL */
