@@ -1180,6 +1180,7 @@ _evt_poll(uint32_t milliseconds) {
                 n->fd, _kev_get_flags(kev), _kev_get_events(kev), n->state,
                 _KEV_FLAG_ERROR, _KEV_FLAG_HUP, _KEV_EVENT_READ, _KEV_EVENT_WRITE);
 
+         mnet_ext_t *ext = _ext_config(n->ctype);
          /* check error first */
          if ( _kev_flags(kev, (_KEV_FLAG_ERROR | _KEV_FLAG_HUP)) ) {
             if (_kev_flags(kev, _KEV_FLAG_ERROR)) {
@@ -1198,7 +1199,7 @@ _evt_poll(uint32_t milliseconds) {
 
          switch ( n->state ) {
             case CHANN_STATE_LISTENING: {
-               if (n->ctype == CHANN_TYPE_STREAM) {
+               if (ext->type_fn(ext->ext_ctx, n->ctype) == CHANN_TYPE_STREAM) {
                   chann_t *c = _chann_accept(ss, n);
                   if (c) {
                      _chann_msg(n, CHANN_EVENT_ACCEPT, c, 0);
@@ -1697,6 +1698,7 @@ mnet_poll(uint32_t milliseconds) {
 
 int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
    if (ext==NULL || ctype<=CHANN_TYPE_BROADCAST || ctype>=(chann_type_t)MNET_EXT_MAX_SIZE) {
+      printf("1\n");
       return 0;
    }
    mnet_ext_t *ss_ext = _ext_config(ctype);
@@ -1709,10 +1711,12 @@ int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
        ext->accept_cb &&
        ext->connect_cb &&
        ext->disconnect_cb &&
-       ext->state_fn)
+       ext->state_fn &&
+       ext->recv_fn &&
+       ext->send_fn)
    {
       int raw_type = ext->type_fn(ext->ext_ctx, ctype);
-      if (raw_type >= CHANN_TYPE_STREAM && ctype <= CHANN_TYPE_BROADCAST) {
+      if (raw_type >= CHANN_TYPE_STREAM && raw_type <= CHANN_TYPE_BROADCAST) {
          *ss_ext = *ext;
          ss_ext->reserved = 1;
          return 1;
