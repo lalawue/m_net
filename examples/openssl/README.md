@@ -91,6 +91,13 @@ $ export LUA_CPATH=$PWD/build/?.so
 $ luajit examples/openss/tls_web.lua
 ```
 
+then you can visit `https://127.0.0.1:8080` with browser, or
+
+```sh
+$ curl -k https://127.0.0.1:8080
+hello, world !
+```
+
 
 # Test
 

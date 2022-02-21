@@ -16,7 +16,7 @@
 - [DNS query](#dns-query)
 - [OpenSSL support](#openssl-support)
   - [Example](#example)
-  - [LuaJIT wrapper](#luajit-wrapper)
+  - [LuaJIT TLS wrapper](#luajit-tls-wrapper)
 - [Tests](#tests)
   - [Core Test](#core-test)
   - [OpenSSL Test](#openssl-test)
@@ -46,7 +46,7 @@ Please use gmake to build demo under FreeBSD.
 - support Lua/LuaJIT with pull style API
 - buildin timer event
 - simple API in C++ wrapper
-- support SSL/TLS with [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl/)
+- support SSL/TLS with [OpenSSL extension](https://github.com/lalawue/m_net/tree/master/extension/openssl/)
 - extension skeleton on top of bare socket TCP/UDP
 
 
@@ -183,11 +183,12 @@ query   www.sina.com    113.96.179.243
 
 # OpenSSL support
 
-provide [OpenSSL extension](https://github.com/lalawue/m_net/extension/openssl) to wrap a SSL/TLS chann, two steps to create a TLS chann in C:
+provide [OpenSSL extension](https://github.com/lalawue/m_net/tree/master/extension/openssl/) to wrap a SSL/TLS chann, two steps to create a TLS chann in C:
 
 ```c
 mnet_tls_config(SSL_CTX *ctx);
 chann_t *n = mnet_chann_open(CHANN_TYPE_TLS);
+// use chann to listen/accept/connect/recv/send TLS data like normal TCP STREAM
 ```
 
 ## Example
@@ -212,12 +213,26 @@ and client
 $ ./build/tls_cnt
 ```
 
-get testing code and readme under `example/openssl/` dir.
+get testing code and readme under [examples/openssl/](https://github.com/lalawue/m_net/examples/openssl/) dir.
 
-## LuaJIT wrapper
+## LuaJIT TLS wrapper
 
-ffi-mnet under `extension/luaji/` also support OpenSSL when you build libary support, details in `examples/openssl/tls_web.lua`.
+ffi-mnet under `extension/luajit/` also support OpenSSL after you build libary support and export DYLD_LIBRARY_PATH.
 
+```sh
+$ export LUA_PATH=./extension/luajit/?.lua
+$ export LUA_CPATH=./build/?.so
+$ luajit examples/openssl/tls_web.lua
+```
+
+then you can visit `https://127.0.0.1:8080` with browser, or
+
+```sh
+$ curl -k https://127.0.0.1:8080
+hello, world !
+```
+
+Details in [examples/openssl/tls_web.lua](https://github.com/lalawue/m_net/blob/master/examples/openssl/tls_web.lua).
 
 # Tests
 
