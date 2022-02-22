@@ -835,11 +835,12 @@ _chann_get_err(chann_t *n) {
    return -9999;
 }
 
+/* return 1 when sended all cached data */
 static int
-_chann_try_send_rwb(chann_t *n) {
+_chann_sended_rwb(chann_t *n) {
    rwb_head_t *prh = &n->rwb_send;
    if (_rwb_count(prh) <= 0) {
-      return 0;
+      return 1;
    }
    int ret=0, len=0;
    do {
@@ -854,7 +855,7 @@ _chann_try_send_rwb(chann_t *n) {
          _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
       }
    } while (ret>=len && _rwb_count(prh)>0);
-   return 1;
+   return _rwb_count(prh) <= 0;
 }
 
 static void
@@ -1232,7 +1233,7 @@ _evt_poll(uint32_t milliseconds) {
                if ( _kev_events(kev, _KEV_EVENT_READ) ) {
                   _chann_msg(n, CHANN_EVENT_RECV, NULL, 0);
                } else if ( _kev_events(kev, _KEV_EVENT_WRITE) ) {
-                  if (!_chann_try_send_rwb(n)) {
+                  if (_chann_sended_rwb(n)) {
                      if (n->active_send_event) {
                         _chann_msg(n, CHANN_EVENT_SEND, NULL, 0);
                      } else {
