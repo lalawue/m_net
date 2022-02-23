@@ -120,7 +120,8 @@ typedef struct {
 } skipnode_t;
 
 typedef struct s_rwbuf {
-   int ptr, ptw;
+   int ptr;
+   int len;
    struct s_rwbuf *next;
    uint8_t *buf;
 } rwb_t;
@@ -267,28 +268,24 @@ _rwb_count(rwb_head_t *h) { return h->count; }
 
 static inline int
 _rwb_buffered(rwb_t *b) {
-   return b ? (b->ptw - b->ptr) : 0;
-}
-
-static inline int
-_rwb_available(rwb_t *b) {
-   return b ? (MNET_BUF_SIZE - b->ptw) : 0;
+   return b ? (b->len - b->ptr) : 0;
 }
 
 static inline rwb_t*
-_rwb_new(void) {
-   rwb_t *b = (rwb_t*)mm_malloc(sizeof(rwb_t) + MNET_BUF_SIZE);
+_rwb_new(int len) {
+   rwb_t *b = (rwb_t*)mm_malloc(sizeof(rwb_t) + len);
    b->buf = (uint8_t *)b + sizeof(rwb_t);
+   b->len = len;
    return b;
 }
 
 static rwb_t*
-_rwb_create_tail(rwb_head_t *h) {
+_rwb_create_tail(rwb_head_t *h, int len) {
    if (h->count <= 0) {
-      h->head = h->tail = _rwb_new();
+      h->head = h->tail = _rwb_new(len);
       h->count++;
-   } else if (_rwb_available(h->tail) <= 0) {
-      h->tail->next = _rwb_new();
+   } else {
+      h->tail->next = _rwb_new(len);
       h->tail = h->tail->next;
       h->count++;
    }
@@ -309,15 +306,9 @@ _rwb_destroy_head(rwb_head_t *h) {
 }
 
 static void
-_rwb_cache(rwb_head_t *h, uint8_t *buf, int buf_len) {
-   int buf_ptr = 0;
-   while (buf_ptr < buf_len) {
-      rwb_t *b = _rwb_create_tail(h);
-      int len = _min_of((buf_len - buf_ptr), _rwb_available(b));
-      memcpy(&b->buf[b->ptw], &buf[buf_ptr], len);
-      b->ptw += len;
-      buf_ptr += len;
-   }
+_rwb_cache(rwb_head_t *h, void *buf, int buf_len) {
+   rwb_t *b = _rwb_create_tail(h, buf_len);
+   memcpy(b->buf, buf, buf_len);
 }
 
 static uint8_t*
@@ -854,7 +845,7 @@ _chann_sended_rwb(chann_t *n) {
          _chann_disconnect_socket(_gmnet(), n);
          _chann_msg(n, CHANN_EVENT_DISCONNECT, NULL, errno);
       }
-   } while (ret>=len && _rwb_count(prh)>0);
+   } while (ret>0 && ret>=len && _rwb_count(prh)>0);
    return _rwb_count(prh) <= 0;
 }
 
@@ -1608,7 +1599,7 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
       int ret = len;
       rwb_head_t *prh = &n->rwb_send;
       if (_rwb_count(prh) > 0) {
-         _rwb_cache(prh, (uint8_t *)buf, len);
+         _rwb_cache(prh, buf, len);
          mm_log(n, MNET_LOG_VERBOSE, "chann %p fd:%d still cache %d(%d)!\n",
                 n, n->fd, _rwb_buffered(prh->tail), _rwb_count(prh));
       } else {

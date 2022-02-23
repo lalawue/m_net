@@ -20,13 +20,21 @@ typedef struct {
 /** man SSL_accept/SSL_connect/SSL_read/SSL_write
  */
 static inline int
-_is_ssl_rw(SSL *ssl, int ret) {
+_ssl_is_rw(SSL *ssl, int ret) {
     int ssl_err = SSL_get_error(ssl, ret);
+    //printf("SSL_get_error %d\n", ssl_err);
     if (ssl_err == SSL_ERROR_WANT_READ || ssl_err == SSL_ERROR_WANT_WRITE) {
         return 1;
     } else {
         return 0;
     }
+}
+
+static inline void
+_ssl_set_fd(SSL *ssl, int fd) {
+    SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
+    SSL_set_mode(ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+    SSL_set_fd(ssl, fd);
 }
 
 static int
@@ -69,7 +77,7 @@ _tls_filter_fn(void *ext_ctx, chann_msg_t *msg) {
                 // emit accept/connected event
                 return 1;
             }
-            if (_is_ssl_rw(tu->ssl, ret)) {
+            if (_ssl_is_rw(tu->ssl, ret)) {
                 // read/write in process, block event
                 return 0;
             } else {
@@ -140,13 +148,12 @@ _tls_accept_cb(void *ext_ctx, chann_t *n) {
     tu->state = CHANN_STATE_LISTENING;
 
     tu->ssl = SSL_new((SSL_CTX *)ext_ctx);
-    SSL_set_mode(tu->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
-    SSL_set_fd(tu->ssl, mnet_chann_fd(n));
+    _ssl_set_fd(tu->ssl, mnet_chann_fd(n));
 
     int ret = SSL_accept(tu->ssl);
     if (ret == 1) {
         tu->state = CHANN_STATE_CONNECTED;
-    } else if (!_is_ssl_rw(tu->ssl, ret)) {
+    } else if (!_ssl_is_rw(tu->ssl, ret)) {
         mnet_chann_disconnect(n);
     }
 }
@@ -163,13 +170,12 @@ _tls_connect_cb(void *ext_ctx, chann_t *n) {
     tu->state = CHANN_STATE_CONNECTING;
 
     tu->ssl = SSL_new((SSL_CTX *)ext_ctx);
-    SSL_set_mode(tu->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
-    SSL_set_fd(tu->ssl, mnet_chann_fd(n));
+    _ssl_set_fd(tu->ssl, mnet_chann_fd(n));
 
     int ret = SSL_connect(tu->ssl);
     if (ret == 1 ) {
         tu->state = CHANN_STATE_CONNECTED;
-    } else if (!_is_ssl_rw(tu->ssl, ret)) {
+    } else if (!_ssl_is_rw(tu->ssl, ret)) {
         mnet_chann_disconnect(n);
     }
 }
@@ -204,7 +210,7 @@ _tls_recv_fn(void *ext_ctx, chann_t *n, void *buf, int len) {
         if (ret > 0) {
             return ret;
         }
-        if (_is_ssl_rw(tu->ssl, ret)) {
+        if (_ssl_is_rw(tu->ssl, ret)) {
             return 0;
         }
         return ret;
@@ -215,14 +221,14 @@ _tls_recv_fn(void *ext_ctx, chann_t *n, void *buf, int len) {
 
 static int
 _tls_send_fn(void *ext_ctx, chann_t *n, void *buf, int len) {
-    //printf("send %p\n", n);
+    //printf("send %p: %p,%d\n", n, buf, len);
     mnet_tls_ud_t *tu = mnet_ext_chann_get_ud(n);
     if (tu) {
         int ret = SSL_write(tu->ssl, buf, len);
         if (ret > 0) {
             return ret;
         }
-        if (_is_ssl_rw(tu->ssl, ret)) {
+        if (_ssl_is_rw(tu->ssl, ret)) {
             return 0;
         }
         return ret;
