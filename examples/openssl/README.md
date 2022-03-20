@@ -5,6 +5,8 @@
   - [Server](#server)
   - [Client](#client)
 - [LuaJIT wrapper](#luajit-wrapper)
+  - [Server](#server-1)
+  - [Client](#client-1)
 - [Test](#test)
   - [reconnect](#reconnect)
   - [rwdata](#rwdata)
@@ -13,7 +15,7 @@
 
 # Build
 
-First export MNET_OPENSSL_DIR to openssl library dir, here is example for I `brew install openssl` under MacOS.
+First export MNET_OPENSSL_DIR to openssl library dir, here is example for I `brew install openssl` under MacOS, then `make openssl`
 
 ```
 $ export MNET_OPENSSL_DIR=/usr/local/Cellar/openssl@1.1/1.1.1k/
@@ -22,7 +24,7 @@ $ make openssl
 
 # Run
 
-Config `LD_LIBRARY_PATH`
+Config `LD_LIBRARY_PATH` first, for example
 
 ```
 $ exoprt LD_LIBARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/
@@ -30,6 +32,8 @@ $ export DY_LD_LIBARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/
 ```
 
 ## Server
+
+run server waiting for client request
 
 ```
 $ ./build/tls_svr
@@ -57,6 +61,8 @@ Hello MNet/OpenSSL
 
 ## Client
 
+run client to reqeust server
+
 ```
 $ ./build/tls_cnt
 cnt start connect: 127.0.0.1:8080
@@ -83,12 +89,14 @@ Hello MNet/OpenSSL
 
 # LuaJIT wrapper
 
-After `make openssl`, you need config `LUA_CPATH` and `LUA_PATH`:
+## Server
+
+After `make openssl`, export `MNET_OPENSSL_DIR` and `LD_LIBRARY_PATH`, you need export `LUA_PATH` and `LUA_CPATH` before run luajit examples
 
 ```sh
 $ export LUA_PATH=$PWD/extension/luajit/?.lua
 $ export LUA_CPATH=$PWD/build/?.so
-$ luajit examples/openss/tls_web.lua
+$ luajit examples/openssl/tls_web_svr.lua
 ```
 
 then you can visit `https://127.0.0.1:8080` with browser, or
@@ -98,10 +106,33 @@ $ curl -k https://127.0.0.1:8080
 hello, world !
 ```
 
+## Client
+
+try connect https://www.baidu.com as https client
+
+```sh
+$ luajit examples/openssl/tls_web_cnt.lua https://www.baidu.com
+### using jit	Lua 5.1
+### try connect https://www.baidu.com as 14.215.177.38:443
+### config TLS context
+### connected server
+### send request length: 	114
+### recv data:
+----------
+HTTP/1.1 200 OK
+...
+</html>
+----------
+### close socket
+### bye
+```
+
 
 # Test
 
 ## reconnect
+
+test connecting/connected/disconnecting/disconnected state changing.
 
 run server as
 
@@ -116,6 +147,8 @@ $ ./build/tls_test_reconnect -c
 ```
 
 ## rwdata
+
+test read/write a lot of specific sequence data.
 
 run server as
 

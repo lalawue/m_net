@@ -34,9 +34,9 @@ local ipport = ...
 
 if jit then
     Core = require("ffi-mnet")
-    print("using jit", _VERSION)
+    print("### using jit", _VERSION)
 else
-    print("Only support ffi-mnet with OpenSSL buildin")
+    print("### only support ffi-mnet with OpenSSL buildin")
     os.exit(0)
 end
 
@@ -44,7 +44,7 @@ Core.init()
 
 ipport = ipport or "127.0.0.1:8080"
 local addr = Core.parseIpPort(ipport)
-print("open svr in " .. addr.ip .. ":" .. addr.port)
+print("### open svr in " .. addr.ip .. ":" .. addr.port)
 
 -- default 256, 256
 Core.setBufSize(32, 1024)
@@ -60,7 +60,7 @@ do
     openssl.SSL_CTX_use_PrivateKey_file(ctx, "examples/openssl/server.key", openssl.SSL_FILETYPE_PEM);
     assert(openssl.SSL_CTX_check_private_key(ctx) == 1)
     Core.extConfig("tls", ctx)
-    print("config TLS context")
+    print("### config TLS context")
 end
 
 -- open tcp stream
@@ -72,8 +72,8 @@ local function clientCallback(self, eventName, accept, c_msg)
     --print("eventName: ", eventName)
     if eventName == "event_recv" then
         local buf = self:recv()
-        print("recv:\n", buf)
-
+        print("### recv:")
+        print(buf)
         local toast = "hello, world !\n"
 
         local data =
@@ -87,10 +87,10 @@ local function clientCallback(self, eventName, accept, c_msg)
         self:send(data)
     elseif eventName == "event_disconnect" or eventName == "event_send" then
         local addr = self:addr()
+        print("### client ip: " .. addr.ip .. ":" .. addr.port)
+        print("### state: " .. self:state())
+        print("### bytes send: " .. self:sendByes())
         print("---")
-        print("client ip: " .. addr.ip .. ":" .. addr.port)
-        print("state: " .. self:state())
-        print("bytes send: " .. self:sendByes())
         self:close()
     end
 end
@@ -100,8 +100,7 @@ svr:setCallback(
     function(self, eventName, accept)
         if eventName == "event_accept" and accept then
             local addr = accept:addr()
-            print("---")
-            print("accept client from " .. addr.ip .. ":" .. addr.port)
+            print("### accept client from " .. addr.ip .. ":" .. addr.port)
             accept:setCallback(clientCallback) -- client callback function
         end
     end
