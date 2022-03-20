@@ -173,7 +173,7 @@ _tls_connect_cb(void *ext_ctx, chann_t *n) {
     _ssl_set_fd(tu->ssl, mnet_chann_fd(n));
 
     int ret = SSL_connect(tu->ssl);
-    if (ret == 1 ) {
+    if (ret == 1) {
         tu->state = CHANN_STATE_CONNECTED;
     } else if (!_ssl_is_rw(tu->ssl, ret)) {
         mnet_chann_disconnect(n);

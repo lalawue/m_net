@@ -1695,7 +1695,6 @@ mnet_poll(uint32_t milliseconds) {
 
 int mnet_ext_register(chann_type_t ctype, mnet_ext_t *ext) {
    if (ext==NULL || ctype<=CHANN_TYPE_BROADCAST || ctype>=(chann_type_t)MNET_EXT_MAX_SIZE) {
-      printf("1\n");
       return 0;
    }
    mnet_ext_t *ss_ext = _ext_config(ctype);
