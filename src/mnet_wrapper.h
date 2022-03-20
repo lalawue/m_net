@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mnet_core.h"
+//#include "mnet_tls.h"
 
 #ifdef __cplusplus
 
@@ -25,6 +26,7 @@ namespace mnet {
    static chann_type_t channType(string streamType) {
       if (streamType == "tcp") return CHANN_TYPE_STREAM;
       if (streamType == "udp") return CHANN_TYPE_DGRAM;
+      //if (streamType == "tls") return CHANN_TYPE_TLS;
       return CHANN_TYPE_BROADCAST;
    }
 
