@@ -170,7 +170,7 @@ open browser to visit 'http://127.0.0.1:8080' and get 'hello, world !', and you 
 
 # DNS query
 
-add DNS query interface with LuaJIT binding, in `extension/mdns_utils` dir, default query 'www.baidu.com'
+add DNS query interface with LuaJIT binding, in `extension/mdns_utils` dir, default query `www.baidu.com`
 
 ```sh
 $ luajit examples/test_mdns.lua www.github.com www.sina.com
@@ -213,7 +213,7 @@ and client
 $ ./build/tls_cnt
 ```
 
-get testing code and readme under [examples/openssl/](https://github.com/lalawue/m_net/examples/openssl/) dir.
+get testing code and readme under [examples/openssl/](https://github.com/lalawue/m_net/tree/master/examples/openssl/) dir.
 
 ## LuaJIT TLS wrapper
 
@@ -232,7 +232,7 @@ $ curl -k https://127.0.0.1:8080
 hello, world !
 ```
 
-Details in [examples/openssl/tls_web.lua](https://github.com/lalawue/m_net/blob/master/examples/openssl/tls_web.lua).
+Details in [tls_web_cnt.lua](https://github.com/lalawue/m_net/tree/master/examples/openssl/tls_web_cnt.lua) or [tls_web_svr.lua](https://github.com/lalawue/m_net/tree/master/examples/openssl/tls_web_svr.lua)
 
 # Tests
 
