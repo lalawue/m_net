@@ -137,6 +137,8 @@ int main(int argc, char *argv[])
     chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
     mnet_chann_set_cb(svr, listen_cb);
     mnet_chann_listen(svr, addr.ip, addr.port, 4);
+    
+    printf("mnet version %d\n", mnet_version());
     printf("svr start listen: %s\n", ipaddr);
 
     poll_result_t *results = NULL;

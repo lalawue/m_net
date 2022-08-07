@@ -84,10 +84,13 @@ void mnet_setlog(int level, mnet_log_cb);
 /* init before use chann
  * style 0: callback style
  * style 1: pull style API
- * return 0 on error, version > 0
+ * return 0 on error
  */   
 int mnet_init(int style);
 void mnet_fini(void);
+
+/* return version */
+int mnet_version();
 
 /* report mnet chann status
  * 0: chann_count 

@@ -41,6 +41,7 @@ main(int argc, char *argv[]) {
       chann_t *cnt = mnet_chann_open(CHANN_TYPE_STREAM);
       mnet_chann_set_cb(cnt, _on_cnt_event);
 
+      printf("mnet version %d\n", mnet_version());
       printf("cnt try connect %s:%d...\n", addr.ip, addr.port);
       mnet_chann_connect(cnt, addr.ip, addr.port);
       while (mnet_poll(1000)->chann_count > 0) {

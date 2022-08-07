@@ -68,6 +68,7 @@ typedef struct {
 int mnet_init(int); /* 0: callback style
                        1: pull style api*/
 void mnet_fini(void);
+int mnet_version(void);
 int mnet_report(int level);     /* 0: chann_count
                                    1: chann_detail */
 
@@ -111,16 +112,19 @@ int mnet_tls_config(void *ssl_ctx);
 -- try to load mnet in package.cpath
 local ret, mNet = nil, nil
 do
+    local loaded = false
     local suffix = (jit.os == "Windows") and "dll" or "so"
     for cpath in package.cpath:gmatch("[^;]+") do
         local path = cpath:sub(1, cpath:len() - 2 - suffix:len()) .. "mnet." .. suffix
         ret, mNet = pcall(ffi.load, path)
         if ret then
-            goto SUCCESS_LOAD_LABEL
+            loaded = true
+            break
         end
     end
-    error(mNet)
-    ::SUCCESS_LOAD_LABEL::
+    if not loaded then
+        error(mNet)
+    end
 end
 
 local EventNamesTable = {
@@ -166,6 +170,10 @@ end
 
 function Core.fini()
     mNet.mnet_fini()
+end
+
+function Core.version()
+    return mNet.mnet_version()
 end
 
 function Core.extConfig(name, ctx)

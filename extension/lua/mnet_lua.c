@@ -80,6 +80,12 @@ _mnet_fini(lua_State *L) {
    return 0;
 }
 
+static int
+_mnet_version(lua_State *L) {
+   lua_pushinteger(L, mnet_version());
+   return 1;
+}
+
 
 /* input milliseconds */
 static int
@@ -410,6 +416,7 @@ _chann_count(lua_State *L) {
 static const luaL_Reg mnet_lib[] = {
     { "init", _mnet_init },
     { "fini", _mnet_fini },
+    { "version", _mnet_version},
 
     { "poll", _mnet_poll },
     { "result_count", _mnet_result_count },

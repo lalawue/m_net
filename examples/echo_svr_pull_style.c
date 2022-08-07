@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
    char buf[256];
 
    mnet_chann_listen(svr, addr.ip, addr.port, 100);
+   printf("mnet version %d\n", mnet_version());
    printf("svr start listen: %s\n", ipaddr);
 
    // server will receive timer event every 5 second   

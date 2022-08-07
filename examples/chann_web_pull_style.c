@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
     //    int read_count = 0;
 
     mnet_chann_listen(svr, addr.ip, addr.port, 4);
+    printf("mnet version %d\n", mnet_version());
     printf("svr start listen: %s\n", ipaddr);
 
     for (;;)

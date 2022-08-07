@@ -20,6 +20,7 @@ Core.init()
 
 ipport = ipport or "127.0.0.1:8080"
 local addr = Core.parseIpPort(ipport)
+print("using version", Core.version())
 print("open svr in " .. addr.ip .. ":" .. addr.port)
 
 -- open tcp stream

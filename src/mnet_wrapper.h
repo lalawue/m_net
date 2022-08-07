@@ -250,6 +250,10 @@ namespace mnet {
          return mnet_current();
       }
 
+      static int32_t version(void) {
+         return mnet_version();
+      }
+
      private:
       static bool& isRunning(void) {
          static bool s;

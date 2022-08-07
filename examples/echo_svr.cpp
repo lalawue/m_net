@@ -44,6 +44,7 @@ int main(int argc, char *argv[]) {
    Chann echoSvr("tcp");
 
    if ( echoSvr.channListen(ipaddr, 100) ) {
+      cout << "svr version: " << ChannDispatcher::version() << endl;
       cout << "svr start listen: " << ipaddr << endl;
       
       // server will receive timer event every 5 second

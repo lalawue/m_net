@@ -1278,7 +1278,7 @@ mnet_init(int api_style) {
             ext->send_fn = _ext_dgram_send;
          }
       }
-      return 20220220;
+      return 1;
    }
    return 0;
 }
@@ -1306,6 +1306,12 @@ mnet_fini() {
 #endif
       mm_log(NULL, MNET_LOG_VERBOSE, "fini\n");      
    }
+}
+
+/* return version */
+int
+mnet_version() {
+   return 20220807;
 }
 
 void

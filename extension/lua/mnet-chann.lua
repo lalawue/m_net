@@ -91,6 +91,10 @@ function Core.fini()
     mnet_core.fini()
 end
 
+function Core.version()
+    return mnet_core.version()
+end
+
 function Core.current()
     return mnet_current()
 end
