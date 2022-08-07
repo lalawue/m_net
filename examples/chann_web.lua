@@ -22,9 +22,6 @@ ipport = ipport or "127.0.0.1:8080"
 local addr = Core.parseIpPort(ipport)
 print("open svr in " .. addr.ip .. ":" .. addr.port)
 
--- default 256, 256
-Core.setBufSize(32, 1024)
-
 -- open tcp stream
 local svr = Core.openChann("tcp")
 svr:listen(addr.ip, addr.port, 100)
