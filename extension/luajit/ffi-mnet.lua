@@ -69,8 +69,18 @@ int mnet_init(int); /* 0: callback style
                        1: pull style api*/
 void mnet_fini(void);
 int mnet_version(void);
-int mnet_report(int level);     /* 0: chann_count
-                                   1: chann_detail */
+
+/* 0: chann_count
+   1: chann_detail
+*/
+int mnet_report(int level);
+
+/* 0:disable
+ * 1:error
+ * 2:info
+ * 3:verbose
+ */
+void mnet_setlog(int level, void *);
 
 poll_result_t* mnet_poll(uint32_t milliseconds); /* dispatch chann event,  */
 chann_msg_t* mnet_result_next(poll_result_t *result); /* next msg */
@@ -87,6 +97,9 @@ int mnet_chann_listen(chann_t *n, const char *host, int port, int backlog);
 
 int mnet_chann_connect(chann_t *n, const char *host, int port);
 void mnet_chann_disconnect(chann_t *n);
+
+void mnet_chann_set_opaque(chann_t *n, uintptr_t opaque);
+uintptr_t mnet_chann_get_opaque(chann_t *n);
 
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t active);
 
@@ -151,7 +164,7 @@ local ChannTypesTable = {
     "tls",
 }
 
-local AllOpenedChannsTable = setmetatable({}, {__mode = "k"}) -- all opened channs
+print('using latest ffi-mnet')
 
 -- mnet core, shared by all channs
 local Core = {
@@ -172,6 +185,10 @@ function Core.fini()
     mNet.mnet_fini()
 end
 
+function Core.setLogLevel(level)
+    mNet.mnet_setlog(tonumber(level), nil)
+end
+
 function Core.version()
     return mNet.mnet_version()
 end
@@ -190,18 +207,70 @@ function Core.current()
     return mNet.mnet_current()
 end
 
-local function _gcChannInstance(c_chann)
-    local chann = AllOpenedChannsTable[tostring(c_chann)]
-    if chann then
-        chann:close()
+-- holding chann and callback instance
+local Array = {
+    _chns = {},
+    _free = {},
+    _cb = {},
+    _count = 0
+}
+
+function Array:count()
+    return self._count
+end
+
+function Array:channAt(index)
+    index = tonumber(index)
+    if index > 0 and index <= #self._chns then
+        return self._chns[index]
     end
+    return nil
+end
+
+function Array:cbAt(index)
+    return self._cb[index]
+end
+
+function Array:cbUpdate(index, cb)
+    if index > 0 then
+        self._cb[index] = cb
+    end
+end
+
+function Array:channAppend(data)
+    local index = 0
+    if #self._free > 0 then
+        index = table.remove(self._free)
+    else
+        index = #self._chns + 1
+    end
+    self._chns[index] = data
+    self._cb[index] = ''
+    self._count = self._count + 1
+    return index
+end
+
+function Array:dropIndex(index)
+    index = tonumber(index)
+    local dcount = #self._chns
+    if index <= 0 or index > dcount then
+        return nil
+    end
+    local chn = self._chns[index]
+    self._chns[index] = ''
+    self._cb[index] = ''
+    self._free[#self._free + 1] = index
+    self._count = self._count - 1
+    return chn
 end
 
 -- chann
 local Chann = {
     _type = nil, -- 'tcp', 'udp', 'broadcast'
     _chann = nil, -- chann_t
-    _callback = nil -- callback
+    __tostring = function(t)
+        return string.format('<Chann: %p>', t)
+    end
 }
 Chann.__index = Chann
 
@@ -214,16 +283,16 @@ function Core.poll(milliseconds)
         while msg ~= nil do
             local accept = nil
             if msg.r ~= nil then
-                accept = {}
-                setmetatable(accept, Chann)
+                accept = setmetatable({}, Chann)
                 accept._chann = msg.r
                 accept._type = ChannTypesTable[tonumber(mNet.mnet_chann_type(msg.r))]
-                AllOpenedChannsTable[tostring(msg.r)] = accept
-                ffi.gc(accept._chann, _gcChannInstance)
+                mNet.mnet_chann_set_opaque(msg.r, Array:channAppend(accept))
             end
-            local chann = AllOpenedChannsTable[tostring(msg.n)]
-            if chann and chann._callback then
-                chann._callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
+            local index = tonumber(mNet.mnet_chann_get_opaque(msg.n))
+            local chann = Array:channAt(index)
+            local callback = Array:cbAt(index)
+            if chann and callback then
+                callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
             end
             msg = mNet.mnet_result_next(result)
         end
@@ -259,8 +328,8 @@ function Core.parseIpPort(ipport)
 end
 
 function Core.setBufSize(sendsize, recvsize)
-    Core._sendsize = mmax(32, sendsize)
-    Core._recvsize = mmax(32, recvsize)
+    Core._sendsize = mmax(64, sendsize)
+    Core._recvsize = mmax(64, recvsize)
     _recvbuf = ffi.new("uint8_t[?]", Core._recvsize)
 end
 
@@ -268,9 +337,22 @@ end
 -- Channs
 --
 
+function Core.channCount()
+    return Array:count()
+end
+
+function Core.allChanns()
+    local tbl = {}
+    for _, v in pairs(Array._chns) do
+        if v ~= '' then
+            tbl[#tbl + 1] = v
+        end
+    end
+    return tbl
+end
+
 function Core.openChann(chann_type)
-    local chann = {}
-    setmetatable(chann, Chann)
+    local chann = setmetatable({}, Chann)
     if chann_type == "broadcast" then
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_BROADCAST)
     elseif chann_type == "udp" then
@@ -283,29 +365,18 @@ function Core.openChann(chann_type)
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_STREAM)
     end
     chann._type = chann_type
-    AllOpenedChannsTable[tostring(chann._chann)] = chann
-    ffi.gc(chann._chann, _gcChannInstance)
+    mNet.mnet_chann_set_opaque(chann._chann, Array:channAppend(chann))
     return chann
 end
 
-function Core.allChanns()
-    local tbl = {}
-    for _, v in pairs(AllOpenedChannsTable) do
-        if v then
-            tbl[#tbl + 1] = v
-        end
-    end
-    return tbl
-end
-
 function Chann:close()
-    if self._chann then
-        ffi.gc(self._chann, nil)
-        AllOpenedChannsTable[tostring(self._chann)] = nil
+    if self._chann ~= nil then
+        Array:dropIndex(mNet.mnet_chann_get_opaque(self._chann))
+        mNet.mnet_chann_set_opaque(self._chann, 0)
         mNet.mnet_chann_close(self._chann)
         self._chann = nil
-        self._callback = nil
         self._type = nil
+        setmetatable(self, nil)
     end
 end
 
@@ -331,7 +402,10 @@ end
 
 -- callback params should be (self, event_name, accept_chann, c_msg)
 function Chann:setCallback(callback)
-    self._callback = callback
+    if self._chann then
+        local index = tonumber(mNet.mnet_chann_get_opaque(self._chann))
+        Array:cbUpdate(index, callback)
+    end
 end
 
 function Chann:activeEvent(event_name, value)
@@ -355,18 +429,12 @@ function Chann:send(data)
     if type(data) ~= "string" then
         return false
     end
-    local leftsize = data:len()
-    repeat
-        local min_len = mmin(leftsize, data:len())
-        local rw = mNet.mnet_chann_send(self._chann, data:sub(1, min_len), min_len)
-        if rw.ret <= 0 then
-            return false
-        else
-            data = data:sub(min_len + 1)
-            leftsize = leftsize - min_len
-        end
-    until leftsize <= 0
-    return true
+    local rw = mNet.mnet_chann_send(self._chann, data, data:len())
+    if rw.ret <= 0 then
+        return false
+    else
+        return true
+    end
 end
 
 function Chann:cachedSize()
