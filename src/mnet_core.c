@@ -1366,7 +1366,6 @@ mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t *addr)
          hints.ai_socktype = SOCK_DGRAM;
       } else {
          hints.ai_socktype = SOCK_STREAM;
-         printf("using lib build\n");
       }
       if (port > 0) { sprintf(buf, "%d", port); }
       if ( getaddrinfo(host, (port>0 ? buf : NULL), &hints, &ai) ) {

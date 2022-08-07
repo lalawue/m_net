@@ -89,8 +89,8 @@ void mnet_chann_disconnect(chann_t *n);
 
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t active);
 
-rw_result_t* mnet_chann_recv(chann_t *n, void *buf, int len);
-rw_result_t* mnet_chann_send(chann_t *n, void *buf, int len);
+rw_result_t* mnet_chann_recv(chann_t *n, const char *buf, int len);
+rw_result_t* mnet_chann_send(chann_t *n, const char *buf, int len);
 
 int mnet_chann_cached(chann_t *n);
 
@@ -102,7 +102,7 @@ int mnet_chann_socket_set_bufsize(chann_t *n, int bufsize);
 
 /* tools without init */
 int64_t mnet_current(void); /* micro seconds */
-int mnet_resolve(char *host, int port, chann_type_t ctype, chann_addr_t*);
+int mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t*);
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 
 int mnet_tls_config(void *ssl_ctx);
@@ -158,15 +158,7 @@ local Core = {
 
 -- C level local veriable
 local _addr = ffi.new("chann_addr_t[1]")
-
-local _sendbuf = ffi.new("uint8_t[?]", Core._sendsize)
 local _recvbuf = ffi.new("uint8_t[?]", Core._recvsize)
-
-local _result = ffi.new("poll_result_t *")
-local _rw = ffi.new("rw_result_t *")
-
-local _intvalue = ffi.new("int", 0)
-local _int64value = ffi.new("int64_t", 0)
 
 function Core.init()
     mNet.mnet_init(1)
@@ -206,11 +198,11 @@ local Chann = {
 Chann.__index = Chann
 
 function Core.poll(milliseconds)
-    _result = mNet.mnet_poll(milliseconds)
-    if _result.chann_count < 0 then
+    local result = mNet.mnet_poll(milliseconds)
+    if result.chann_count < 0 then
         return -1
-    elseif _result.chann_count > 0 then
-        local msg = mNet.mnet_result_next(_result)
+    elseif result.chann_count > 0 then
+        local msg = mNet.mnet_result_next(result)
         while msg ~= nil do
             local accept = nil
             if msg.r ~= nil then
@@ -225,10 +217,10 @@ function Core.poll(milliseconds)
             if chann and chann._callback then
                 chann._callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
             end
-            msg = mNet.mnet_result_next(_result)
+            msg = mNet.mnet_result_next(result)
         end
     end
-    return _result.chann_count
+    return result.chann_count
 end
 
 function Core.resolve(host, port, chann_type)
@@ -261,7 +253,6 @@ end
 function Core.setBufSize(sendsize, recvsize)
     Core._sendsize = mmax(32, sendsize)
     Core._recvsize = mmax(32, recvsize)
-    _sendbuf = ffi.new("uint8_t[?]", Core._sendsize)
     _recvbuf = ffi.new("uint8_t[?]", Core._recvsize)
 end
 
@@ -337,21 +328,19 @@ end
 
 function Chann:activeEvent(event_name, value)
     if event_name == "event_send" then -- true or false
-        _int64value = value and 1 or 0
-        mNet.mnet_chann_active_event(self._chann, mNet.CHANN_EVENT_SEND, _int64value)
+        mNet.mnet_chann_active_event(self._chann, mNet.CHANN_EVENT_SEND, value and 1 or 0)
     elseif event_name == "event_timer" then -- milliseconds
-        _int64value = tonumber(value)
-        mNet.mnet_chann_active_event(self._chann, mNet.CHANN_EVENT_SEND, _int64value)
+        mNet.mnet_chann_active_event(self._chann, mNet.CHANN_EVENT_SEND, value)
     end
 end
 
 function Chann:recv()
-    _intvalue = Core._recvsize
-    _rw = mNet.mnet_chann_recv(self._chann, _recvbuf, _intvalue)
-    if _rw.ret <= 0 then
+    local len = Core._recvsize
+    local rw = mNet.mnet_chann_recv(self._chann, _recvbuf, len)
+    if rw.ret <= 0 then
         return nil
     end
-    return ffi.string(_recvbuf, _rw.ret)
+    return ffi.string(_recvbuf, rw.ret)
 end
 
 function Chann:send(data)
@@ -360,14 +349,13 @@ function Chann:send(data)
     end
     local leftsize = data:len()
     repeat
-        _intvalue = mmin(leftsize, Core._sendsize)
-        ffi.copy(_sendbuf, data, _intvalue)
-        _rw = mNet.mnet_chann_send(self._chann, _sendbuf, _intvalue)
-        if _rw.ret <= 0 then
+        local min_len = mmin(leftsize, data:len())
+        local rw = mNet.mnet_chann_send(self._chann, data:sub(1, min_len), min_len)
+        if rw.ret <= 0 then
             return false
         else
-            data = data:sub(_intvalue + 1)
-            leftsize = leftsize - _intvalue
+            data = data:sub(min_len + 1)
+            leftsize = leftsize - min_len
         end
     until leftsize <= 0
     return true
@@ -382,13 +370,11 @@ function Chann:state()
 end
 
 function Chann:recvBytes()
-    _intvalue = 0
-    return tonumber(mNet.mnet_chann_bytes(self._chann, _intvalue))
+    return tonumber(mNet.mnet_chann_bytes(self._chann, 0))
 end
 
 function Chann:sendByes()
-    _intvalue = 1
-    return tonumber(mNet.mnet_chann_bytes(self._chann, _intvalue))
+    return tonumber(mNet.mnet_chann_bytes(self._chann, 1))
 end
 
 function Chann:setBufSize(size)
