@@ -328,7 +328,7 @@ Transfer/sec:    691.66MB
 
 benchmark for `luajit examples/chann_web.lua`, first create `mnet.so`
 
-``
+```
 $ make lib
 $ cp build/libmnet.* build/mnet.so
 $ export LD_LIBRARY_PATH=$PWD/build
@@ -336,7 +336,7 @@ $ export DYLD_LIBRARY_PATH=$PWD/build
 $ export LUA_CPATH=./build/?.so
 $ export LUA_PATH=./extension/luajit/?.lua
 $ luajit examples/chann_web.lua
-``
+```
 
 ```
 $ wrk -t8 -c200 --latency http://127.0.0.1:8080
