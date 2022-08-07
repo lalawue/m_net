@@ -26,30 +26,41 @@ print("open svr in " .. addr.ip .. ":" .. addr.port)
 local svr = Core.openChann("tcp")
 svr:listen(addr.ip, addr.port, 100)
 
+local http_response = ''
+do
+    local fp = io.open('README.md', 'rb')
+    if fp then
+        local content = fp:read("*a")
+        fp:close()
+        http_response = 'HTTP/1.1 200 OK\r\n' ..
+                        'Content-Type: text/plain\r\n' ..
+                        'Content-Length: ' .. content:len() .. '\r\n\r\n' ..
+                        content
+    end
+end
+
+local recv_data = ''
+
 -- client callback function
 local function clientCallback(self, eventName, accept, c_msg)
     --print("eventName: ", eventName)
     if eventName == "event_recv" then
         local buf = self:recv()
-        print("recv:\n", buf)
-
-        local toast = "hello, world !\n"
-
-        local data =
-            "HTTP/1.1 200 OK\r\n" ..
-            "Server: MnetChannWeb/0.1\r\n" ..
-                "Content-Type: text/plain\r\n" ..
-                    string.format("Content-Length: %d\r\n\r\n", toast:len()) .. toast .. "\n\n"
-
-        -- receive 'event_send' when send buffer was empty
-        self:activeEvent("event_send", true)
-        self:send(data)
-    elseif eventName == "event_disconnect" or eventName == "event_send" then
-        local addr = self:addr()
-        print("---")
-        print("client ip: " .. addr.ip .. ":" .. addr.port)
-        print("state: " .. self:state())
-        print("bytes send: " .. self:sendByes())
+        if buf:len() > 0 then
+            recv_data = recv_data .. buf
+        end
+        local last_pos = 1
+        while true do
+            local s, e = recv_data:find('\r\n\r\n', last_pos, true)
+            if s and e then
+                last_pos = e + 1
+                self:send(http_response)
+            else
+                recv_data = recv_data:sub(last_pos)
+                break
+            end
+        end
+    elseif eventName == "event_disconnect" then
         self:close()
     end
 end
@@ -58,9 +69,6 @@ end
 svr:setCallback(
     function(self, eventName, accept)
         if eventName == "event_accept" and accept then
-            local addr = accept:addr()
-            print("---")
-            print("accept client from " .. addr.ip .. ":" .. addr.port)
             accept:setCallback(clientCallback) -- client callback function
         end
     end

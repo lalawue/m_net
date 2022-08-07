@@ -22,6 +22,9 @@
   - [OpenSSL Test](#openssl-test)
 - [Example](#example-1)
 - [Benchmark](#benchmark)
+  - [callback style C API](#callback-style-c-api)
+  - [pull style C API](#pull-style-c-api)
+  - [LuaJIT](#luajit)
 - [Projects](#projects)
 - [Thanks](#thanks)
 
@@ -265,63 +268,92 @@ including UDP/TCP, C/C++, callback/pull style API, timer event examples, also pr
 
 # Benchmark
 
-benchmark for 'luajit examples/chann_web.lua > /dev/null', under MacBook Pro (13-inch, 2017, Four Thunderbolt 3 Ports)
+Intel 12700F 64G, server and wrk in same PC.
+
+## callback style C API
+
+benchmark for `examples/chann_web_callback_style.cpp`
 
 ```
-$ ab -c 1 -n 10000 http://127.0.0.1:8080/
-This is ApacheBench, Version 2.3 <$Revision: 1807734 $>
-Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
-Licensed to The Apache Software Foundation, http://www.apache.org/
+$ make callback
+$ ./build/chann_web_callback_style.out
+```
 
-Benchmarking 127.0.0.1 (be patient)
-Completed 1000 requests
-Completed 2000 requests
-Completed 3000 requests
-Completed 4000 requests
-Completed 5000 requests
-Completed 6000 requests
-Completed 7000 requests
-Completed 8000 requests
-Completed 9000 requests
-Completed 10000 requests
-Finished 10000 requests
+```
+$ wrk -t8 -c200 --latency http://127.0.0.1:8080
+Running 10s test @ http://127.0.0.1:8080
+  8 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.79ms  842.19us  10.05ms   77.32%
+    Req/Sec     8.89k     1.66k   14.78k    75.99%
+  Latency Distribution
+     50%    2.79ms
+     75%    3.35ms
+     90%    3.57ms
+     99%    6.22ms
+  714476 requests in 10.10s, 6.37GB read
+  Socket errors: connect 0, read 1002, write 0, timeout 0
+Requests/sec:  70721.89
+Transfer/sec:    645.32MB
+```
 
+## pull style C API
 
-Server Software:        MnetChannWeb/0.1
-Server Hostname:        127.0.0.1
-Server Port:            8080
+benchmark for `examples/chann_web_pull_style.c`
 
-Document Path:          /
-Document Length:        17 bytes
+```
+$ make pull
+$ ./build/chann_web_pull_style.out
+```
 
-Concurrency Level:      1
-Time taken for tests:   1.481 seconds
-Complete requests:      10000
-Failed requests:        0
-Total transferred:      1080000 bytes
-HTML transferred:       170000 bytes
-Requests per second:    6752.47 [#/sec] (mean)
-Time per request:       0.148 [ms] (mean)
-Time per request:       0.148 [ms] (mean, across all concurrent requests)
-Transfer rate:          712.17 [Kbytes/sec] received
+```
+$ wrk -t8 -c200 --latency http://127.0.0.1:8080
+Running 10s test @ http://127.0.0.1:8080
+  8 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.72ms  815.43us   8.69ms   73.54%
+    Req/Sec     9.09k     2.21k   19.57k    89.41%
+  Latency Distribution
+     50%    2.87ms
+     75%    3.47ms
+     90%    3.52ms
+     99%    4.00ms
+  726133 requests in 10.10s, 6.82GB read
+  Socket errors: connect 0, read 1013, write 0, timeout 0
+Requests/sec:  71885.84
+Transfer/sec:    691.66MB
+```
 
-Connection Times (ms)
-              min  mean[+/-sd] median   max
-Connect:        0    0   0.0      0       0
-Processing:     0    0   3.5      0     347
-Waiting:        0    0   3.5      0     347
-Total:          0    0   3.5      0     347
+## LuaJIT
 
-Percentage of the requests served within a certain time (ms)
-  50%      0
-  66%      0
-  75%      0
-  80%      0
-  90%      0
-  95%      0
-  98%      0
-  99%      0
- 100%    347 (longest request)
+benchmark for `luajit examples/chann_web.lua`, first create `mnet.so`
+
+``
+$ make lib
+$ cp build/libmnet.* build/mnet.so
+$ export LD_LIBRARY_PATH=$PWD/build
+$ export DYLD_LIBRARY_PATH=$PWD/build
+$ export LUA_CPATH=./build/?.so
+$ export LUA_PATH=./extension/luajit/?.lua
+$ luajit examples/chann_web.lua
+``
+
+```
+$ wrk -t8 -c200 --latency http://127.0.0.1:8080
+Running 10s test @ http://127.0.0.1:8080
+  8 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.63ms  650.49us   6.20ms   76.36%
+    Req/Sec     9.54k     1.57k   14.71k    77.57%
+  Latency Distribution
+     50%    2.77ms
+     75%    3.12ms
+     90%    3.24ms
+     99%    3.78ms
+  765990 requests in 10.10s, 7.20GB read
+  Socket errors: connect 0, read 68, write 0, timeout 0
+Requests/sec:  75831.76
+Transfer/sec:    729.70MB
 ```
 
 

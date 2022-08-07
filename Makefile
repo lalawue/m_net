@@ -72,6 +72,7 @@ pull: $(E_SRCS) $(T_SRCS)
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $(LIB_SRCS) -lc -shared -fPIC
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_pull_style.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/chann_web_pull_style.out $^ $(LIBS) -DEXAMPLE_CHANN_WEB_PULL_STYLE
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_reconnect_pull_style.out $^ $(LIBS) -DTEST_RECONNECT_PULL_STYLE
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_rwdata_pull_style.out $^ $(LIBS) -DTEST_RWDATA_PULL_STYLE
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_timer_pull_style.out $^ $(LIBS) -DTEST_TIMER_PULL_STYLE
@@ -80,7 +81,8 @@ callback: $(CPP_SRCS)
 	@mkdir -p build
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $(LIB_SRCS) -lc -shared -fPIC
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_svr.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) -o build/echo_cnt.out $^ $(LIBS) -DEXAMPLE_ECHO_CNT
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_cnt.out $^ $(LIBS) -DEXAMPLE_ECHO_CNT
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/chann_web_callback_style.out $^ $(LIBS) -DEXAMPLE_CHANN_WEB_CALLBACK_STYLE
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_reconnect.out $^ $(LIBS) -DTEST_RECONNECT
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_rwdata.out $^ $(LIBS) -DTEST_RWDATA
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_timer.out $^ $(LIBS) -DTEST_TIMER
