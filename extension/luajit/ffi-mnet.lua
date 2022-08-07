@@ -158,7 +158,6 @@ local Core = {
 
 -- C level local veriable
 local _addr = ffi.new("chann_addr_t[1]")
-local _ctype = ffi.new("chann_type_t", 0)
 
 local _sendbuf = ffi.new("uint8_t[?]", Core._sendsize)
 local _recvbuf = ffi.new("uint8_t[?]", Core._recvsize)
@@ -233,12 +232,12 @@ function Core.poll(milliseconds)
 end
 
 function Core.resolve(host, port, chann_type)
-    local buf = _sendbuf
-    if host:len() > Core._sendsize then
-        buf = ffi.new("char[?]", host:len())
+    if chann_type == "broadcast" or chann_type == 'udp' then
+        chann_type = mNet.CHANN_TYPE_BROADCAST
+    else
+        chann_type = mNet.CHANN_TYPE_STREAM
     end
-    ffi.copy(buf, host, host:len())
-    if mNet.mnet_resolve(buf, tonumber(port), _ctype, _addr[0]) > 0 then
+    if mNet.mnet_resolve(host, tonumber(port), chann_type, _addr[0]) > 0 then
         local tbl = {}
         tbl.ip = ffi.string(_addr[0].ip)
         tbl.port = tonumber(_addr[0].port)

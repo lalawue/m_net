@@ -1362,7 +1362,12 @@ mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t *addr)
 
       memset(&hints, 0, sizeof(hints));
       hints.ai_family = AF_INET;
-      hints.ai_socktype = (ctype == CHANN_TYPE_DGRAM) ? SOCK_DGRAM : SOCK_STREAM;
+      if (ctype == CHANN_TYPE_DGRAM || ctype == CHANN_TYPE_BROADCAST) {
+         hints.ai_socktype = SOCK_DGRAM;
+      } else {
+         hints.ai_socktype = SOCK_STREAM;
+         printf("using lib build\n");
+      }
       if (port > 0) { sprintf(buf, "%d", port); }
       if ( getaddrinfo(host, (port>0 ? buf : NULL), &hints, &ai) ) {
          mm_log(NULL, 0, "fail to resolve host !\n");
