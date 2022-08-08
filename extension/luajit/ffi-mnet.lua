@@ -209,7 +209,7 @@ end
 
 -- holding chann and callback instance
 local Array = {
-    _chns = {},
+    _chn = {},
     _free = {},
     _cb = {},
     _count = 0
@@ -219,10 +219,9 @@ function Array:count()
     return self._count
 end
 
-function Array:channAt(index)
-    index = tonumber(index)
-    if index > 0 and index <= #self._chns then
-        return self._chns[index]
+function Array:chnAt(index)
+    if index > 0 and index <= #self._chn then
+        return self._chn[index]
     end
     return nil
 end
@@ -237,14 +236,14 @@ function Array:cbUpdate(index, cb)
     end
 end
 
-function Array:channAppend(data)
+function Array:chnAppend(data)
     local index = 0
     if #self._free > 0 then
         index = table.remove(self._free)
     else
-        index = #self._chns + 1
+        index = #self._chn + 1
     end
-    self._chns[index] = data
+    self._chn[index] = data
     self._cb[index] = ''
     self._count = self._count + 1
     return index
@@ -252,14 +251,14 @@ end
 
 function Array:dropIndex(index)
     index = tonumber(index)
-    local dcount = #self._chns
+    local dcount = #self._chn
     if index <= 0 or index > dcount then
         return nil
     end
-    local chn = self._chns[index]
-    self._chns[index] = ''
+    local chn = self._chn[index]
+    self._chn[index] = ''
     self._cb[index] = ''
-    self._free[#self._free + 1] = index
+    table.insert(self._free, index)
     self._count = self._count - 1
     return chn
 end
@@ -286,10 +285,10 @@ function Core.poll(milliseconds)
                 accept = setmetatable({}, Chann)
                 accept._chann = msg.r
                 accept._type = ChannTypesTable[tonumber(mNet.mnet_chann_type(msg.r))]
-                mNet.mnet_chann_set_opaque(msg.r, Array:channAppend(accept))
+                mNet.mnet_chann_set_opaque(msg.r, Array:chnAppend(accept))
             end
             local index = tonumber(mNet.mnet_chann_get_opaque(msg.n))
-            local chann = Array:channAt(index)
+            local chann = Array:chnAt(index)
             local callback = Array:cbAt(index)
             if chann and callback then
                 callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
@@ -343,9 +342,9 @@ end
 
 function Core.allChanns()
     local tbl = {}
-    for _, v in pairs(Array._chns) do
+    for _, v in pairs(Array._chn) do
         if v ~= '' then
-            tbl[#tbl + 1] = v
+            table.insert(tbl, v)
         end
     end
     return tbl
@@ -365,7 +364,7 @@ function Core.openChann(chann_type)
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_STREAM)
     end
     chann._type = chann_type
-    mNet.mnet_chann_set_opaque(chann._chann, Array:channAppend(chann))
+    mNet.mnet_chann_set_opaque(chann._chann, Array:chnAppend(chann))
     return chann
 end
 
