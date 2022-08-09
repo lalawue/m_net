@@ -25,6 +25,7 @@
   - [callback style C API](#callback-style-c-api)
   - [pull style C API](#pull-style-c-api)
   - [LuaJIT](#luajit)
+  - [Lua 5.4.4](#lua-544)
 - [Projects](#projects)
 - [Thanks](#thanks)
 
@@ -284,17 +285,17 @@ $ wrk -t8 -c200 --latency http://127.0.0.1:8080
 Running 10s test @ http://127.0.0.1:8080
   8 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     2.79ms  842.19us  10.05ms   77.32%
-    Req/Sec     8.89k     1.66k   14.78k    75.99%
+    Latency     2.69ms    0.87ms  11.03ms   71.33%
+    Req/Sec     9.20k     1.39k   12.94k    68.81%
   Latency Distribution
-     50%    2.79ms
-     75%    3.35ms
-     90%    3.57ms
-     99%    6.22ms
-  714476 requests in 10.10s, 6.37GB read
-  Socket errors: connect 0, read 1002, write 0, timeout 0
-Requests/sec:  70721.89
-Transfer/sec:    645.32MB
+     50%    2.66ms
+     75%    3.18ms
+     90%    3.62ms
+     99%    6.17ms
+  739951 requests in 10.10s, 7.40GB read
+  Socket errors: connect 0, read 1401, write 0, timeout 0
+Requests/sec:  73255.33
+Transfer/sec:    750.45MB
 ```
 
 ## pull style C API
@@ -311,17 +312,17 @@ $ wrk -t8 -c200 --latency http://127.0.0.1:8080
 Running 10s test @ http://127.0.0.1:8080
   8 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     2.72ms  815.43us   8.69ms   73.54%
-    Req/Sec     9.09k     2.21k   19.57k    89.41%
+    Latency     2.52ms  721.19us  11.40ms   67.74%
+    Req/Sec     9.81k     1.82k   15.47k    65.30%
   Latency Distribution
-     50%    2.87ms
-     75%    3.47ms
-     90%    3.52ms
-     99%    4.00ms
-  726133 requests in 10.10s, 6.82GB read
-  Socket errors: connect 0, read 1013, write 0, timeout 0
-Requests/sec:  71885.84
-Transfer/sec:    691.66MB
+     50%    2.57ms
+     75%    2.83ms
+     90%    3.47ms
+     99%    4.04ms
+  787535 requests in 10.10s, 7.88GB read
+  Socket errors: connect 0, read 1062, write 0, timeout 0
+Requests/sec:  77967.80
+Transfer/sec:    798.73MB
 ```
 
 ## LuaJIT
@@ -354,6 +355,30 @@ Running 10s test @ http://127.0.0.1:8080
   Socket errors: connect 0, read 103, write 0, timeout 0
 Requests/sec:  91857.05
 Transfer/sec:      0.87GB
+```
+
+## Lua 5.4.4
+
+```
+$ lua examples/chann_web.lua
+```
+
+```
+$ wrk -t8 -c200 --latency http://127.0.0.1:8080
+Running 10s test @ http://127.0.0.1:8080
+  8 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.61ms    0.95ms  79.69ms   94.69%
+    Req/Sec     9.68k     0.99k   16.42k    67.79%
+  Latency Distribution
+     50%    2.67ms
+     75%    2.97ms
+     90%    3.08ms
+     99%    3.40ms
+  774119 requests in 10.10s, 7.31GB read
+  Socket errors: connect 0, read 67, write 0, timeout 0
+Requests/sec:  76648.12
+Transfer/sec:    740.77MB
 ```
 
 
