@@ -298,26 +298,15 @@ function Core.poll(milliseconds)
 end
 
 function Core.resolve(host, port, chann_type)
-    if chann_type == "broadcast" or chann_type == 'udp' then
-        chann_type = mNet.CHANN_TYPE_BROADCAST
-    else
-        chann_type = mNet.CHANN_TYPE_STREAM
-    end
+    local chann_type = ChannTypesTable[chann_type] or mNet.CHANN_TYPE_STREAM
     if mNet.mnet_resolve(host, tonumber(port), chann_type, _addr[0]) > 0 then
-        return ffi.string(_addr[0].ip), tonumber(_addr[0].port)
-    else
-        return nil
+        return { ip = ffi.string(_addr[0].ip), port = tonumber(_addr[0].port) }
     end
 end
 
 function Core.parseIpPort(ipport)
     if mNet.mnet_parse_ipport(ipport, _addr[0]) > 0 then
-        local tbl = {}
-        tbl.ip = ffi.string(_addr[0].ip)
-        tbl.port = tonumber(_addr[0].port)
-        return tbl
-    else
-        return nil
+        return { ip = ffi.string(_addr[0].ip), port = tonumber(_addr[0].port) }
     end
 end
 

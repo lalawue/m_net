@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017 lalawue
- * 
+ *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
@@ -48,10 +48,10 @@ _check_type(lua_State *L, int *types, int count, int nline) {
    int i = 0;
    for (i=0; i<count; i++) {
       if (lua_type(L, i+1) != types[i]) {
-         fprintf(stderr,
+         luaL_error(L,
                  "invalid type idx %d: wanted %d, actual %d, in line %d\n",
                  i,
-                 types[i],                 
+                 types[i],
                  lua_type(L, i+1),
                  nline);
          return 0;
@@ -105,7 +105,7 @@ _mnet_result_count(lua_State *L) {
    if ( !lua_islightuserdata(L, 1) ) {
       return 0;
    }
-   
+
    poll_result_t *result = (poll_result_t *)lua_touserdata(L, 1);
    lua_pushinteger(L, result->chann_count);
    return 1;
@@ -138,7 +138,7 @@ _mnet_result_next(lua_State *L) {
 static int
 _mnet_current(lua_State *L) {
    lua_pushinteger(L, mnet_current());
-   return 1;   
+   return 1;
 }
 
 static int
@@ -170,10 +170,8 @@ _mnet_resolve(lua_State *L) {
       lua_pushstring(L, addr.ip);
       lua_pushinteger(L, addr.port);
       return 2;
-   } else {
-      lua_pushnil(L);
-      return 1;
    }
+   return 0;
 }
 
 /* open chann with type */
@@ -185,11 +183,9 @@ _chann_open(lua_State *L) {
       lua_chann_t *lc = _create_lua_chann(L, n);
       mnet_chann_set_opaque(n, lc);
       lua_pushlightuserdata(L, lc);
-   } else {
-      lua_pushnil(L);
+      return 1;
    }
-
-   return 1;
+   return 0;
 }
 
 /* close chann */
@@ -198,7 +194,7 @@ _chann_close(lua_State *L) {
    if ( ! lua_islightuserdata(L, 1) ) {
       return 0;
    }
-   
+
    lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
    if ( lc ) {
       mnet_chann_close(lc->n);
@@ -217,7 +213,7 @@ _chann_fd(lua_State *L) {
    if ( lc ) {
       lua_pushinteger(L, mnet_chann_fd(lc->n));
    } else {
-      lua_pushnil(L);
+      lua_pushinteger(L, 0);
    }
    return 1;
 }
@@ -232,7 +228,7 @@ _chann_type(lua_State *L) {
    if (lc) {
       lua_pushinteger(L, mnet_chann_type(lc->n));
    } else {
-      lua_pushinteger(L, 0);      
+      lua_pushinteger(L, 0);
    }
    return 1;
 }
@@ -301,7 +297,8 @@ _chann_set_index(lua_State *L) {
 static int
 _chann_get_index(lua_State *L) {
    if ( !lua_islightuserdata(L, 1) ) {
-      return 0;
+      lua_pushinteger(L, 0);
+      return 1;
    }
    lua_chann_t *lc = (lua_chann_t *)lua_touserdata(L, 1);
    lua_pushinteger(L, lc->index);
@@ -320,10 +317,8 @@ _chann_recv(lua_State *L) {
       int ret = mnet_chann_recv(lc->n, g_buf, MNET_BUF_SIZE)->ret;
       if (ret >= 0) {
          lua_pushlstring(L, (const char*)g_buf, ret);
-      } else {
-         lua_pushnil(L);
+         return 1;
       }
-      return 1;
    }
    return 0;
 }
@@ -339,7 +334,7 @@ _chann_send(lua_State *L) {
    lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
    size_t buf_len = 0;
    const char *buf = lua_tolstring(L, 2, &buf_len);
-   if (lc && buf_len>0) {
+   if (lc && buf_len > 0) {
       int ret = mnet_chann_send(lc->n, (void*)buf, buf_len)->ret;
       lua_pushinteger(L, ret);
       return 1;
@@ -444,12 +439,12 @@ static const luaL_Reg mnet_lib[] = {
     { "poll", _mnet_poll },
     { "result_count", _mnet_result_count },
     { "result_next", _mnet_result_next },
-    
+
     { "chann_open", _chann_open },
     { "chann_close", _chann_close },
 
     { "chann_fd", _chann_fd },
-    { "chann_type", _chann_type },    
+    { "chann_type", _chann_type },
 
     { "chann_listen", _chann_listen },
     { "chann_connect", _chann_connect },

@@ -189,16 +189,16 @@ function Core.poll(milliseconds)
 end
 
 function Core.resolve(host, port, chann_type)
-    local ctype = ChannTypesTable[chann_type] or 1
-    if ctype then
-        return _resolve(host, port, ctype)
+    local ip, port = _resolve(host, port, ChannTypesTable[chann_type] or 1)
+    if ip and port then
+        return { ip = ip, port = port }
     end
 end
 
 function Core.parseIpPort(ipport)
     local ip, port = _parse_ipport(ipport)
     if ip and port then
-        return {["ip"] = ip, ["port"] = tonumber(port)}
+        return { ip = ip, port = port }
     end
 end
 
