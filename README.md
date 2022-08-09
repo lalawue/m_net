@@ -360,6 +360,7 @@ Transfer/sec:      0.87GB
 ## Lua 5.4.4
 
 ```
+$ luarock make
 $ lua examples/chann_web.lua
 ```
 

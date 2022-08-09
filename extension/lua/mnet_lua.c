@@ -22,6 +22,7 @@
 
 typedef struct {
    chann_t *n;                  /* chann pointer */
+   int index;                   /* chann outer index */
    lua_State *L;                /* lua_State */
 } lua_chann_t;
 
@@ -31,6 +32,7 @@ static lua_chann_t*
 _create_lua_chann(lua_State *L, chann_t *n) {
    lua_chann_t *lc = (lua_chann_t*)malloc(sizeof(lua_chann_t));
    lc->n = n;
+   lc->index = 0;
    lc->L = L;
    return lc;
 }
@@ -181,7 +183,7 @@ _chann_open(lua_State *L) {
    chann_t *n = mnet_chann_open(lua_tointeger(L, 1));
    if ( n ) {
       lua_chann_t *lc = _create_lua_chann(L, n);
-      mnet_chann_set_opaque(n, lc);      
+      mnet_chann_set_opaque(n, lc);
       lua_pushlightuserdata(L, lc);
    } else {
       lua_pushnil(L);
@@ -283,6 +285,27 @@ _chann_disconnect(lua_State *L) {
    lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
    mnet_chann_disconnect(lc->n);
    return 0;
+}
+
+static int
+_chann_set_index(lua_State *L) {
+   int types[2] = { LUA_TLIGHTUSERDATA, LUA_TNUMBER };
+   if ( !_check_type(L, types, 2, __LINE__) ) {
+      return 0;
+   }
+   lua_chann_t *lc = (lua_chann_t *)lua_touserdata(L, 1);
+   lc->index = (int)lua_tointeger(L, 2);
+   return 0;
+}
+
+static int
+_chann_get_index(lua_State *L) {
+   if ( !lua_islightuserdata(L, 1) ) {
+      return 0;
+   }
+   lua_chann_t *lc = (lua_chann_t *)lua_touserdata(L, 1);
+   lua_pushinteger(L, lc->index);
+   return 1;
 }
 
 /* local buf = .chann_recv(n) */
@@ -432,6 +455,9 @@ static const luaL_Reg mnet_lib[] = {
     { "chann_connect", _chann_connect },
     { "chann_disconnect", _chann_disconnect },
 
+    { "chann_set_index", _chann_set_index},
+    { "chann_get_index", _chann_get_index},
+
     { "chann_active_event", _chann_active_event },
 
     { "chann_recv", _chann_recv},
@@ -449,6 +475,7 @@ static const luaL_Reg mnet_lib[] = {
 
     { "current", _mnet_current },
     { "parse_ipport", _mnet_parse_ipport },
+    { "resolve", _mnet_resolve},
 
     { NULL, NULL }
 };

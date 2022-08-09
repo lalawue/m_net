@@ -164,8 +164,6 @@ local ChannTypesTable = {
     "tls",
 }
 
-print('using latest ffi-mnet')
-
 -- mnet core, shared by all channs
 local Core = {
     _recvsize = 65536, -- default recv buf size
@@ -306,10 +304,7 @@ function Core.resolve(host, port, chann_type)
         chann_type = mNet.CHANN_TYPE_STREAM
     end
     if mNet.mnet_resolve(host, tonumber(port), chann_type, _addr[0]) > 0 then
-        local tbl = {}
-        tbl.ip = ffi.string(_addr[0].ip)
-        tbl.port = tonumber(_addr[0].port)
-        return tbl
+        return ffi.string(_addr[0].ip), tonumber(_addr[0].port)
     else
         return nil
     end
