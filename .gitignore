@@ -8,3 +8,6 @@ src/*.o
 extension/lua/*.o
 extension/mdns_utils/*.o
 .vscode/
+win/out/
+!win/openssl/README.md
+win/openssl/
