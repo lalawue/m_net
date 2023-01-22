@@ -199,6 +199,8 @@ chann_t *n = mnet_chann_open(CHANN_TYPE_TLS);
 
 first build with openssl extension with command below, I install openssl with brew under MacOS.
 
+(or you can `luarocks install rockspecs/mnet-openssl-1.rockspec` under Linux)
+
 ```
 $ export MNET_OPENSSL_DIR=/usr/local/Cellar/openssl@1.1/1.1.1k/
 $ export DYLD_LIBRARY_PATH=/usr/local/Cellar/openssl@1.1/1.1.1k/lib/
