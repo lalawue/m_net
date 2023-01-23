@@ -5,7 +5,7 @@
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifdef MNET_TLS_TEST_RWDATA_PULL_STYLE
+#ifdef MNET_TLS_TEST_RWDATA_C
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,22 +47,22 @@ _client_send_batch_data(chann_t *n, ctx_t *ctx) {
    for (int i=0; i<kBufSize; i++) {
       ctx->buf[i] = (ctx->sended + i) & 0xff;
    }
-   rw_result_t *rw = mnet_chann_send(n, ctx->buf, kBufSize);
-   if (rw->ret > 0) {
-      assert(rw->ret == kBufSize);
-      ctx->sended += rw->ret;
+   int ret = mnet_chann_send(n, ctx->buf, kBufSize);
+   if (ret > 0) {
+      assert(ret == kBufSize);
+      ctx->sended += ret;
    }
 }
 
 static int
 _client_recv_batch_data(chann_t *n, ctx_t *ctx) {
-   rw_result_t *rw = mnet_chann_recv(n, ctx->buf, kBufSize);
-   if (_check_data_buf(ctx, ctx->recved, rw->ret)) {
-      ctx->recved += rw->ret;
+   int ret = mnet_chann_recv(n, ctx->buf, kBufSize);
+   if (_check_data_buf(ctx, ctx->recved, ret)) {
+      ctx->recved += ret;
       printf("c recved %d\n", ctx->recved);
       return 1;
    } else {
-      printf("c failed to checked data: %d\n", rw->ret);
+      printf("c failed to checked data: %d\n", ret);
       return 0;
    }
 }
@@ -73,19 +73,17 @@ _as_client(chann_addr_t *addr) {
    mnet_chann_connect(cnt, addr->ip, addr->port);
    printf("client connect %s:%d\n", addr->ip, addr->port);
 
-   poll_result_t *results = NULL;
    ctx_t *ctx = malloc(sizeof(*ctx));
    memset(ctx, 0, sizeof(*ctx));
 
    for (;;) {
 
-      results = mnet_poll(MNET_MILLI_SECOND);
-      if (results->chann_count <= 0) {
+      if (mnet_poll(MNET_MILLI_SECOND) <= 0) {
          break;
       }
 
       chann_msg_t *msg = NULL;
-      while ((msg = mnet_result_next(results))) {
+      while ((msg = mnet_result_next())) {
 
          if (msg->event == CHANN_EVENT_CONNECTED) {
             printf("client connected\n");
@@ -109,11 +107,11 @@ _as_client(chann_addr_t *addr) {
                mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 0);
             }
          }
-         
+
          if (msg->event == CHANN_EVENT_DISCONNECT) {
             _print_data_info(ctx);
             mnet_chann_close(msg->n);
-         }         
+         }
       }
    }
 }
@@ -124,18 +122,16 @@ _as_server(chann_addr_t *addr) {
    mnet_chann_listen(svr, addr->ip, addr->port, 1);
    printf("svr listen %s:%d\n", addr->ip, addr->port);
 
-   poll_result_t *results = NULL;
    ctx_t *ctx = malloc(sizeof(*ctx));
    memset(ctx, 0, sizeof(*ctx));
 
    for (;;) {
-      results = mnet_poll(MNET_MILLI_SECOND);
-      if (results->chann_count < 0) {
+      if (mnet_poll(MNET_MILLI_SECOND) < 0) {
          printf("poll error !\n");
          break;
       }
       chann_msg_t *msg = NULL;
-      while ((msg = mnet_result_next(results))) {
+      while ((msg = mnet_result_next())) {
          if (msg->n == svr) {
             // ignore this
             continue;
@@ -146,20 +142,19 @@ _as_server(chann_addr_t *addr) {
             continue;
          }
          if (msg->event == CHANN_EVENT_RECV) {
-            rw_result_t *rw = mnet_chann_recv(msg->n, ctx->buf, kBufSize);
-            if (rw->ret>0 && _check_data_buf(ctx, ctx->recved, rw->ret)) {
-               int ret = rw->ret;
+            int ret = mnet_chann_recv(msg->n, ctx->buf, kBufSize);
+            if (ret>0 && _check_data_buf(ctx, ctx->recved, ret)) {
                ctx->recved += ret;
-               rw = mnet_chann_send(msg->n, ctx->buf, ret);
-               if (rw->ret > 0) {
-                  ctx->sended += rw->ret;
+               ret = mnet_chann_send(msg->n, ctx->buf, ret);
+               if (ret > 0) {
+                  ctx->sended += ret;
                   assert(ctx->recved == ctx->sended);
                } else {
-                  printf("invalid send %d, %p\n", rw->ret, rw->msg);
+                  printf("invalid send %d\n", ret);
                   mnet_chann_close(msg->n);
                }
-            } else if (rw->ret < 0) {
-               printf("svr failed to recv rw code: %d\n", rw->ret);
+            } else if (ret < 0) {
+               printf("svr failed to recv rw code: %d\n", ret);
                mnet_chann_close(msg->n);
             }
          }
@@ -190,7 +185,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    mnet_init(1); /* use pull style api */
+    mnet_init(); /* use pull style api */
 
     SSL_library_init();
     SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
@@ -224,4 +219,4 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-#endif /* MNET_TLS_TEST_RWDATA_PULL_STYLE */
+#endif /* MNET_TLS_TEST_RWDATA_C */

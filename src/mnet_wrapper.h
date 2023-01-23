@@ -1,11 +1,11 @@
-// 
-// 
+//
+//
 // Copyright (c) 2017 lalawue
-// 
+//
 // This library is free software; you can redistribute it and/or modify it
 // under the terms of the MIT license. See LICENSE for details.
-// 
-// 
+//
+//
 
 #include <string>
 #include <sstream>
@@ -70,12 +70,11 @@ namespace mnet {
    class Chann {
      public:
 
-      /* chann creation 
+      /* chann creation
        */
-      Chann() {}
 
       Chann(string streamType) {
-         mnet_init(0);
+         mnet_init();
          m_chann = mnet_chann_open( channType(streamType) );
          m_handler = NULL;
       }
@@ -84,7 +83,6 @@ namespace mnet {
          if (c) {
             m_chann = c->m_chann;
             m_handler = NULL;
-            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent);
             mnet_chann_set_opaque(m_chann, this);
             c->m_chann = NULL;
             c->m_handler = NULL;
@@ -96,22 +94,20 @@ namespace mnet {
       }
 
 
-      /* build network 
+      /* build network
        */
       bool channListen(string ipPort, int backlog = 16) {
          if (m_chann && ipPort.length()>0) {
             ChannAddr addr = ChannAddr(ipPort);
-            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent);
             mnet_chann_set_opaque(m_chann, this);
             return mnet_chann_listen(m_chann, addr.addr.ip, addr.addr.port, backlog);
          }
          return false;
       }
-   
+
       bool channConnect(string ipPort) {
          if (m_chann && ipPort.length()>0) {
             m_peer = ChannAddr(ipPort);
-            mnet_chann_set_cb(m_chann, Chann::channDispatchEvent);
             mnet_chann_set_opaque(m_chann, this);
             return mnet_chann_connect(m_chann, m_peer.addr.ip, m_peer.addr.port);
          }
@@ -127,22 +123,18 @@ namespace mnet {
 
       /* data mantipulation
        */
-      rw_result_t* channRecv(void *buf, int len) {
+      int channRecv(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_recv(m_chann, buf, len);
          }
-         m_rw_dummy.ret = 0;
-         m_rw_dummy.msg = NULL;
-         return &m_rw_dummy;
+         return -1;
       }
 
-      rw_result_t* channSend(void *buf, int len) {
+      int channSend(void *buf, int len) {
          if (mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED) {
             return mnet_chann_send(m_chann, buf, len);
          }
-         m_rw_dummy.ret = 0;
-         m_rw_dummy.msg = NULL;
-         return &m_rw_dummy;
+         return -1;
       }
 
 
@@ -159,7 +151,7 @@ namespace mnet {
       void setEventHandler(channEventHandler handler) {
          m_handler = handler;
       }
-      
+
       // use default if no external event handler, for subclass internal
       virtual void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
          if ( accept ) {
@@ -182,12 +174,6 @@ namespace mnet {
       inline int dataCached(void) { return mnet_chann_cached(m_chann); }
       inline bool isConnected(void) { return mnet_chann_state(m_chann) == CHANN_STATE_CONNECTED; } /*  */
 
-
-
-     private:
-
-      Chann(chann_t *c) { m_chann = c; }
-
       /* event process
        */
       static void channDispatchEvent(chann_msg_t *m) {
@@ -195,11 +181,14 @@ namespace mnet {
          c->dispatchEvent(m);
       }
 
+     private:
+
+      Chann(chann_t *c) { m_chann = c; }
+
       void dispatchEvent(chann_msg_t *m) {
          if (m_handler) {
             if (m->event == CHANN_EVENT_ACCEPT) {
                Chann *nc = new Chann(m->r);
-               mnet_chann_set_cb(m->r, Chann::channDispatchEvent);
                mnet_chann_set_opaque(m->r, nc);
                m_handler(this, nc, m->event, 0);
             } else {
@@ -208,7 +197,6 @@ namespace mnet {
          } else {
             if (m->event == CHANN_EVENT_ACCEPT) {
                Chann *nc = new Chann(m->r);
-               mnet_chann_set_cb(m->r, Chann::channDispatchEvent);
                mnet_chann_set_opaque(m->r, nc);
                defaultEventHandler(nc, m->event, m->err);
             } else {
@@ -221,33 +209,39 @@ namespace mnet {
       ChannAddr m_peer;            // peer addr
       ChannAddr m_addr;            // my addr
       channEventHandler m_handler; // external event handler
-      rw_result_t m_rw_dummy;
    };
 
 
    class ChannDispatcher {
      public:
-      
+
       // startEventLoop until user call stopEventLoop
       static void startEventLoop(void) {
          if ( !isRunning() ) {
             isRunning() = true;
             while ( isRunning() ) {
-               mnet_poll(1000000);
+               pollEvent(1000000);
             }
          }
-      }      
+      }
       static void stopEventLoop(void) {
          isRunning() = false;
       }
-      
+
       // pullEvent with waiting microseconds at most
-      static poll_result_t* pollEvent(int microseconds) {
-         return mnet_poll(microseconds);
+      static int pollEvent(int microseconds) {
+         int ret = mnet_poll(microseconds);
+         if (ret > 0) {
+            chann_msg_t *msg = NULL;
+            while ((msg = mnet_result_next())) {
+               Chann::channDispatchEvent(msg);
+            }
+         }
+         return ret;
       }
 
       static int64_t currentTime(void) {
-         return mnet_current();
+         return mnet_tm_current();
       }
 
       static int32_t version(void) {

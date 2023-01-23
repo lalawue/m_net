@@ -64,7 +64,7 @@ _check_type(lua_State *L, int *types, int count, int nline) {
 
 static int
 _mnet_init(lua_State *L) {
-   int ret = mnet_init(1);      /* pull style API */
+   int ret = mnet_init();      /* pull style API */
    lua_pushboolean(L, ret);
    if (ret && !g_buf) {
       g_buf = calloc(1, MNET_BUF_SIZE);
@@ -95,30 +95,14 @@ _mnet_poll(lua_State *L) {
    _RETURN_NONE_NIL(L, 1);
 
    int milliseconds = luaL_checkinteger(L, 1);
-   poll_result_t *result = mnet_poll(milliseconds);
-   lua_pushlightuserdata(L, result);
-   return 1;
-}
-
-static int
-_mnet_result_count(lua_State *L) {
-   if ( !lua_islightuserdata(L, 1) ) {
-      return 0;
-   }
-
-   poll_result_t *result = (poll_result_t *)lua_touserdata(L, 1);
-   lua_pushinteger(L, result->chann_count);
+   int count = mnet_poll(milliseconds);
+   lua_pushnumber(L, count);
    return 1;
 }
 
 static int
 _mnet_result_next(lua_State *L) {
-   if ( !lua_islightuserdata(L, 1) ) {
-      return 0;
-   }
-
-   poll_result_t *result = (poll_result_t *)lua_touserdata(L, 1);
-   chann_msg_t *msg = mnet_result_next(result);
+   chann_msg_t *msg = mnet_result_next();
    if (msg) {
       lua_pushlightuserdata(L, mnet_chann_get_opaque(msg->n));
       lua_pushinteger(L, msg->event);
@@ -136,8 +120,8 @@ _mnet_result_next(lua_State *L) {
 }
 
 static int
-_mnet_current(lua_State *L) {
-   lua_pushinteger(L, mnet_current());
+_mnet_tm_current(lua_State *L) {
+   lua_pushinteger(L, mnet_tm_current());
    return 1;
 }
 
@@ -314,7 +298,7 @@ _chann_recv(lua_State *L) {
 
    lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
    if ( lc ) {
-      int ret = mnet_chann_recv(lc->n, g_buf, MNET_BUF_SIZE)->ret;
+      int ret = mnet_chann_recv(lc->n, g_buf, MNET_BUF_SIZE);
       if (ret >= 0) {
          lua_pushlstring(L, (const char*)g_buf, ret);
          return 1;
@@ -335,7 +319,7 @@ _chann_send(lua_State *L) {
    size_t buf_len = 0;
    const char *buf = lua_tolstring(L, 2, &buf_len);
    if (lc && buf_len > 0) {
-      int ret = mnet_chann_send(lc->n, (void*)buf, buf_len)->ret;
+      int ret = mnet_chann_send(lc->n, (void*)buf, buf_len);
       lua_pushinteger(L, ret);
       return 1;
    }
@@ -437,7 +421,6 @@ static const luaL_Reg mnet_lib[] = {
     { "version", _mnet_version},
 
     { "poll", _mnet_poll },
-    { "result_count", _mnet_result_count },
     { "result_next", _mnet_result_next },
 
     { "chann_open", _chann_open },
@@ -468,7 +451,7 @@ static const luaL_Reg mnet_lib[] = {
     { "chann_set_bufsize", _chann_set_bufsize },
     { "chann_addr", _chann_addr },
 
-    { "current", _mnet_current },
+    { "current", _mnet_tm_current },
     { "parse_ipport", _mnet_parse_ipport },
     { "resolve", _mnet_resolve},
 

@@ -5,9 +5,6 @@
 [1]: https://img.shields.io/badge/license-MIT-blue.svg
 [2]: LICENSE
 
-[3]: https://travis-ci.org/lalawue/m_net.svg?branch=master
-[4]: https://travis-ci.org/lalawue/m_net
-
 - [About](#about)
 - [Features](#features)
 - [Server](#server)
@@ -22,8 +19,8 @@
   - [OpenSSL Test](#openssl-test)
 - [Example](#example-1)
 - [Benchmark](#benchmark)
-  - [callback style C API](#callback-style-c-api)
-  - [pull style C API](#pull-style-c-api)
+  - [C API](#c-api)
+  - [CPP API](#cpp-api)
   - [LuaJIT](#luajit)
   - [Lua 5.4.4](#lua-544)
 - [Projects](#projects)
@@ -54,7 +51,7 @@ Please use gmake to build demo under FreeBSD.
 - extension skeleton on top of bare socket TCP/UDP
 
 
-# Server 
+# Server
 
 It's very convenience for use, an echo server example, with CPP wrapper:
 
@@ -147,8 +144,17 @@ main(int argc, char *argv[]) {
 
          printf("cnt try connect %s:%d...\n", addr.ip, addr.port);
          mnet_chann_connect(cnt, addr.ip, addr.port);
-         while (mnet_poll(1000000) > 0) {
+
+         poll_result_t *r = NULL;
+         while ((r = mnet_poll(1000000) && r->chann_count > 0 {
+
+            chann_msg_t *msg = NULL;
+            while ((msg = mnet_result_next(r)) {
+
+               _on_cnt_event(msg);
+            }
          }
+
          mnet_fini();
       }
    }
@@ -273,13 +279,13 @@ including UDP/TCP, C/C++, callback/pull style API, timer event examples, also pr
 
 Intel 12700F 64G, server and wrk in same PC.
 
-## callback style C API
+## C API
 
-benchmark for `examples/chann_web_callback_style.cpp`
+benchmark for `examples/chann_web.c`
 
 ```
 $ make callback
-$ ./build/chann_web_callback_style.out
+$ ./build/chann_web_c.out
 ```
 
 ```
@@ -300,13 +306,13 @@ Requests/sec:  73255.33
 Transfer/sec:    750.45MB
 ```
 
-## pull style C API
+## CPP API
 
-benchmark for `examples/chann_web_pull_style.c`
+benchmark for `examples/chann_web.cpp`
 
 ```
 $ make pull
-$ ./build/chann_web_pull_style.out
+$ ./build/chann_web_cpp.out
 ```
 
 ```
@@ -389,7 +395,7 @@ Transfer/sec:    740.77MB
 # Projects
 
 - [cincau](https://github.com/lalawue/cincau): a fast, minimalist and high configurable framework for LuaJIT based on m_net or openresty (nginx)
-- [rpc_framework](https://github.com/lalawue/rpc_framework): LuaJIT base network RPC framework for MacOS/Linux/FreeBSD/Windows.
+- [rpc_core](https://github.com/lalawue/rpc_core): LuaJIT base network RPC framework for MacOS/Linux/FreeBSD/Windows.
 
 
 

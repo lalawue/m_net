@@ -7,7 +7,7 @@
 //
 //
 
-#ifdef TEST_RECONNECT
+#ifdef TEST_RECONNECT_CPP
 
 #include <iostream>
 #include <string>
@@ -32,9 +32,9 @@ public:
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         rw_result_t *rw = channRecv(m_buf, sizeof(m_buf));
+         int ret = channRecv(m_buf, sizeof(m_buf));
          channActiveEvent(CHANN_EVENT_SEND, 1);
-         channSend(m_buf, rw->ret);
+         channSend(m_buf, ret);
       }
       else if (event == CHANN_EVENT_SEND ||
                event == CHANN_EVENT_DISCONNECT)
@@ -55,7 +55,7 @@ public:
       switch (event) {
          case CHANN_EVENT_CONNECTED: {
             int ret = snprintf(m_buf, sizeof(m_buf), "HelloServ %d", m_idx);
-            if (ret == channSend(m_buf, ret)->ret) {
+            if (ret == channSend(m_buf, ret)) {
                cout << m_idx << ": connected, send '" << m_buf << "'" << endl;
             } else {
                cout << m_idx << ": connected, fail to send with ret " << ret << endl;
@@ -117,6 +117,7 @@ int main(int argc, char *argv[]) {
                if (event == CHANN_EVENT_ACCEPT) {
                   SvrChann *svr = new SvrChann(accept);
                   cout << "accept cnt " << svr << endl;
+                  delete accept;
                }
             });
 
@@ -135,7 +136,7 @@ int main(int argc, char *argv[]) {
          }
       }
 
-      while (ChannDispatcher::pollEvent(1000)->chann_count > 0) {
+      while (ChannDispatcher::pollEvent(1000) > 0) {
       }
 
       cout << "\nall cnt tested, exit !" << endl;
@@ -144,4 +145,4 @@ int main(int argc, char *argv[]) {
    return 0;
 }
 
-#endif // TEST_RECONNECT
+#endif // TEST_RECONNECT_CPP

@@ -11,3 +11,4 @@ extension/mdns_utils/*.o
 win/out/
 !win/openssl/README.md
 win/openssl/
+win/examples/

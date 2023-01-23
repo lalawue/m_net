@@ -7,7 +7,7 @@
 //
 //
 
-#ifdef TEST_RWDATA
+#ifdef TEST_RWDATA_CPP
 
 #include <iostream>
 #include <assert.h>
@@ -53,20 +53,19 @@ public:
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         rw_result_t *rw = channRecv(m_buf, kBufSize);
-         if (checkDataBuf(m_recved, rw->ret)) {
-            int ret = rw->ret;
+         int ret = channRecv(m_buf, kBufSize);
+         if (checkDataBuf(m_recved, ret)) {
             m_recved += ret;
-            rw = channSend(m_buf, ret);
-            if (rw->ret > 0) {
-               m_sended += rw->ret;
+            ret = channSend(m_buf, ret);
+            if (ret > 0) {
+               m_sended += ret;
                assert(m_recved == m_sended);
             } else {
                cout << "invalid send " << endl;
                releaseSelf();
             }
          } else {
-            cout << "svr failed to recv ret code: " << rw->ret << endl;
+            cout << "svr failed to recv ret code: " << ret << endl;
             releaseSelf();
          }
       }
@@ -84,21 +83,21 @@ public:
       for (int i=0; i<kBufSize; i++) {
          m_buf[i] = (m_sended + i) & 0xff;
       }
-      rw_result_t *rw = channSend(m_buf, kBufSize);
-      if (rw->ret > 0) {
-         assert(rw->ret == kBufSize);
-         m_sended += rw->ret;
+      int ret = channSend(m_buf, kBufSize);
+      if (ret > 0) {
+         assert(ret == kBufSize);
+         m_sended += ret;
       }
    }
 
    bool recvBatchData() {
-      rw_result_t *rw = channRecv(m_buf, kBufSize);
-      if (checkDataBuf(m_recved, rw->ret)) {
-         m_recved += rw->ret;
+      int ret = channRecv(m_buf, kBufSize);
+      if (checkDataBuf(m_recved, ret)) {
+         m_recved += ret;
          cout << "c recved " << m_recved << endl;
          return true;
       } else {
-         cout << "c failed to checked data: " << rw->ret << endl;
+         cout << "c failed to checked data: " << ret << endl;
          return false;
       }
    }
@@ -163,11 +162,11 @@ int main(int argc, char *argv[]) {
          delete cnt;
       }
 
-      while (ChannDispatcher::pollEvent(1000)->chann_count > 0) {
+      while (ChannDispatcher::pollEvent(1000) > 0) {
       }
    }
 
    return 0;
 }
 
-#endif  // TEST_RWDATA
+#endif  // TEST_RWDATA_CPP

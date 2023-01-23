@@ -10,7 +10,7 @@
 #include <assert.h>
 #include "mnet_tls.h"
 
-#ifdef MNET_OPENSSL_CNT
+#ifdef MNET_OPENSSL_CNT_C
 
 /* config openssl
  */
@@ -49,22 +49,22 @@ _cnt_msg_callback(chann_msg_t *msg)
         printf("cnt connected with chann %s:%d\n", addr.ip, addr.port);
 
         int ret = snprintf(cnt_ctx->buf, 256, "GET / HTTP/1.1\r\nUser-Agent: MNet/OpenSSL\r\nAccept: */*\r\n\r\n");
-        rw_result_t *rw = mnet_chann_send(msg->n, cnt_ctx->buf, ret);
-        printf("cnt send request to serevr with ret: %d, wanted: %d\n---\n%s\n---\n", rw->ret, ret, cnt_ctx->buf);
+        int len = mnet_chann_send(msg->n, cnt_ctx->buf, ret);
+        printf("cnt send request to serevr with ret: %d, wanted: %d\n---\n%s\n---\n", len, ret, cnt_ctx->buf);
     }
     else if (msg->event == CHANN_EVENT_RECV)
     {
-        rw_result_t *rw = mnet_chann_recv(msg->n, cnt_ctx->buf, 256);
-        if (rw->ret > 0)
+        int len = mnet_chann_recv(msg->n, cnt_ctx->buf, 256);
+        if (len > 0)
         {
-            cnt_ctx->buf[rw->ret] = 0;
-            printf("cnt recv response: %d\n---\n", rw->ret);
-            fwrite(cnt_ctx->buf, rw->ret, 1, stdout);
+            cnt_ctx->buf[len] = 0;
+            printf("cnt recv response: %d\n---\n", len);
+            fwrite(cnt_ctx->buf, len, 1, stdout);
             printf("\n---\n");
         }
-        else if (rw->ret < 0)
+        else if (len < 0)
         {
-            printf("cnt failed to recv with ret: %d\n", rw->ret);
+            printf("cnt failed to recv with ret: %d\n", len);
         }
     }
     else if (msg->event == CHANN_EVENT_DISCONNECT)
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
     }
 
     // use callback style api
-    mnet_init(0);
+    mnet_init();
     SSL_CTX *ctx = _openssl_ctx();
     if (!mnet_tls_config(ctx))
     {
@@ -98,23 +98,26 @@ int main(int argc, char *argv[])
     }
 
     chann_t *cnt = mnet_chann_open(CHANN_TYPE_TLS);
-    poll_result_t *results = NULL;
 
     cnt_ctx_t cnt_ctx;
     memset(&cnt_ctx, 0, sizeof(cnt_ctx_t));
 
     mnet_chann_set_opaque(cnt, &cnt_ctx);
-    mnet_chann_set_cb(cnt, _cnt_msg_callback);
+    //mnet_chann_set_cb(cnt, _cnt_msg_callback);
 
     mnet_chann_connect(cnt, addr.ip, addr.port);
     printf("cnt start connect: %s\n", ipaddr);
 
     for (;;)
     {
-        results = mnet_poll(0.1 * MNET_MILLI_SECOND);
-        if (results->chann_count <= 0)
+        if (mnet_poll(0.1 * MNET_MILLI_SECOND) <= 0)
         {
             break;
+        }
+
+        chann_msg_t *msg = NULL;
+        while ((msg = mnet_result_next())) {
+            _cnt_msg_callback(msg);
         }
     }
 
@@ -123,4 +126,4 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-#endif
+#endif // MNET_OPENSSL_CNT_C

@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (c) 2015 lalawue
- * 
+ *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
@@ -42,7 +42,7 @@ typedef enum {
 
 typedef struct s_mchann chann_t;
 
-typedef struct s_chann_msg {
+typedef struct {
    chann_event_t event;         /* event type */
    int err;                     /* errno */
    chann_t *n;                  /* chann to emit event */
@@ -51,17 +51,7 @@ typedef struct s_chann_msg {
 } chann_msg_t;
 
 typedef struct {
-   int chann_count;             /* active chann count, -1 for error */
-   void *reserved;              /* reserved for mnet */
-} poll_result_t;
-
-typedef struct {
-   int ret;                     /* recv/send data length, -1 for error */
-   chann_msg_t *msg;            /* for pull style */
-} rw_result_t;
-
-typedef struct {
-   char ip[16];
+   char ip[17];
    int port;
 } chann_addr_t;
 
@@ -82,29 +72,31 @@ void mnet_setlog(int level, mnet_log_cb);
 
 
 /* init before use chann
- * style 0: callback style
- * style 1: pull style API
- * return 0 on error
- */   
-int mnet_init(int style);
+ * - chann_count: pre-allocation chann count (may be expanding after open new chann)
+ */
+int mnet_init();
 void mnet_fini(void);
 
 /* return version */
 int mnet_version();
 
 /* report mnet chann status
- * 0: chann_count 
+ * 0: chann_count
  * 1: chann_detail
  */
 int mnet_report(int level);
 
+/* sync resolve host name, using after init under windows */
+int mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t*);
+
 /* dispatch chann event, milliseconds > 0, and it will cause
  * CHANN_EVENT_TIMER accurate
+ * return opened chann count, -1 for error
  */
-poll_result_t* mnet_poll(uint32_t milliseconds);
+int mnet_poll(uint32_t milliseconds);
 
-/* next msg for pull style */
-chann_msg_t* mnet_result_next(poll_result_t *result);
+/* next msg after mnet_poll() */
+chann_msg_t* mnet_result_next(void);
 
 /* channel
  */
@@ -119,8 +111,6 @@ int mnet_chann_listen(chann_t *n, const char *host, int port, int backlog);
 int mnet_chann_connect(chann_t *n, const char *host, int port);
 void mnet_chann_disconnect(chann_t *n);
 
-void mnet_chann_set_cb(chann_t *n, chann_msg_cb cb); /* only for callback style */
-
 void mnet_chann_set_opaque(chann_t *n, void *opaque); /* user defined data, return with chann_msg_t */
 void* mnet_chann_get_opaque(chann_t *n); /* user defined data in chann */
 
@@ -129,8 +119,9 @@ void* mnet_chann_get_opaque(chann_t *n); /* user defined data in chann */
  */
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
 
-rw_result_t* mnet_chann_recv(chann_t *n, void *buf, int len);
-rw_result_t* mnet_chann_send(chann_t *n, void *buf, int len); /* always cached would blocked data */
+/* send/recv data, return -1 for error and means disconnected */
+int mnet_chann_recv(chann_t *n, void *buf, int len);
+int mnet_chann_send(chann_t *n, void *buf, int len); /* send will always cached would blocked data */
 
 /* cached bytes not send
  */
@@ -146,11 +137,11 @@ int mnet_chann_socket_set_bufsize(chann_t *n, int bufsize); /* before listen/con
 
 /* tools without init
  */
-int64_t mnet_current(void); /* micro seconds */
-int mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t*);
+int64_t mnet_tm_current(void); /* micro seconds */
 int mnet_parse_ipport(const char *ipport, chann_addr_t *addr);
 
-/* extension interface
+/* Extension Interface
+ *
  * mnet extension was a external defined chann_type_t build on top of
  * internal chann_type_t as STREAM/DGRAM/BROADCAST
  */

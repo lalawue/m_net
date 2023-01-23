@@ -1,14 +1,16 @@
-/* 
+/*
  * Copyright (c) 2017 lalawue
- * 
+ *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
 
 /* NTP source code from https://github.com/edma2/ntp
- * 
+ *
  * Thanks Eugene Ma (edma2)
  */
+
+#ifdef EXAMPLE_NTP
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,8 +20,6 @@
 #include <time.h>
 #include <sys/time.h>
 #include "mnet_core.h"
-
-#ifdef EXAMPLE_NTP
 
 #define K_ONE_SECOND (1000000)
 
@@ -116,12 +116,12 @@ _ntp_event_cb(chann_msg_t *e) {
    ntp_ctx_t *ctx = (ntp_ctx_t*)e->opaque;
 
    if (e->event == CHANN_EVENT_RECV) {
-      rw_result_t *rw = mnet_chann_recv(e->n, &ctx->packet, sizeof(ctx->packet));
-      if (rw->ret == sizeof(ctx->packet)) {
+      int ret = mnet_chann_recv(e->n, &ctx->packet, sizeof(ctx->packet));
+      if (ret == sizeof(ctx->packet)) {
          printf("ntp: get response from ntp server:\n\n");
          _ntp_parse_response(ctx);
       } else {
-         printf("ntp: recieved invalid data length !\n");         
+         printf("ntp: recieved invalid data length !\n");
       }
 
       mnet_chann_close(e->n);;
@@ -139,7 +139,7 @@ _ntp_loop(ntp_ctx_t *ctx) {
    }
 
    // set event callback
-   mnet_chann_set_cb(udp, _ntp_event_cb);
+   //mnet_chann_set_cb(udp, _ntp_event_cb);
    mnet_chann_set_opaque(udp, ctx);
 
    // try connect ntp server
@@ -155,12 +155,12 @@ _ntp_loop(ntp_ctx_t *ctx) {
    ctx->packet.flags = NTP_VERSION;
 
    // send ntp request
-   rw_result_t *rw = mnet_chann_send(udp, &ctx->packet, sizeof(ctx->packet));
-   if (rw->ret != sizeof(ctx->packet)) {
+   int ret = mnet_chann_send(udp, &ctx->packet, sizeof(ctx->packet));
+   if (ret != sizeof(ctx->packet)) {
       printf("ntp: fail to send ntp request !\n");
       return;
    }
-   
+
    // wait event
    ctx->second_left = 15;
 
@@ -168,6 +168,11 @@ _ntp_loop(ntp_ctx_t *ctx) {
 
       if (mnet_poll( K_ONE_SECOND ) == 0) {
          break;
+      }
+
+      chann_msg_t *msg = NULL;
+      while ((msg = mnet_result_next())) {
+         _ntp_event_cb(msg);
       }
 
       ctx->second_left -= 1;
@@ -187,17 +192,17 @@ int main(int argc, char *argv[]) {
 
    printf("\n try resolve 'cn.ntp.org.cn' ...\n\n");
 
+   mnet_init();
+
    if ( mnet_resolve("cn.ntp.org.cn", 123, CHANN_TYPE_DGRAM, &addr) ) {
 
       memset(&ctx, 0, sizeof(ctx));
       ctx.addr = addr;
 
-      mnet_init(0);
-
       _ntp_loop(&ctx);
-
-      mnet_fini();
    }
+
+   mnet_fini();
 
    return 0;
 }

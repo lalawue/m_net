@@ -7,7 +7,7 @@
 //
 //
 
-#ifdef TEST_TIMER
+#ifdef TEST_TIMER_CPP
 
 #include <iostream>
 #include <string>
@@ -31,8 +31,8 @@ public:
 
    void defaultEventHandler(Chann *accept, chann_event_t event, int err) {
       if (event == CHANN_EVENT_RECV) {
-         rw_result_t *rw = channRecv(m_buf, sizeof(m_buf));
-         channSend(m_buf, rw->ret);
+         int ret = channRecv(m_buf, sizeof(m_buf));
+         channSend(m_buf, ret);
       }
    }
    char m_buf[kBufSize];
@@ -104,6 +104,7 @@ int main(int argc, char *argv[]) {
                if (event == CHANN_EVENT_ACCEPT) {
                   SvrChann *svr = new SvrChann(accept);
                   cout << "accept cnt " << svr << endl;
+                  delete accept;
                }
             });
 
@@ -124,8 +125,7 @@ int main(int argc, char *argv[]) {
          }
       }
 
-      poll_result_t *result;
-      while ((result = ChannDispatcher::pollEvent(0.5 * MNET_MILLI_SECOND)) && result->chann_count > 0) {
+      while (ChannDispatcher::pollEvent(0.5 * MNET_MILLI_SECOND) > 0) {
       }
 
       cout << "\nall cnt tested, exit !" << endl;
@@ -134,4 +134,4 @@ int main(int argc, char *argv[]) {
    return 0;
 }
 
-#endif // TEST_RECONNECT
+#endif // TEST_TIMER_CPP

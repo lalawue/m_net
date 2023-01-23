@@ -14,7 +14,6 @@ local setmetatable = setmetatable
 local mnet_core = require("mnet")
 
 local _poll = mnet_core.poll
-local _result_count = mnet_core.result_count
 local _result_next = mnet_core.result_next
 local _chann_open = mnet_core.chann_open
 local _chann_close = mnet_core.chann_close
@@ -160,13 +159,12 @@ function Core.current()
 end
 
 function Core.poll(milliseconds)
-    local result = _poll(milliseconds)
-    local chann_count = _result_count(result)
+    local chann_count = _poll(milliseconds)
     if chann_count < 0 then
         return -1
     elseif chann_count > 0 then
         while true do
-            local n, event, r = _result_next(result)
+            local n, event, r = _result_next()
             if n == nil then
                 break
             end
@@ -227,6 +225,8 @@ function Core.openChann(chann_type)
         chann._chann = _chann_open(Core.CHANN_TYPE_BROADCAST)
     elseif chann_type == "udp" then
         chann._chann = _chann_open(Core.CHANN_TYPE_DGRAM)
+    elseif chann_type == "tls" then
+        chann._chann = _chann_open(Core.CHANN_TYPE_TLS)
     else
         chann_type = "tcp"
         chann._chann = _chann_open(Core.CHANN_TYPE_STREAM)

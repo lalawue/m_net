@@ -5,7 +5,7 @@
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifdef TEST_TIMER_PULL_STYLE
+#ifdef TEST_TIMER_C
 
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
@@ -38,25 +38,23 @@ _as_server(chann_addr_t *addr) {
    printf("svr listen %s:%d\n", addr->ip, addr->port);
 
    char buf[kBufSize];
-   poll_result_t *results = NULL;
 
    for (;;) {
-      results = mnet_poll(0.5 * MNET_MILLI_SECOND);
-      if (results->chann_count < 0) {
+      if (mnet_poll(0.5 * MNET_MILLI_SECOND) < 0) {
          printf("poll error !\n");
          break;
       }
 
       chann_msg_t *msg = NULL;
-      while ((msg = mnet_result_next(results))) {
+      while ((msg = mnet_result_next())) {
          if (msg->n == svr) {
             if (msg->event == CHANN_EVENT_ACCEPT) {
                printf("accept cnt %p\n", msg->r);
             }
          } else {
             if (msg->event == CHANN_EVENT_RECV) {
-               rw_result_t *rw = mnet_chann_recv(msg->n, buf, kBufSize);
-               mnet_chann_send(msg->n, buf, rw->ret);
+               int ret = mnet_chann_recv(msg->n, buf, kBufSize);
+               mnet_chann_send(msg->n, buf, ret);
             }
          }
       }
@@ -80,33 +78,31 @@ _as_client(chann_addr_t *addr) {
    }
 
    char buf[kBufSize];
-   poll_result_t *results = NULL;
 
    for (;;) {
-      results = mnet_poll(0.5 * MNET_MILLI_SECOND);
-      if (results->chann_count <= 0) {
+      if (mnet_poll(0.5 * MNET_MILLI_SECOND) <= 0) {
          printf("all cnt tested, exit !\n");
          break;
       }
 
       chann_msg_t *msg = NULL;
-      while ((msg = mnet_result_next(results))) {
+      while ((msg = mnet_result_next())) {
 
          ctx_t *ctx = (ctx_t *)msg->opaque;
 
          if (msg->event == CHANN_EVENT_CONNECTED) {
-            ctx->connected_time = mnet_current();
-            printf("%d: connected time %lld\n", ctx->idx, ctx->connected_time);
+            ctx->connected_time = mnet_tm_current();
+            printf("%d: connected time %ld\n", ctx->idx, ctx->connected_time);
          } else if (msg->event == CHANN_EVENT_RECV) {
             mnet_chann_recv(msg->n, buf, kBufSize);
             printf("%d: recv '%s'\n", ctx->idx, buf);
          } else if (msg->event == CHANN_EVENT_TIMER) {
-            ctx->duration = (mnet_current() - ctx->connected_time) / (MNET_MILLI_SECOND * 1000);
+            ctx->duration = (mnet_tm_current() - ctx->connected_time) / (MNET_MILLI_SECOND * 1000);
             if (ctx->duration > 10) {
-               printf("%d: over 10 seconds, time %lld\n", ctx->idx, mnet_current());
+               printf("%d: over 10 seconds, time %ld\n", ctx->idx, mnet_tm_current());
                mnet_chann_close(msg->n);
             } else {
-               int ret = snprintf(buf, kBufSize, "HelloServ duration %lld", ctx->duration);
+               int ret = snprintf(buf, kBufSize, "HelloServ duration %ld", ctx->duration);
                mnet_chann_send(msg->n, buf, ret);
             }
          }
@@ -146,4 +142,4 @@ main(int argc, char *argv[]) {
    return 0;
 }
 
-#endif  /* TEST_RECONNECT_PULL_STYLE */
+#endif  /* TEST_TIMER_C */

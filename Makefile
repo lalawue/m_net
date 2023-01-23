@@ -59,43 +59,43 @@ all:
 	@echo "try make with these"
 	@echo "$$ make clean"
 	@echo "$$ make lib		# only make library"
-	@echo "$$ make pull		# make pull style example"
-	@echo "$$ make callback		# make callback style example"
+	@echo "$$ make example_c	# make C example"
+	@echo "$$ make example_cpp	# make CPP example"
 	@echo "$$ make openssl		# make openssl example"
 
 lib: $(LIB_SRCS)
 	@mkdir -p build
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $^ -lc -shared -fPIC
 
-pull: $(E_SRCS) $(T_SRCS)
+example_c: $(E_SRCS) $(T_SRCS)
 	@mkdir -p build
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $(LIB_SRCS) -lc -shared -fPIC
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_pull_style.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_PULL_STYLE
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/chann_web_pull_style.out $^ $(LIBS) -DEXAMPLE_CHANN_WEB_PULL_STYLE
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_reconnect_pull_style.out $^ $(LIBS) -DTEST_RECONNECT_PULL_STYLE
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_rwdata_pull_style.out $^ $(LIBS) -DTEST_RWDATA_PULL_STYLE
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_timer_pull_style.out $^ $(LIBS) -DTEST_TIMER_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_c.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_cnt_c.out $^ $(LIBS) -DEXAMPLE_ECHO_CNT_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/chann_web_c.out $^ $(LIBS) -DEXAMPLE_CHANN_WEB_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_reconnect_c.out $^ $(LIBS) -DTEST_RECONNECT_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_rwdata_c.out $^ $(LIBS) -DTEST_RWDATA_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_timer_c.out $^ $(LIBS) -DTEST_TIMER_C
 
-callback: $(CPP_SRCS)
+example_cpp: $(CPP_SRCS)
 	@mkdir -p build
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $(LIB_SRCS) -lc -shared -fPIC
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_svr.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_cnt.out $^ $(LIBS) -DEXAMPLE_ECHO_CNT
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/chann_web_callback_style.out $^ $(LIBS) -DEXAMPLE_CHANN_WEB_CALLBACK_STYLE
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_reconnect.out $^ $(LIBS) -DTEST_RECONNECT
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_rwdata.out $^ $(LIBS) -DTEST_RWDATA
-	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_timer.out $^ $(LIBS) -DTEST_TIMER
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_svr_cpp.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_CPP
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/chann_web_cpp.out $^ $(LIBS) -DEXAMPLE_CHANN_WEB_CPP
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_reconnect_cpp.out $^ $(LIBS) -DTEST_RECONNECT_CPP
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_rwdata_cpp.out $^ $(LIBS) -DTEST_RWDATA_CPP
+	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_timer_cpp.out $^ $(LIBS) -DTEST_TIMER_CPP
 
 openssl: $(OE_SRCS) $(OL_SRCS) $(OT_SRCS)
 	@mkdir -p build
 	@echo "export MNET_OPENSSL_DIR=$(MNET_OPENSSL_DIR)"
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(O_LIBS)
 	@cd build && ln -sf $(MNET_LIBNAME) mnet.so
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_svr $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_SVR
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_cnt $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_CNT
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_reconnect $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RECONNECT_PULL_STYLE
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_rwdata $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RWDATA_PULL_STYLE
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_svr $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_SVR_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_cnt $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_CNT_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_reconnect $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RECONNECT_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_rwdata $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RWDATA_C
 
 clean:
 	rm -rf build

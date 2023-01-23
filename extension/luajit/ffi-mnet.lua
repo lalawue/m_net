@@ -41,26 +41,16 @@ typedef enum {
 
 typedef struct s_mchann chann_t;
 
-typedef struct s_chann_msg {
+typedef struct {
    chann_event_t event;         /* event type */
    int err;                     /* errno */
    chann_t *n;                  /* chann to emit event */
    chann_t *r;                  /* chann accept from remote */
-   struct s_chann_msg *next;    /* modified as next msg for pull style */
+   void *opaque;                /* modified as next msg for pull style */
 } chann_msg_t;
 
 typedef struct {
-   int chann_count;             /* -1 for error */
-   chann_msg_t *msg;            /* msg for pull style result */
-} poll_result_t;
-
-typedef struct {
-   int ret;                     /* recv/send data length */
-   chann_msg_t *msg;            /* msg for pull style result */
-} rw_result_t;
-
-typedef struct {
-   char ip[16];
+   char ip[17];
    int port;
 } chann_addr_t;
 
@@ -82,8 +72,8 @@ int mnet_report(int level);
  */
 void mnet_setlog(int level, void *);
 
-poll_result_t* mnet_poll(uint32_t milliseconds); /* dispatch chann event,  */
-chann_msg_t* mnet_result_next(poll_result_t *result); /* next msg */
+int mnet_poll(uint32_t milliseconds); /* dispatch chann event,  */
+chann_msg_t* mnet_result_next(void); /* next msg */
 
 
 /* channel */
@@ -103,8 +93,8 @@ uintptr_t mnet_chann_get_opaque(chann_t *n);
 
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t active);
 
-rw_result_t* mnet_chann_recv(chann_t *n, const char *buf, int len);
-rw_result_t* mnet_chann_send(chann_t *n, const char *buf, int len);
+int mnet_chann_recv(chann_t *n, const char *buf, int len);
+int mnet_chann_send(chann_t *n, const char *buf, int len);
 
 int mnet_chann_cached(chann_t *n);
 
@@ -176,7 +166,7 @@ local _addr = ffi.new("chann_addr_t[1]")
 local _recvbuf = ffi.new("uint8_t[?]", Core._recvsize)
 
 function Core.init()
-    mNet.mnet_init(1)
+    mNet.mnet_init()
 end
 
 function Core.fini()
@@ -272,11 +262,11 @@ local Chann = {
 Chann.__index = Chann
 
 function Core.poll(milliseconds)
-    local result = mNet.mnet_poll(milliseconds)
-    if result.chann_count < 0 then
+    local chann_count = mNet.mnet_poll(milliseconds)
+    if chann_count < 0 then
         return -1
-    elseif result.chann_count > 0 then
-        local msg = mNet.mnet_result_next(result)
+    elseif chann_count > 0 then
+        local msg = mNet.mnet_result_next()
         while msg ~= nil do
             local accept = nil
             if msg.r ~= nil then
@@ -291,10 +281,10 @@ function Core.poll(milliseconds)
             if chann and callback then
                 callback(chann, EventNamesTable[tonumber(msg.event)], accept, msg)
             end
-            msg = mNet.mnet_result_next(result)
+            msg = mNet.mnet_result_next()
         end
     end
-    return result.chann_count
+    return chann_count
 end
 
 function Core.resolve(host, port, chann_type)
@@ -341,7 +331,6 @@ function Core.openChann(chann_type)
     elseif chann_type == "udp" then
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_DGRAM)
     elseif chann_type == "tls" then
-        chann_type = "tls"
         chann._chann = mNet.mnet_chann_open(mNet.CHANN_TYPE_TLS)
     else
         chann_type = "tcp"
@@ -401,19 +390,19 @@ end
 
 function Chann:recv()
     local len = Core._recvsize
-    local rw = mNet.mnet_chann_recv(self._chann, _recvbuf, len)
-    if rw.ret <= 0 then
+    local ret = mNet.mnet_chann_recv(self._chann, _recvbuf, len)
+    if ret <= 0 then
         return nil
     end
-    return ffi.string(_recvbuf, rw.ret)
+    return ffi.string(_recvbuf, ret)
 end
 
 function Chann:send(data)
     if type(data) ~= "string" then
         return false
     end
-    local rw = mNet.mnet_chann_send(self._chann, data, data:len())
-    if rw.ret <= 0 then
+    local ret = mNet.mnet_chann_send(self._chann, data, data:len())
+    if ret <= 0 then
         return false
     else
         return true

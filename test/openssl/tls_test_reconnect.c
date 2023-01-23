@@ -5,7 +5,7 @@
  * under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifdef MNET_TLS_TEST_RECONNECT_PULL_STYLE
+#ifdef MNET_TLS_TEST_RECONNECT_C
 
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
@@ -37,17 +37,15 @@ _as_server(chann_addr_t *addr) {
    printf("svr listen %s:%d\n", addr->ip, addr->port);
 
    char buf[128];
-   poll_result_t *results = NULL;
 
    for (;;) {
-      results = mnet_poll(MNET_MILLI_SECOND);
-      if (results->chann_count < 0) {
+      if (mnet_poll(MNET_MILLI_SECOND) < 0) {
          printf("poll error !\n");
          break;
       }
 
       chann_msg_t *msg = NULL;
-      while ((msg = mnet_result_next(results))) {
+      while ((msg = mnet_result_next())) {
          if (msg->n == svr) {
             if (msg->event == CHANN_EVENT_ACCEPT) {
                printf("accept cnt %p\n", msg->r);
@@ -55,10 +53,10 @@ _as_server(chann_addr_t *addr) {
             continue;
          }
          if (msg->event == CHANN_EVENT_RECV) {
-            rw_result_t *rw = mnet_chann_recv(msg->n, buf, sizeof(buf));
-            if (rw->ret > 0) {
+            int len = mnet_chann_recv(msg->n, buf, sizeof(buf));
+            if (len > 0) {
                mnet_chann_active_event(msg->n, CHANN_EVENT_SEND, 1);
-               mnet_chann_send(msg->n, buf, rw->ret);
+               mnet_chann_send(msg->n, buf, len);
             }
          }
          else if (msg->event == CHANN_EVENT_SEND ||
@@ -86,24 +84,22 @@ _as_client(chann_addr_t *addr) {
    }
 
    char buf[128];
-   poll_result_t *results = NULL;
 
    for (;;) {
-      
-      results = mnet_poll(MNET_MILLI_SECOND);
-      if (results->chann_count <= 0) {
+
+      if (mnet_poll(MNET_MILLI_SECOND) <= 0) {
          printf("all cnt tested, exit !\n");
          break;
       }
 
-      chann_msg_t *msg = NULL;      
-      while ((msg = mnet_result_next(results))) {
+      chann_msg_t *msg = NULL;
+      while ((msg = mnet_result_next())) {
 
          ctx_t *ctx = (ctx_t *)msg->opaque;
 
          if (msg->event == CHANN_EVENT_CONNECTED) {
             int ret = snprintf(buf, sizeof(buf), "HelloServ %d", ctx->idx);
-            if (ret == mnet_chann_send(msg->n, buf, ret)->ret) {
+            if (ret == mnet_chann_send(msg->n, buf, ret)) {
                printf("%d: connected, send '%s'\n", ctx->idx, buf);
             } else {
                printf("%d: connected, fail to send with ret %d\n", ctx->idx, ret);
@@ -149,7 +145,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    mnet_init(1); /* use pull style api */
+    mnet_init(); /* use pull style api */
 
     SSL_library_init();
     SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
@@ -183,4 +179,4 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-#endif /* MNET_TLS_TEST_RECONNECT_PULL_STYLE */
+#endif /* MNET_TLS_TEST_RECONNECT_C */
