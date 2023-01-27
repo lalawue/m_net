@@ -50,8 +50,8 @@ O_LIBS := -lssl -lcrypto
 
 .PHONY : all
 .PHONY : lib
-.PHONY : pull
-.PHONY : callback
+.PHONY : example_c
+.PHONY : example_cpp
 .PHONY : openssl
 .PHONY : clean
 

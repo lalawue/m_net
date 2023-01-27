@@ -64,7 +64,7 @@ _check_type(lua_State *L, int *types, int count, int nline) {
 
 static int
 _mnet_init(lua_State *L) {
-   int ret = mnet_init();      /* pull style API */
+   int ret = mnet_init();
    lua_pushboolean(L, ret);
    if (ret && !g_buf) {
       g_buf = calloc(1, MNET_BUF_SIZE);

@@ -46,7 +46,7 @@ typedef struct {
    int err;                     /* errno */
    chann_t *n;                  /* chann to emit event */
    chann_t *r;                  /* chann accept from remote */
-   void *opaque;                /* modified as next msg for pull style */
+   void *opaque;                /* user defined pointer */
 } chann_msg_t;
 
 typedef struct {
@@ -55,9 +55,9 @@ typedef struct {
 } chann_addr_t;
 
 /* init before use chann */
-int mnet_init(int); /* 0: callback style
-                       1: pull style api*/
+int mnet_init(void);
 void mnet_fini(void);
+
 int mnet_version(void);
 
 /* 0: chann_count

@@ -41,7 +41,6 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    // use pull style api
     mnet_init();
     SSL_CTX *ctx = _openssl_ctx();
     if (!mnet_tls_config(ctx))

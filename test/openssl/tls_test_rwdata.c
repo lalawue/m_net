@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    mnet_init(); /* use pull style api */
+    mnet_init();
 
     SSL_library_init();
     SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());

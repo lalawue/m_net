@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
       return 0;
    }
 
-   mnet_init();                /* use pull style api */
+   mnet_init();
 
    chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
    char buf[256];

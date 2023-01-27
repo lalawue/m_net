@@ -71,10 +71,8 @@ void mnet_allocator(void* (*new_malloc)(int),
 void mnet_setlog(int level, mnet_log_cb);
 
 
-/* init before use chann
- * - chann_count: pre-allocation chann count (may be expanding after open new chann)
- */
-int mnet_init();
+/* init before use chann */
+int mnet_init(void);
 void mnet_fini(void);
 
 /* return version */
@@ -119,7 +117,7 @@ void* mnet_chann_get_opaque(chann_t *n); /* user defined data in chann */
  */
 void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
 
-/* send/recv data, return -1 for error and means disconnected */
+/* send/recv data, return -1 for error */
 int mnet_chann_recv(chann_t *n, void *buf, int len);
 int mnet_chann_send(chann_t *n, void *buf, int len); /* send will always cached would blocked data */
 

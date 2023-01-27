@@ -126,7 +126,7 @@ main(int argc, char *argv[]) {
       return 0;
    }
 
-   mnet_init(1);                /* use pull style api */
+   mnet_init();
 
    if (strcmp(option, "-s") == 0) {
       _as_server(&addr);

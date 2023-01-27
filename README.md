@@ -67,8 +67,7 @@ public:
       if (event == CHANN_EVENT_RECV) {
          int ret = channRecv(m_buf, 256);
          channSend(m_buf, ret);
-      }
-      if (event == CHANN_EVENT_DISCONNECT) {
+      } else if (event == CHANN_EVENT_DISCONNECT) {
          delete this;           // release chann
       }
    }
@@ -124,8 +123,7 @@ _on_cnt_event(chann_msg_t *msg) {
             mnet_chann_close(msg->n);
          }
       }
-   }
-   if (msg->event == CHANN_EVENT_DISCONNECT) {
+   } else if (msg->event == CHANN_EVENT_DISCONNECT) {
       mnet_chann_close(msg->n);
    }
 }
@@ -140,7 +138,6 @@ main(int argc, char *argv[]) {
       if (mnet_parse_ipport(argv[1], &addr) > 0)  {
          mnet_init();
          chann_t *cnt = mnet_chann_open(CHANN_TYPE_STREAM);
-         mnet_chann_set_cb(cnt, _on_cnt_event, NULL);
 
          printf("cnt try connect %s:%d...\n", addr.ip, addr.port);
          mnet_chann_connect(cnt, addr.ip, addr.port);
@@ -229,7 +226,7 @@ get testing code and readme under [examples/openssl/](https://github.com/lalawue
 
 ## LuaJIT TLS wrapper
 
-ffi-mnet under `extension/luajit/` also support OpenSSL after you build libary support and export DYLD_LIBRARY_PATH.
+ffi-mnet under `extension/luajit/` also support OpenSSL after you build libary support and `export LD_LIBRARY_PATH` or `export DYLD_LIBRARY_PATH`.
 
 ```sh
 $ export LUA_PATH=./extension/luajit/?.lua
@@ -248,7 +245,7 @@ Details in [tls_web_cnt.lua](https://github.com/lalawue/m_net/tree/master/exampl
 
 # Tests
 
-only point to point testing, with callback/pull Style API, no unit test right now.
+only point to point testing, no unit test right now.
 
 ## Core Test
 
@@ -260,7 +257,7 @@ C/C++ core test in [test](https://github.com/lalawue/m_net/tree/master/test) dir
 
 ## OpenSSL Test
 
-OpenSSL test in [test/openssl/](https://github.com/lalawue/m_net/tree/master/test/openssl) dir, only provide pull style test.
+OpenSSL test in [test/openssl/](https://github.com/lalawue/m_net/tree/master/test/openssl) dir.
 
 - tls_test_reconnect: test multi channs (default 256 with 'ulimits -n') in client connect/disconnect server 5 times
 - tls_test_rwdata: client send sequence data with each byte from 0 ~ 255, and wanted same data back, up to 1 GB
@@ -270,7 +267,7 @@ OpenSSL test in [test/openssl/](https://github.com/lalawue/m_net/tree/master/tes
 
 take simple example above, or details in [examples](https://github.com/lalawue/m_net/tree/master/examples).
 
-including UDP/TCP, C/C++, callback/pull style API, timer event examples, also prvode Lua/LuaJIT one as a tiny web server.
+including UDP/TCP, C/C++, timer event examples, also prvode Lua/LuaJIT one as a tiny web server.
 
 
 
@@ -284,7 +281,7 @@ Intel 12700F 64G, server and wrk in same PC.
 benchmark for `examples/chann_web.c`
 
 ```
-$ make callback
+$ make example_c
 $ ./build/chann_web_c.out
 ```
 
@@ -293,17 +290,17 @@ $ wrk -t8 -c200 --latency http://127.0.0.1:8080
 Running 10s test @ http://127.0.0.1:8080
   8 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     2.69ms    0.87ms  11.03ms   71.33%
-    Req/Sec     9.20k     1.39k   12.94k    68.81%
+    Latency     2.52ms  716.89us  16.20ms   76.31%
+    Req/Sec     9.82k     0.98k   18.08k    80.35%
   Latency Distribution
-     50%    2.66ms
-     75%    3.18ms
-     90%    3.62ms
-     99%    6.17ms
-  739951 requests in 10.10s, 7.40GB read
-  Socket errors: connect 0, read 1401, write 0, timeout 0
-Requests/sec:  73255.33
-Transfer/sec:    750.45MB
+     50%    2.48ms
+     75%    2.73ms
+     90%    3.27ms
+     99%    4.97ms
+  785546 requests in 10.10s, 7.85GB read
+  Socket errors: connect 0, read 1310, write 0, timeout 0
+Requests/sec:  77772.27
+Transfer/sec:    795.91MB
 ```
 
 ## CPP API
@@ -311,7 +308,7 @@ Transfer/sec:    750.45MB
 benchmark for `examples/chann_web.cpp`
 
 ```
-$ make pull
+$ make example_cpp
 $ ./build/chann_web_cpp.out
 ```
 
@@ -377,17 +374,17 @@ $ wrk -t8 -c200 --latency http://127.0.0.1:8080
 Running 10s test @ http://127.0.0.1:8080
   8 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     2.61ms    0.95ms  79.69ms   94.69%
-    Req/Sec     9.68k     0.99k   16.42k    67.79%
+    Latency     2.51ms  800.51us  73.30ms   94.13%
+    Req/Sec    10.03k     0.92k   13.18k    63.24%
   Latency Distribution
-     50%    2.67ms
-     75%    2.97ms
-     90%    3.08ms
-     99%    3.40ms
-  774119 requests in 10.10s, 7.31GB read
-  Socket errors: connect 0, read 67, write 0, timeout 0
-Requests/sec:  76648.12
-Transfer/sec:    740.77MB
+     50%    2.51ms
+     75%    2.82ms
+     90%    2.90ms
+     99%    3.92ms
+  806331 requests in 10.10s, 8.06GB read
+  Socket errors: connect 0, read 88, write 0, timeout 0
+Requests/sec:  79828.78
+Transfer/sec:    816.96MB
 ```
 
 

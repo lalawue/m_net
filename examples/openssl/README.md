@@ -170,5 +170,5 @@ Create your own SSL_CTX, and set config with `mnet_tls_config(SSL_CTX *ctx)`, th
 
 That's all.
 
-- examples/openssl/tls_svr.c using pull style API
-- examples/openssl/tls_cnt.c using callback style API
+- examples/openssl/tls_svr.c
+- examples/openssl/tls_cnt.c
