@@ -142,11 +142,10 @@ main(int argc, char *argv[]) {
          printf("cnt try connect %s:%d...\n", addr.ip, addr.port);
          mnet_chann_connect(cnt, addr.ip, addr.port);
 
-         poll_result_t *r = NULL;
-         while ((r = mnet_poll(1000000) && r->chann_count > 0 {
+         while (mnet_poll(1000000) > 0 {
 
             chann_msg_t *msg = NULL;
-            while ((msg = mnet_result_next(r)) {
+            while ((msg = mnet_result_next()) {
 
                _on_cnt_event(msg);
             }
