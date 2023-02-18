@@ -13,8 +13,10 @@ endif
 
 ifeq ($(UNAME_S), Darwin)
 	MNET_LIBNAME=libmnet.dylib
+        LUA_LIBNAME=mnet.so
 else
 	MNET_LIBNAME=libmnet.so
+        LUA_LIBNAME=mnet.so
 endif
 
 CFLAGS= -Wall -std=c99 -Wdeprecated-declarations -D_POSIX_C_SOURCE=200112L
@@ -66,10 +68,12 @@ all:
 lib: $(LIB_SRCS)
 	@mkdir -p build
 	$(CC) $(RELEASE) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $^ -lc -shared -fPIC
+	cd build && ln -sf $(MNET_LIBNAME) $(LUA_LIBNAME)
 
 example_c: $(E_SRCS) $(T_SRCS)
 	@mkdir -p build
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $(LIB_SRCS) -lc -shared -fPIC
+	cd build && ln -sf $(MNET_LIBNAME) $(LUA_LIBNAME)
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/ntp.out $^ $(LIBS) -DEXAMPLE_NTP
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_c.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_C
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_cnt_c.out $^ $(LIBS) -DEXAMPLE_ECHO_CNT_C
@@ -81,6 +85,7 @@ example_c: $(E_SRCS) $(T_SRCS)
 example_cpp: $(CPP_SRCS)
 	@mkdir -p build
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/$(MNET_LIBNAME) $(LIB_SRCS) -lc -shared -fPIC
+	cd build && ln -sf $(MNET_LIBNAME) $(LUA_LIBNAME)
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/echo_svr_cpp.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_CPP
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/chann_web_cpp.out $^ $(LIBS) -DEXAMPLE_CHANN_WEB_CPP
 	$(CPP) $(DEBUG) $(CPPFLAGS) $(INCS) --std=c++0x -o build/test_reconnect_cpp.out $^ $(LIBS) -DTEST_RECONNECT_CPP
@@ -90,12 +95,12 @@ example_cpp: $(CPP_SRCS)
 openssl: $(OE_SRCS) $(OL_SRCS) $(OT_SRCS)
 	@mkdir -p build
 	@echo "export MNET_OPENSSL_DIR=$(MNET_OPENSSL_DIR)"
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(O_LIBS)
-	@cd build && ln -sf $(MNET_LIBNAME) mnet.so
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_svr $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_SVR_C
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_cnt $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_CNT_C
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_reconnect $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RECONNECT_C
-	$(CC) $(DEBUG) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_rwdata $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RWDATA_C
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/$(MNET_LIBNAME) $^ $(LIB_SRCS) -lc -shared -fPIC $(O_LIBS)
+	cd build && ln -sf $(MNET_LIBNAME) $(LUA_LIBNAME)
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_svr $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_SVR_C
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_cnt $^ $(O_LIBS) -lmnet -DMNET_OPENSSL_CNT_C
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_reconnect $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RECONNECT_C
+	$(CC) $(RELEASE) $(CFLAGS) $(INCS) $(O_INCS) $(O_DIRS) -o build/tls_test_rwdata $^ $(O_LIBS) -lmnet -DMNET_TLS_TEST_RWDATA_C
 
 clean:
 	rm -rf build

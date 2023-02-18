@@ -230,7 +230,7 @@ ffi-mnet under `extension/luajit/` also support OpenSSL after you build libary s
 ```sh
 $ export LUA_PATH=./extension/luajit/?.lua
 $ export LUA_CPATH=./build/?.so
-$ luajit examples/openssl/tls_web.lua
+$ luajit examples/openssl/tls_web_svr.lua
 ```
 
 then you can visit `https://127.0.0.1:8080` with browser, or
