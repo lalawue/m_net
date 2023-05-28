@@ -138,7 +138,7 @@ typedef struct {
    void *chann;                 /* chann pointer */
 } chann_tm_t;
 
-struct s_mchann {
+struct s_chann {
    int fd;                      /* socket fd */
    chann_state_t state;         /* chann state */
    chann_type_t ctype;          /* 'tcp', 'udp', 'broadcast' */
@@ -737,13 +737,13 @@ _chann_destroy(mnet_t *ss, chann_t *n) {
 }
 
 static inline char*
-_chann_addr(chann_t *n) {
-   return inet_ntoa(n->addr.sin_addr);
+_chann_addr(struct sockaddr_in *addr) {
+   return inet_ntoa(addr->sin_addr);
 }
 
 static inline int
-_chann_port(chann_t *n) {
-   return ntohs(n->addr.sin_port);
+_chann_port(struct sockaddr_in *addr) {
+   return ntohs(addr->sin_port);
 }
 
 static chann_t*
@@ -757,7 +757,7 @@ _chann_accept(mnet_t *ss, chann_t *n) {
       c->addr = addr;
       c->addr_len = addr_len;
       mm_log(n, MNET_LOG_VERBOSE, "chann accept %p fd %d, from %s, count %d\n",
-            c, c->fd, _chann_addr(c), ss->chann_count);
+            c, c->fd, _chann_addr(&c->addr), ss->chann_count);
       mnet_ext_t *ext = _ext_config(n->ctype);
       ext->accept_cb(ext->ext_ctx, c);
       return c;
@@ -1376,7 +1376,7 @@ mnet_report(int level) {
          mm_log(NULL, 0, "-------- channs(%d) --------\n", ss->chann_count);
          chann_t *n = ss->channs;
          while (n) {
-            mm_log(NULL, 0, "chann:%p fd:%d state:%d %s:%d\n", n, n->fd, n->state, _chann_addr(n), _chann_port(n));
+            mm_log(NULL, 0, "chann:%p fd:%d state:%d %s:%d\n", n, n->fd, n->state, _chann_addr(&n->addr), _chann_port(&n->addr));
             n = n->next;
          }
          mm_log(NULL, 0, "------------------------\n");
@@ -1703,9 +1703,23 @@ mnet_chann_socket_set_bufsize(chann_t *n, int bufsize) {
 int
 mnet_chann_socket_addr(chann_t *n, chann_addr_t *addr) {
    if (n && addr) {
-      strncpy(addr->ip, _chann_addr(n), 16);
-      addr->port = _chann_port(n);
+      strncpy(addr->ip, _chann_addr(&n->addr), 16);
+      addr->port = _chann_port(&n->addr);
       return 1;
+   }
+   return 0;
+}
+
+int
+mnet_chann_peer_addr(chann_t *n, chann_addr_t *out_addr) {
+   if (n && n->state>=CHANN_STATE_CONNECTED && out_addr) {
+      struct sockaddr_in addr;
+      socklen_t addr_len = sizeof(addr);
+      if (0 == getpeername(n->fd, (struct sockaddr*)&addr, &addr_len)) {
+         strncpy(out_addr->ip, _chann_addr(&addr), 16);
+         out_addr->port = _chann_port(&addr);
+         return 1;
+      }
    }
    return 0;
 }

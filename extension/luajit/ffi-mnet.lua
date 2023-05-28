@@ -39,7 +39,7 @@ typedef enum {
    CHANN_EVENT_DISCONNECT,   /* socket disconnect when EOF or error */
 } chann_event_t;
 
-typedef struct s_mchann chann_t;
+typedef struct s_chann chann_t;
 
 typedef struct {
    chann_event_t event;         /* event type */

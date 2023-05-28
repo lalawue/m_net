@@ -40,7 +40,7 @@ typedef enum {
    CHANN_EVENT_TIMER,          /* user defined interval, highest priority */
 } chann_event_t;
 
-typedef struct s_mchann chann_t;
+typedef struct s_chann chann_t;
 
 typedef struct {
    chann_event_t event;         /* event type */
@@ -131,6 +131,7 @@ long long mnet_chann_bytes(chann_t *n, int be_send);
 /* underlying socket for chann
  */
 int mnet_chann_socket_addr(chann_t *n, chann_addr_t*);
+int mnet_chann_peer_addr(chann_t *n, chann_addr_t*);
 int mnet_chann_socket_set_bufsize(chann_t *n, int bufsize); /* before listen/connect */
 
 /* tools without init
