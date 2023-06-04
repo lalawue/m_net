@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (c) 2020 lalawue
- * 
+ *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the MIT license. See LICENSE for details.
  */
@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include "mdns_utils.h"
+#include "mdns.h"
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
 #else
@@ -32,12 +32,12 @@ typedef struct {
       rd: 1,                    // recursion desired
       tc: 1,                    // truncated message
       aa: 1,                    // authoritive answer
-      opcode: 4,                // purpose of message 
+      opcode: 4,                // purpose of message
       qr: 1,                    // query/response flag
       rcode: 4,                 // response code
       z: 3,
       ra: 1;                    // recursion available
-    
+
    unsigned short qdcount;
    unsigned short ancount;
    unsigned short nscount;
@@ -63,7 +63,7 @@ _sizeof_dns_rr_data(void) {
    return sizeof(dns_rr_data_t) - 2;
 }
 
-/* 
+/*
  */
 
 #define DNS_SVR_PORT 53
@@ -111,7 +111,7 @@ static int
 _response_check_header(const uint8_t *buf) {
    const dns_header_t *rh = (dns_header_t*)buf;
    const int code = rh->rcode;
-   
+
    if (//(rh->id != qid) || // check qid in fetch id phrase
        (rh->qr != 1) ||
        (rh->opcode != 0) ||
@@ -133,7 +133,7 @@ _response_check_header(const uint8_t *buf) {
       return -(10 + code);
    }
 
-   return 1;   
+   return 1;
 }
 
 static int
@@ -156,7 +156,7 @@ _response_check_question(const uint8_t *buf,
       // ignore qtype and qclass
       //return 0;
    }
-   
+
    return 1;
 }
 
@@ -168,22 +168,22 @@ _response_fetch_res(const uint8_t *buf,
                     uint8_t *out_ipv4)
 {
    const dns_header_t *rh = (dns_header_t*)buf;
-   int aname_size = 0;   
+   int aname_size = 0;
    char *rsp_aname = NULL;
    dns_rr_data_t *rsp_answer = NULL;
 
    int prev_size = query_size;
-   
+
    int i = 0;
    for ( i=0; i<ntohs(rh->ancount); i++) {
       //printf("prev_size: %d\n", prev_size);
-       
+
       if (content_len <= (prev_size + 2 + (int)sizeof(dns_header_t))) {
          return -31;
       }
 
       rsp_aname = (char*)&buf[prev_size];
-      //printf("rsp name %d\n", (int)strlen(rsp_aname));      
+      //printf("rsp name %d\n", (int)strlen(rsp_aname));
 
       if ((aname_size = strlen(rsp_aname)) < 2 ||
           content_len <= (prev_size + aname_size + _sizeof_dns_rr_data()))
@@ -234,7 +234,7 @@ mdns_query_build(uint8_t *buf,
 
    uint8_t domain_buf[QUERY_DOMAIN_LEN];
    memset(domain_buf, 0, QUERY_DOMAIN_LEN);
-   
+
    uint8_t dlen = _construct_domain_field(domain_buf, domain);
    if (dlen == 0) {
       return -2;
@@ -253,16 +253,16 @@ mdns_query_build(uint8_t *buf,
    h->ra = 0;                   /* Recursion not available */
    h->z = 0;
    h->rcode = 0;
-   
+
    h->qdcount = htons(1);
    h->ancount  = 0;
    h->nscount = 0;
    h->arcount  = 0;
-   
+
    /* fill qname */
    char *qname = (char*)&buf[sizeof(dns_header_t)];
    memcpy(qname, domain_buf, dlen);
-   
+
    dns_question_t *q = (dns_question_t*)&buf[sizeof(dns_header_t) + dlen + 1];
    q->qtype = htons(1);         /* IPv4 */
    q->qclass = htons(1);        /* internet */
@@ -276,7 +276,7 @@ mdns_response_fetch_qid(const uint8_t *buf, int content_len) {
       return 0;
    }
    const dns_header_t *rh = (dns_header_t*)buf;
-   return rh->id;   
+   return rh->id;
 }
 
 int

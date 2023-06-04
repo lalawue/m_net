@@ -55,6 +55,9 @@ local function clientCallback(self, eventName, accept, c_msg)
             local s, e = recv_data:find('\r\n\r\n', last_pos, true)
             if s and e then
                 last_pos = e + 1
+                print("______ Recv HTTP Request ______")
+                print(recv_data:sub(1, last_pos-4))
+                recv_data = recv_data:sub(-last_pos)
                 self:send(http_response)
             else
                 recv_data = recv_data:sub(last_pos)

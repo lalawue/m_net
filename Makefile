@@ -29,7 +29,7 @@ RELEASE= -O2
 LIBS= -lc -lmnet -Lbuild
 
 LIB_SRCS := $(shell find src -name "*.c")
-LIB_SRCS += $(shell find extension/mdns_utils -name "*.c")
+LIB_SRCS += $(shell find extension/mdns -name "*.c")
 
 E_SRCS := $(shell find examples -maxdepth 1 -name "*.c")
 T_SRCS := $(shell find test -maxdepth 1 -name "*.c")

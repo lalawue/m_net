@@ -171,12 +171,12 @@ $ luarocks make
 $ lua examples/chann_web.lua
 ```
 
-open browser to visit 'http://127.0.0.1:8080' and get 'hello, world !', and you will get browser's request infomation in terminal side.
+open browser to visit 'http://127.0.0.1:8080' and get `README.md` plain text, and you will get browser's request infomation in terminal side.
 
 
 # DNS query
 
-add DNS query interface with LuaJIT binding, in `extension/mdns_utils` dir, default query `www.baidu.com`
+add DNS query interface with LuaJIT binding, in `extension/mdns` dir, default query `www.baidu.com`
 
 ```sh
 $ luajit examples/test_mdns.lua www.github.com www.sina.com
@@ -185,6 +185,27 @@ using LuaJIT 2.1.0-beta3
 query   www.baidu.com   14.215.177.39
 query   www.github.com  13.250.177.223
 query   www.sina.com    113.96.179.243
+```
+
+Or
+
+you can get a bare C DNS query with:
+
+```sh
+$ export DYLD_LIBRARY_PATH=build
+$ export LD_LIBRARY_PATH=build
+$ ./build/ntp.out
+
+ try resolve 'cn.ntp.org.cn' ...
+
+ntp: try connect to '114.118.7.161:123'
+ntp: get response from ntp server:
+
+RAW data below:
+----------------
+LI: 0
+VN: 4
+...
 ```
 
 # OpenSSL support
