@@ -707,6 +707,11 @@ mnet_ext_t _ext_internal_config = {
 
 /* channel op
  */
+typedef int (*_sys_accept_proto)(int, struct sockaddr *, socklen_t *);
+_sys_accept_proto _chann_sys_accept = accept;
+mnet_balancer_cb _chann_sys_before_ac = NULL;
+mnet_balancer_cb _chann_sys_after_ac = NULL;
+
 static chann_t*
 _chann_create(mnet_t *ss, chann_type_t ctype, chann_state_t state) {
    chann_t *n = (chann_t*)mm_malloc(sizeof(*n));
@@ -746,11 +751,21 @@ _chann_port(struct sockaddr_in *addr) {
    return ntohs(addr->sin_port);
 }
 
+int
+_chann_multiprocess_accept(int afd, struct sockaddr *addr, socklen_t *addr_len) {
+   int fd = 0;
+   if (_chann_sys_before_ac(afd) > 0) {
+      fd = accept(afd, addr, addr_len);
+      _chann_sys_after_ac(afd);
+   }
+   return fd;
+}
+
 static chann_t*
 _chann_accept(mnet_t *ss, chann_t *n) {
    struct sockaddr_in addr;
    socklen_t addr_len = sizeof(addr);
-   int fd = accept(n->fd, (struct sockaddr*)&addr, &addr_len);
+   int fd = _chann_sys_accept(n->fd, (struct sockaddr*)&addr, &addr_len);
    if (fd > 0 && _set_nonblocking(fd) >= 0) {
       chann_t *c = _chann_create(ss, n->ctype, CHANN_STATE_CONNECTED);
       c->fd = fd;
@@ -1453,6 +1468,31 @@ mnet_parse_ipport(const char *ipport, chann_addr_t *addr) {
       }
    }
    return 0;
+}
+
+void
+mnet_multi_accept_balancer(mnet_balancer_cb before_ac, mnet_balancer_cb after_ac) {
+   if (before_ac && after_ac) {
+      _chann_sys_before_ac = before_ac;
+      _chann_sys_after_ac = after_ac;
+      _chann_sys_accept = _chann_multiprocess_accept;
+   } else {
+      _chann_sys_accept = accept;
+   }
+}
+
+void
+mnet_multi_reset_event(int keep_event) {
+   _evt_fini();
+   _evt_init();
+   if (keep_event) {
+      mnet_t *ss = _gmnet();
+      chann_t *n = ss->channs;
+      while (n) {
+         _evt_add(n, MNET_SET_READ);
+         n = n->next;
+      }
+   }
 }
 
 /** Channs
