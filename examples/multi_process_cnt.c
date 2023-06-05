@@ -6,7 +6,7 @@
  */
 
 #ifdef EXAMPLE_MULTI_PROCESS_CNT_C
-
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
                 _on_cnt_event(msg);
             }
 
-            usleep(random() % 60);
+            //usleep(random() % 60);
         }
         mnet_fini();
     }

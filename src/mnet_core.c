@@ -1489,6 +1489,7 @@ mnet_multi_reset_event(int keep_event) {
       mnet_t *ss = _gmnet();
       chann_t *n = ss->channs;
       while (n) {
+         n->epoll_events = 0;
          _evt_add(n, MNET_SET_READ);
          n = n->next;
       }

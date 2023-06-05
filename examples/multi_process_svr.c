@@ -6,11 +6,12 @@
  */
 
 #ifdef EXAMPLE_MULTI_PROCESS_SVR_C
-
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <semaphore.h>
 #include "mnet_core.h"
 
@@ -66,7 +67,6 @@ _parent_process_env(chann_t *svr, pid_t *child_pids, int child_count)
         {
             printf("parent event -----\n");
         }
-        sleep(1);
     }
     printf("parent env exit %d\n", getpid());
 }
@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
     }
 
     mnet_init();
+    //mnet_setlog(3, NULL);
 
     chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
     mnet_chann_listen(svr, addr.ip, addr.port, 100);
@@ -161,7 +162,7 @@ int main(int argc, char *argv[])
 
     g_psem = sem_open("mnet.multiprocess.child", O_RDWR | O_CREAT, 0644, 1);
 
-    int child_count = 4;
+    int child_count = 1;
     pid_t child_pids[child_count];
 
     for (int i = 0; i < child_count; i++)
@@ -177,6 +178,7 @@ int main(int argc, char *argv[])
             child_pids[i] = pid;
             if (i + 1 >= child_count)
             {
+                mnet_multi_accept_balancer(_parent_before_after_ac, _parent_before_after_ac);
                 _parent_process_env(svr, child_pids, child_count);
             }
         }

@@ -13,10 +13,12 @@ endif
 
 ifeq ($(UNAME_S), Darwin)
 	MNET_LIBNAME=libmnet.dylib
-        LUA_LIBNAME=mnet.so
+    LUA_LIBNAME=mnet.so
+	EXTRA_LIBS=
 else
 	MNET_LIBNAME=libmnet.so
-        LUA_LIBNAME=mnet.so
+    LUA_LIBNAME=mnet.so
+	EXTRA_LIBS=-lpthread
 endif
 
 CFLAGS= -Wall -std=c99 -Wdeprecated-declarations -D_POSIX_C_SOURCE=200112L
@@ -26,7 +28,7 @@ OPENSSL_DIR=$MNET_OPENSSL_DIR
 DEBUG= -g
 RELEASE= -O2
 
-LIBS= -lc -lmnet -Lbuild
+LIBS= -lc -lmnet -Lbuild ${EXTRA_LIBS}
 
 LIB_SRCS := $(shell find src -name "*.c")
 LIB_SRCS += $(shell find extension/mdns -name "*.c")
