@@ -179,6 +179,8 @@ typedef HANDLE kq_t;
 typedef int kq_t;
 #endif
 
+typedef int (*sys_accept_fn)(int, struct sockaddr *, socklen_t *);
+
 struct s_event {
    int size;
    int count;
@@ -204,6 +206,11 @@ typedef struct {
    skiplist_t *tm_clock;
    struct sk_link *tm_pos;
    int64_t tm_current;
+
+   void *ac_context;
+   sys_accept_fn ac_fn;
+   mnet_balancer_cb ac_before;
+   mnet_balancer_cb ac_after;
 } mnet_t;
 
 static mnet_t g_mnet;
@@ -707,10 +714,6 @@ mnet_ext_t _ext_internal_config = {
 
 /* channel op
  */
-typedef int (*_sys_accept_proto)(int, struct sockaddr *, socklen_t *);
-_sys_accept_proto _chann_sys_accept = accept;
-mnet_balancer_cb _chann_sys_before_ac = NULL;
-mnet_balancer_cb _chann_sys_after_ac = NULL;
 
 static chann_t*
 _chann_create(mnet_t *ss, chann_type_t ctype, chann_state_t state) {
@@ -753,10 +756,11 @@ _chann_port(struct sockaddr_in *addr) {
 
 int
 _chann_multiprocess_accept(int afd, struct sockaddr *addr, socklen_t *addr_len) {
+   mnet_t *ss = _gmnet();
    int fd = 0;
-   if (_chann_sys_before_ac(afd) > 0) {
+   if (ss->ac_before(ss->ac_context, afd) > 0) {
       fd = accept(afd, addr, addr_len);
-      _chann_sys_after_ac(afd);
+      ss->ac_after(ss->ac_context, afd);
    }
    return fd;
 }
@@ -765,7 +769,7 @@ static chann_t*
 _chann_accept(mnet_t *ss, chann_t *n) {
    struct sockaddr_in addr;
    socklen_t addr_len = sizeof(addr);
-   int fd = _chann_sys_accept(n->fd, (struct sockaddr*)&addr, &addr_len);
+   int fd = ss->ac_fn(n->fd, (struct sockaddr*)&addr, &addr_len);
    if (fd > 0 && _set_nonblocking(fd) >= 0) {
       chann_t *c = _chann_create(ss, n->ctype, CHANN_STATE_CONNECTED);
       c->fd = fd;
@@ -1314,6 +1318,7 @@ mnet_init() {
       _evt_init();
       srand(_tm_current());
       ss->tm_clock = skiplist_create();
+      ss->ac_fn = accept;
       ss->init = 1;
       for (int i=CHANN_TYPE_STREAM; i<=CHANN_TYPE_BROADCAST; i++) {
          mnet_ext_t *ext = &ss->ext_config[i];
@@ -1471,21 +1476,29 @@ mnet_parse_ipport(const char *ipport, chann_addr_t *addr) {
 }
 
 void
-mnet_multi_accept_balancer(mnet_balancer_cb before_ac, mnet_balancer_cb after_ac) {
-   if (before_ac && after_ac) {
-      _chann_sys_before_ac = before_ac;
-      _chann_sys_after_ac = after_ac;
-      _chann_sys_accept = _chann_multiprocess_accept;
+mnet_multi_accept_balancer(void *ac_context,
+                           mnet_balancer_cb ac_before,
+                           mnet_balancer_cb ac_after)
+{
+   mnet_t *ss = _gmnet();
+   if (ac_before && ac_after) {
+      ss->ac_context = ac_context;
+      ss->ac_before = ac_before;
+      ss->ac_after = ac_after;
+      ss->ac_fn = _chann_multiprocess_accept;
    } else {
-      _chann_sys_accept = accept;
+      ss->ac_context = NULL;
+      ss->ac_before = NULL;
+      ss->ac_after = NULL;
+      ss->ac_fn = accept;
    }
 }
 
 void
-mnet_multi_reset_event(int keep_event) {
+mnet_multi_reset_event() {
    _evt_fini();
    _evt_init();
-   if (keep_event) {
+   {
       mnet_t *ss = _gmnet();
       chann_t *n = ss->channs;
       while (n) {

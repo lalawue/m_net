@@ -15,14 +15,20 @@
 #include <semaphore.h>
 #include "mnet_core.h"
 
-sem_t *g_psem = NULL;
-int listen_fd = 0;
-
 typedef struct
 {
     unsigned char buf[32];
     int len;
 } buf_t;
+
+typedef struct
+{
+    pid_t pid;
+    sem_t *sem;
+    chann_t *svr;
+    int listen_fd;
+} process_t;
+process_t pt_store;
 
 static void
 _clear_chann(chann_t *n)
@@ -38,9 +44,10 @@ _clear_chann(chann_t *n)
 // MARK: - parent
 
 static int
-_parent_before_after_ac(int afd)
+_parent_before_after_ac(void *ac_context, int afd)
 {
-    if (afd == listen_fd)
+    process_t *pt = (process_t *)ac_context;
+    if (afd == pt->listen_fd)
     {
         // will not accept listen_fd
         return 0;
@@ -53,7 +60,7 @@ _parent_before_after_ac(int afd)
 }
 
 static void
-_parent_process_env(chann_t *svr, pid_t *child_pids, int child_count)
+_parent_process_env(process_t *pt, pid_t *child_pids, int child_count)
 {
     printf("%d parent enter env\n", getpid());
     for (;;)
@@ -67,6 +74,7 @@ _parent_process_env(chann_t *svr, pid_t *child_pids, int child_count)
         {
             printf("parent event -----\n");
         }
+        usleep(1000);
     }
     printf("parent env exit %d\n", getpid());
 }
@@ -74,30 +82,34 @@ _parent_process_env(chann_t *svr, pid_t *child_pids, int child_count)
 // MARK: - child
 
 static int
-_child_before_ac(int afd)
+_child_before_ac(void *ac_context, int afd)
 {
-    return (sem_trywait(g_psem) == 0) ? 1 : 0;
+    process_t *pt = (process_t *)ac_context;
+    return (sem_trywait(pt->sem) == 0) ? 1 : 0;
 }
 
 static int
-_child_after_ac(int afd)
+_child_after_ac(void *context, int afd)
 {
-    sem_post(g_psem);
+    process_t *pt = (process_t *)context;
+    sem_post(pt->sem);
     return 0;
 }
 
 static void
-_child_process_env(chann_t *svr, int i)
+_child_process_env(process_t *pt, int i)
 {
-    printf("%d child enter env %d\n", getpid(), i);
+    printf("%d child enter env %d\n", pt->pid, i);
     int ac_count = 0;
     for (;;)
     {
-        int cnt_count = mnet_poll(MNET_MILLI_SECOND);
+        int cnt_count = mnet_poll(50);
+
         chann_msg_t *msg = NULL;
         while ((msg = mnet_result_next()))
         {
-            if (msg->n == svr)
+            // listen event
+            if (msg->n == pt->svr)
             {
                 if (msg->event == CHANN_EVENT_ACCEPT)
                 {
@@ -108,7 +120,7 @@ _child_process_env(chann_t *svr, int i)
                 }
                 continue;
             }
-            /* client event */
+            // client event
             if (msg->event == CHANN_EVENT_RECV)
             {
                 buf_t *bt = mnet_chann_get_opaque(msg->n);
@@ -149,20 +161,22 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    mnet_init();
-    //mnet_setlog(3, NULL);
-
-    chann_t *svr = mnet_chann_open(CHANN_TYPE_STREAM);
-    mnet_chann_listen(svr, addr.ip, addr.port, 100);
-    mnet_multi_accept_balancer(_parent_before_after_ac, _parent_before_after_ac);
-    listen_fd = mnet_chann_fd(svr);
-
     printf("mnet version %d\n", mnet_version());
     printf("multiprocess svr start listen: %s\n", ipaddr);
 
-    g_psem = sem_open("mnet.multiprocess.child", O_RDWR | O_CREAT, 0644, 1);
+    mnet_init();
 
-    int child_count = 1;
+    process_t *pt = &pt_store;
+    memset(pt, 0, sizeof(*pt));
+
+    pt->pid = getpid();
+    pt->svr = mnet_chann_open(CHANN_TYPE_STREAM);
+    mnet_chann_listen(pt->svr, addr.ip, addr.port, 100);
+    pt->listen_fd = mnet_chann_fd(pt->svr);
+
+    pt->sem = sem_open("mnet.multiprocess.child", O_RDWR | O_CREAT, 0644, 1);
+
+    int child_count = 2;
     pid_t child_pids[child_count];
 
     for (int i = 0; i < child_count; i++)
@@ -178,15 +192,17 @@ int main(int argc, char *argv[])
             child_pids[i] = pid;
             if (i + 1 >= child_count)
             {
-                mnet_multi_accept_balancer(_parent_before_after_ac, _parent_before_after_ac);
-                _parent_process_env(svr, child_pids, child_count);
+                mnet_multi_accept_balancer(pt, _parent_before_after_ac, _parent_before_after_ac);
+                mnet_multi_reset_event();
+                _parent_process_env(pt, child_pids, child_count);
             }
         }
         else if (pid == 0)
         {
-            mnet_multi_accept_balancer(_child_before_ac, _child_after_ac);
-            mnet_multi_reset_event(1);
-            _child_process_env(svr, i);
+            pt->pid = getpid();
+            mnet_multi_accept_balancer(pt, _child_before_ac, _child_after_ac);
+            mnet_multi_reset_event();
+            _child_process_env(pt, i);
         }
     }
 

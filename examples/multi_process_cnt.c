@@ -22,9 +22,11 @@ typedef struct
 int token = 0;
 
 static void
-_clear_chann(chann_t *n) {
+_clear_chann(chann_t *n)
+{
     void *p = mnet_chann_get_opaque(n);
-    if (p) {
+    if (p)
+    {
         free(p);
         mnet_chann_set_opaque(n, NULL);
     }
@@ -39,7 +41,7 @@ _on_cnt_event(chann_msg_t *msg)
         buf_t *bt = (buf_t *)mnet_chann_get_opaque(msg->n);
         token += 1;
         snprintf(bt->buf, 32, "%010d", token);
-        //printf("multi cnt send %s\n", bt->buf);
+        // printf("multi cnt send %s\n", bt->buf);
         mnet_chann_send(msg->n, bt->buf, 10);
     }
     if (msg->event == CHANN_EVENT_RECV)
@@ -79,8 +81,9 @@ int main(int argc, char *argv[])
 
         while (1)
         {
-            int cnt_count = mnet_poll(1000);
-            for (int i = cnt_count; i < random() % 10; i++)
+            int cnt_count = mnet_poll(50);
+
+            for (int i = cnt_count; i < (random() % 6); i++)
             {
                 chann_t *cnt = mnet_chann_open(CHANN_TYPE_STREAM);
                 mnet_chann_set_opaque(cnt, calloc(1, sizeof(buf_t)));
@@ -94,7 +97,7 @@ int main(int argc, char *argv[])
                 _on_cnt_event(msg);
             }
 
-            //usleep(random() % 60);
+            usleep(10);
         }
         mnet_fini();
     }

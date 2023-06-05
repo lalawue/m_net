@@ -57,7 +57,7 @@ typedef struct {
 
 typedef void (*chann_msg_cb)(chann_msg_t*);
 typedef void (*mnet_log_cb)(chann_t*, int, const char *log_string);
-typedef int (*mnet_balancer_cb)(int afd);
+typedef int (*mnet_balancer_cb)(void *context, int afd);
 
 /* set allocator/log before init
  */
@@ -89,10 +89,12 @@ int mnet_report(int level);
 int mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t*);
 
 /* multiprocessing accept balancer, return 0 in before_ac to disable accept */
-void mnet_multi_accept_balancer(mnet_balancer_cb before_ac, mnet_balancer_cb after_ac);
+void mnet_multi_accept_balancer(void *ac_context,
+                              mnet_balancer_cb ac_before,
+                              mnet_balancer_cb ac_after);
 
-/* multiprocessing reset process event queue, option to keep chann's event */
-void mnet_multi_reset_event(int keep_event);
+/* multiprocessing reset process event queue */
+void mnet_multi_reset_event();
 
 /* dispatch chann event, milliseconds > 0, and it will cause
  * CHANN_EVENT_TIMER accurate
