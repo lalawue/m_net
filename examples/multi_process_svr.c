@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <sys/wait.h>
+#include <sys/errno.h>
 #include "mnet_core.h"
 
 typedef struct
@@ -41,10 +43,12 @@ _clear_chann(chann_t *n)
     }
 }
 
-// MARK: - parent
+void _worker_process_env(process_t *pt, int child_index);
+
+// MARK: - monitor
 
 static int
-_parent_before_after_ac(void *ac_context, int afd)
+_monitor_before_after_ac(void *ac_context, int afd)
 {
     process_t *pt = (process_t *)ac_context;
     if (afd == pt->listen_fd)
@@ -60,46 +64,90 @@ _parent_before_after_ac(void *ac_context, int afd)
 }
 
 static void
-_parent_process_env(process_t *pt, pid_t *child_pids, int child_count)
+_monitor_process_env(process_t *pt,
+                     pid_t *worker_pids,
+                     int worker_count,
+                     mnet_balancer_cb worker_before_ac,
+                     mnet_balancer_cb worker_after_ac)
 {
-    printf("%d parent enter env\n", getpid());
+    int status;
+    pt->pid = getpid();
+    printf("%d monitor enter env\n", pt->pid);
+
     for (;;)
     {
-        if (mnet_poll(MNET_MILLI_SECOND) <= 0)
+        int fork_count = 0;
+
+        for (int i = 0; i < worker_count; i++)
         {
-            break;
+            if ((worker_pids[i] == 0) || (-1 == waitpid(worker_pids[i], &status, WNOHANG)))
+            {
+                if (worker_pids[i] > 0) {
+                    usleep(500 * 1000); // 0.5s then fork
+                }
+
+                pid_t pid = fork();
+                if (pid == -1)
+                {
+                    perror("fork()");
+                    exit(1);
+                }
+                else if (pid == 0)
+                {
+                    mnet_multi_accept_balancer(pt, worker_before_ac, worker_after_ac);
+                    mnet_multi_reset_event();
+                    _worker_process_env(pt, i);
+                    exit(0);
+                }
+                else if (pid > 0)
+                {
+                    worker_pids[i] = pid;
+                    fork_count += 1;
+                }
+            }
         }
-        chann_msg_t *msg = NULL;
-        while ((msg = mnet_result_next()))
+
+        if (fork_count > 0)
         {
-            printf("parent event -----\n");
+            mnet_multi_accept_balancer(pt, _monitor_before_after_ac, _monitor_before_after_ac);
+            mnet_multi_reset_event();
         }
-        usleep(1000);
+
+        {
+            mnet_poll(MNET_MILLI_SECOND);
+
+            chann_msg_t *msg = NULL;
+            while ((msg = mnet_result_next()))
+            {
+            }
+            usleep(1000);
+        }
     }
-    printf("parent env exit %d\n", getpid());
+    printf("monitor env exit %d\n", getpid());
 }
 
-// MARK: - child
+// MARK: - worker
 
 static int
-_child_before_ac(void *ac_context, int afd)
+_worker_before_ac(void *ac_context, int afd)
 {
     process_t *pt = (process_t *)ac_context;
     return (sem_trywait(pt->sem) == 0) ? 1 : 0;
 }
 
 static int
-_child_after_ac(void *context, int afd)
+_worker_after_ac(void *ac_context, int afd)
 {
-    process_t *pt = (process_t *)context;
+    process_t *pt = (process_t *)ac_context;
     sem_post(pt->sem);
     return 0;
 }
 
-static void
-_child_process_env(process_t *pt, int i)
+void _worker_process_env(process_t *pt, int child_index)
 {
-    printf("%d child enter env %d\n", pt->pid, i);
+    pt->pid = getpid();
+    srandom(pt->pid);
+    printf("%d worker enter env\n", pt->pid);
     int ac_count = 0;
     for (;;)
     {
@@ -114,7 +162,7 @@ _child_process_env(process_t *pt, int i)
                 if (msg->event == CHANN_EVENT_ACCEPT)
                 {
                     ac_count += 1;
-                    printf("%d child accept new cnt fd %d, count %d, ac %d\n",
+                    printf("%d worker accept new cnt fd %d, count %d, ac %d\n",
                            getpid(), mnet_chann_fd(msg->r), cnt_count, ac_count);
                     mnet_chann_set_opaque(msg->r, calloc(1, sizeof(buf_t)));
                 }
@@ -133,20 +181,26 @@ _child_process_env(process_t *pt, int i)
                 {
                     bt->len = 0;
                     bt->buf[10] = '\0';
-                    // printf("%d child recv number %s\n", getpid(), bt->buf);
+                    // printf("%d worker recv number %s\n", getpid(), bt->buf);
                     mnet_chann_send(msg->n, bt->buf, 10);
                 }
             }
             else if (msg->event == CHANN_EVENT_DISCONNECT)
             {
-                printf("%d child disconnect cnt %d\n", getpid(), cnt_count);
+                //printf("%d worker disconnect cnt %d\n", getpid(), cnt_count);
                 _clear_chann(msg->n);
                 mnet_chann_close(msg->n);
             }
         }
-        usleep(i * (random() % 10));
+
+        usleep(50 + random() % 100);
+
+        if (child_index == 0 && ac_count > 512)
+        {
+            break;
+        }
     }
-    printf("child env exit %d\n", getpid());
+    printf("%d worker env exit\n", pt->pid);
 }
 
 // MARK: - Main
@@ -169,42 +223,22 @@ int main(int argc, char *argv[])
     process_t *pt = &pt_store;
     memset(pt, 0, sizeof(*pt));
 
-    pt->pid = getpid();
     pt->svr = mnet_chann_open(CHANN_TYPE_STREAM);
-    mnet_chann_listen(pt->svr, addr.ip, addr.port, 100);
+    mnet_chann_listen(pt->svr, addr.ip, addr.port, 128);
     pt->listen_fd = mnet_chann_fd(pt->svr);
 
-    pt->sem = sem_open("mnet.multiprocess.child", O_RDWR | O_CREAT, 0644, 1);
-
-    int child_count = 2;
-    pid_t child_pids[child_count];
-
-    for (int i = 0; i < child_count; i++)
+    pt->sem = sem_open("mnet.multiprocess.worker", O_RDWR | O_CREAT, 0644, 1);
+    if (pt->sem == SEM_FAILED)
     {
-        pid_t pid = fork();
-        if (pid == -1)
-        {
-            perror("fork()");
-            exit(1);
-        }
-        else if (pid > 0)
-        {
-            child_pids[i] = pid;
-            if (i + 1 >= child_count)
-            {
-                mnet_multi_accept_balancer(pt, _parent_before_after_ac, _parent_before_after_ac);
-                mnet_multi_reset_event();
-                _parent_process_env(pt, child_pids, child_count);
-            }
-        }
-        else if (pid == 0)
-        {
-            pt->pid = getpid();
-            mnet_multi_accept_balancer(pt, _child_before_ac, _child_after_ac);
-            mnet_multi_reset_event();
-            _child_process_env(pt, i);
-        }
+        perror("sem_open");
+        exit(errno);
     }
+
+    int worker_count = 2;
+    pid_t worker_pids[worker_count];
+    memset(worker_pids, 0, sizeof(pid_t) * worker_count);
+
+    _monitor_process_env(pt, worker_pids, worker_count, _worker_before_ac, _worker_after_ac);
 
     mnet_fini();
 }

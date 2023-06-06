@@ -37,7 +37,7 @@ _on_cnt_event(chann_msg_t *msg)
 {
     if (msg->event == CHANN_EVENT_CONNECTED)
     {
-        printf("mutl cnt connected\n");
+        printf("multi cnt connected\n");
         buf_t *bt = (buf_t *)mnet_chann_get_opaque(msg->n);
         token += 1;
         snprintf(bt->buf, 32, "%010d", token);

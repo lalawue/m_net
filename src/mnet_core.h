@@ -88,7 +88,7 @@ int mnet_report(int level);
 /* sync resolve host name, using after init under windows */
 int mnet_resolve(const char *host, int port, chann_type_t ctype, chann_addr_t*);
 
-/* multiprocessing accept balancer, return 0 in before_ac to disable accept */
+/* multiprocessing accept balancer, return 0 in ac_before to disable accept */
 void mnet_multi_accept_balancer(void *ac_context,
                               mnet_balancer_cb ac_before,
                               mnet_balancer_cb ac_after);
