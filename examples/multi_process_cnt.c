@@ -6,6 +6,14 @@
  */
 
 #ifdef EXAMPLE_MULTI_PROCESS_CNT_C
+
+#if defined(_WIN32) || defined(_WIN64)
+int main(int argc, char *argv[]) {
+    printf("not support windows.\n");
+    return 0;
+}
+#else
+
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <stdlib.h>
@@ -105,4 +113,5 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+#endif // _WIN32 || _WIN64
 #endif // EXAMPLE_MULTI_PROCESS_CNT_C

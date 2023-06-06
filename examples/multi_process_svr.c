@@ -6,6 +6,14 @@
  */
 
 #ifdef EXAMPLE_MULTI_PROCESS_SVR_C
+
+#if defined(_WIN32) || defined(_WIN64)
+int main(int argc, char *argv[]) {
+    printf("not support windows.\n");
+    return 0;
+}
+#else
+
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,7 +91,7 @@ _monitor_process_env(process_t *pt,
             if ((worker_pids[i] == 0) || (-1 == waitpid(worker_pids[i], &status, WNOHANG)))
             {
                 if (worker_pids[i] > 0) {
-                    usleep(500 * 1000); // 0.5s then fork
+                    usleep(500 * 1000); // fork delay 0.5s
                 }
 
                 pid_t pid = fork();
@@ -97,6 +105,7 @@ _monitor_process_env(process_t *pt,
                     mnet_multi_accept_balancer(pt, worker_before_ac, worker_after_ac);
                     mnet_multi_reset_event();
                     _worker_process_env(pt, i);
+                    mnet_fini();
                     exit(0);
                 }
                 else if (pid > 0)
@@ -119,6 +128,9 @@ _monitor_process_env(process_t *pt,
             chann_msg_t *msg = NULL;
             while ((msg = mnet_result_next()))
             {
+                if (msg->event == CHANN_EVENT_ACCEPT) {
+                    printf("monitor accept event\n");
+                }
             }
             usleep(1000);
         }
@@ -243,4 +255,5 @@ int main(int argc, char *argv[])
     mnet_fini();
 }
 
+#endif // _WIN32 || _WIN64
 #endif // EXAMPLE_MULTI_PROCESS_SVR_C
