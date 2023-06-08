@@ -188,7 +188,7 @@ function Core.extConfig(name, ctx)
 end
 
 function Core.report(level)
-    mNet.mnet_report(level)
+    return mNet.mnet_report(level or 0)
 end
 
 function Core.current()
