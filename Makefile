@@ -34,6 +34,7 @@ LIB_SRCS := $(shell find src -name "*.c")
 LIB_SRCS += $(shell find extension/mdns -name "*.c")
 
 E_SRCS := $(shell find examples -maxdepth 1 -name "*.c")
+E_SRCS += $(shell find examples/process -maxdepth 1 -name "*.c")
 T_SRCS := $(shell find test -maxdepth 1 -name "*.c")
 
 OE_SRCS := $(shell find examples/openssl -name "*.c")

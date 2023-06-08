@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
 #include <unistd.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <sys/errno.h>
 #include "mnet_core.h"

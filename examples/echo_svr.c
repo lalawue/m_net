@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
                mnet_chann_socket_addr(msg->r, &addr);
                printf("svr accept cnt with chann %s:%d\n", addr.ip, addr.port);
             } else if (msg->event == CHANN_EVENT_TIMER) {
-               printf("svr current time: %ld\n", (int64_t)mnet_tm_current());
+               printf("svr current time: %lld\n", (int64_t)mnet_tm_current());
             }
             continue;
          }

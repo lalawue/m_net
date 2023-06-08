@@ -93,7 +93,7 @@ void mnet_multi_accept_balancer(void *ac_context,
                               mnet_balancer_cb ac_before,
                               mnet_balancer_cb ac_after);
 
-/* multiprocessing reset process event queue */
+/* multiprocessing reset event queue */
 void mnet_multi_reset_event();
 
 /* dispatch chann event, milliseconds > 0, and it will cause

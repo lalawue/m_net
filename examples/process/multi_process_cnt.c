@@ -8,7 +8,8 @@
 #ifdef EXAMPLE_MULTI_PROCESS_CNT_C
 
 #if defined(_WIN32) || defined(_WIN64)
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     printf("not support windows.\n");
     return 0;
 }
@@ -48,7 +49,7 @@ _on_cnt_event(chann_msg_t *msg)
         printf("multi cnt connected\n");
         buf_t *bt = (buf_t *)mnet_chann_get_opaque(msg->n);
         token += 1;
-        snprintf(bt->buf, 32, "%010d", token);
+        snprintf((char *)bt->buf, 32, "%010d", token);
         // printf("multi cnt send %s\n", bt->buf);
         mnet_chann_send(msg->n, bt->buf, 10);
     }
