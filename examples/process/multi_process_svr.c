@@ -136,7 +136,7 @@ _monitor_process_env(process_t *pt,
             usleep(1000);
         }
     }
-    printf("monitor env exit %d\n", getpid());
+    printf("monitor env exit %d\n", pt->pid);
 }
 
 // MARK: - worker
@@ -176,7 +176,7 @@ void _worker_process_env(process_t *pt, int child_index)
                 {
                     ac_count += 1;
                     printf("%d worker accept new cnt fd %d, count %d, ac %d\n",
-                           getpid(), mnet_chann_fd(msg->r), cnt_count, ac_count);
+                           pt->pid, mnet_chann_fd(msg->r), cnt_count, ac_count);
                     mnet_chann_set_opaque(msg->r, calloc(1, sizeof(buf_t)));
                 }
                 continue;
@@ -194,13 +194,13 @@ void _worker_process_env(process_t *pt, int child_index)
                 {
                     bt->len = 0;
                     bt->buf[10] = '\0';
-                    // printf("%d worker recv number %s\n", getpid(), bt->buf);
+                    // printf("%d worker recv number %s\n", pt->pid, bt->buf);
                     mnet_chann_send(msg->n, bt->buf, 10);
                 }
             }
             else if (msg->event == CHANN_EVENT_DISCONNECT)
             {
-                //printf("%d worker disconnect cnt %d\n", getpid(), cnt_count);
+                //printf("%d worker disconnect cnt %d\n", pt->pid, cnt_count);
                 _clear_chann(msg->n);
                 mnet_chann_close(msg->n);
             }
