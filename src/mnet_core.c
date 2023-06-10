@@ -1365,7 +1365,7 @@ mnet_fini() {
 /* return version */
 int
 mnet_version() {
-   return 20230123;
+   return 20230610;
 }
 
 void

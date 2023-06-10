@@ -13,6 +13,11 @@
 
 static void
 _on_cnt_event(chann_msg_t *msg) {
+   if (msg->event == CHANN_EVENT_CONNECTED) {
+      chann_addr_t addr;
+      mnet_chann_peer_addr(msg->n, &addr);
+      printf("connected %s:%d\n", addr.ip, addr.port);
+   }
    if (msg->event == CHANN_EVENT_RECV) {
       char buf[256] = {0};
       int ret = mnet_chann_recv(msg->n, buf, 256);

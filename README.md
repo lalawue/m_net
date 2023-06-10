@@ -14,6 +14,7 @@
 - [OpenSSL support](#openssl-support)
   - [Example](#example)
   - [LuaJIT TLS wrapper](#luajit-tls-wrapper)
+- [Multi-process](#multi-process)
 - [Tests](#tests)
   - [Core Test](#core-test)
   - [OpenSSL Test](#openssl-test)
@@ -49,6 +50,7 @@ Please use gmake to build demo under FreeBSD.
 - simple API in C++ wrapper
 - support SSL/TLS with [OpenSSL extension](https://github.com/lalawue/m_net/tree/master/extension/openssl/)
 - extension skeleton on top of bare socket TCP/UDP
+- support multi-process
 
 
 # Server
@@ -262,6 +264,10 @@ hello, world !
 ```
 
 Details in [tls_web_cnt.lua](https://github.com/lalawue/m_net/tree/master/examples/openssl/tls_web_cnt.lua) or [tls_web_svr.lua](https://github.com/lalawue/m_net/tree/master/examples/openssl/tls_web_svr.lua)
+
+# Multi-process
+
+please refers to [exmaples/process/](https://github.com/lalawue/m_net/tree/master/examples/process/)
 
 # Tests
 

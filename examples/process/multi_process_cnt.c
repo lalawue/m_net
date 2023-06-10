@@ -46,7 +46,9 @@ _on_cnt_event(chann_msg_t *msg)
 {
     if (msg->event == CHANN_EVENT_CONNECTED)
     {
-        printf("multi cnt connected\n");
+        chann_addr_t addr;
+        mnet_chann_peer_addr(msg->n, &addr);
+        printf("multi cnt connected %s:%d\n", addr.ip, addr.port);
         buf_t *bt = (buf_t *)mnet_chann_get_opaque(msg->n);
         token += 1;
         snprintf((char *)bt->buf, 32, "%010d", token);
