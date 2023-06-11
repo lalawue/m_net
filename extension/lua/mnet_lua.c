@@ -359,7 +359,7 @@ _dgram_send(lua_State *L) {
    size_t buf_len = 0;
    chann_addr_t addr;
    const char *buf = lua_tolstring(L, 2, &buf_len);
-   snprintf(addr.ip, 16, (char*)lua_tostring(L, 3));
+   snprintf(addr.ip, 16, "%s", (char*)lua_tostring(L, 3));
    addr.port = (int)lua_tointeger(L, 4);
    if (lc && buf_len > 0) {
       int ret = mnet_dgram_send(lc->n, &addr, (void*)buf, buf_len);
