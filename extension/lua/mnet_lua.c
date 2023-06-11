@@ -326,6 +326,49 @@ _chann_send(lua_State *L) {
    return 0;
 }
 
+/* local buf, ip, port = .dgram_recv(n) */
+static int
+_dgram_recv(lua_State *L) {
+   if ( !lua_islightuserdata(L, 1) ) {
+      return 0;
+   }
+
+   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
+   if ( lc ) {
+      chann_addr_t addr_in;
+      int ret = mnet_dgram_recv(lc->n, &addr_in, g_buf, MNET_BUF_SIZE);
+      if (ret >= 0) {
+         lua_pushlstring(L, (const char*)g_buf, ret);
+         lua_pushlstring(L, (const char*)addr_in.ip, 16);
+         lua_pushinteger(L,  addr_in.port);
+         return 3;
+      }
+   }
+   return 0;
+}
+
+/* .dgram_send( buf, ip, port ) */
+static int
+_dgram_send(lua_State *L) {
+   int types[4] = { LUA_TLIGHTUSERDATA, LUA_TSTRING, LUA_TSTRING, LUA_TNUMBER };
+   if ( !_check_type(L, types, 4, __LINE__) ) {
+      return 0;
+   }
+
+   lua_chann_t *lc = (lua_chann_t*)lua_touserdata(L, 1);
+   size_t buf_len = 0;
+   chann_addr_t addr;
+   const char *buf = lua_tolstring(L, 2, &buf_len);
+   snprintf(addr.ip, 16, (char*)lua_tostring(L, 3));
+   addr.port = (int)lua_tointeger(L, 4);
+   if (lc && buf_len > 0) {
+      int ret = mnet_dgram_send(lc->n, &addr, (void*)buf, buf_len);
+      lua_pushinteger(L, ret);
+      return 1;
+   }
+   return 0;
+}
+
 static int
 _chann_state(lua_State *L) {
    if ( !lua_islightuserdata(L, 1) ) {
@@ -440,6 +483,9 @@ static const luaL_Reg mnet_lib[] = {
 
     { "chann_recv", _chann_recv},
     { "chann_send", _chann_send },
+
+    { "dgram_recv" },
+    { "dgram_send", },
 
     { "chann_cached", _chann_cached },
 

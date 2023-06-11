@@ -22,12 +22,12 @@ build = {
    type = "builtin",
    modules = {
       ["mnet"] = {
-         sources = { "src/mnet_core.c", "extension/lua/mnet_lua.c", "extension/mdns_utils/mdns_utils.c", "extension/openssl/mnet_tls.c" },
+         sources = { "src/mnet_core.c", "extension/lua/mnet_lua.c", "extension/mdns/mdns.c", "extension/openssl/mnet_tls.c" },
          incdirs = { "src", "extension/openssl", "$(OPENSSL_INCDIR)" },
          libraries = { "ssl" }
       },
       ["mnet-chann"] = "extension/lua/mnet-chann.lua",
       ["ffi-mnet"] = "extension/luajit/ffi-mnet.lua",
-      ["ffi-mdns"] = "extension/mdns_utils/ffi-mdns.lua",
+      ["ffi-mdns"] = "extension/mdns/ffi-mdns.lua",
    }
 }

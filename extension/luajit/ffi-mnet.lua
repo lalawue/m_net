@@ -96,6 +96,9 @@ void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t active);
 int mnet_chann_recv(chann_t *n, const char *buf, int len);
 int mnet_chann_send(chann_t *n, const char *buf, int len);
 
+int mnet_dgram_recv(chann_t*, chann_addr_t *addr_in, void *buf, int len);
+int mnet_dgram_send(chann_t*, chann_addr_t *addr_out, void *buf, int len);
+
 int mnet_chann_cached(chann_t *n);
 
 int mnet_chann_state(chann_t *n);
@@ -402,6 +405,31 @@ function Chann:send(data)
         return false
     end
     local ret = mNet.mnet_chann_send(self._chann, data, data:len())
+    if ret <= 0 then
+        return false
+    else
+        return true
+    end
+end
+
+function Chann:dgramRecv()
+    local len = Core._recvsize
+    self._addr = self._addr or ffi.new("chann_addr_t[1]")
+    local ret = mNet.mnet_dgram_recv(self._chann, self._addr, _recvbuf, len)
+    if ret <= 0 then
+        return nil
+    end
+    return ffi.string(_recvbuf, ret), self._addr[0].ip, self._addr[0].port
+end
+
+function Chann:dgramSend(data, ip, port)
+    if type(data) ~= "string" or type(ip) ~= "string" or type(port) ~= "number" then
+        return false
+    end
+    self._addr = self._addr or ffi.new("chann_addr_t[1]")
+    self._addr[0].ip = ip
+    self._addr[0].port = port
+    local ret = mNet.mnet_dgram_send(self._chann, self._addr, data, data:len())
     if ret <= 0 then
         return false
     else

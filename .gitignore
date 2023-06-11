@@ -6,7 +6,7 @@ TAGS
 build
 src/*.o
 extension/lua/*.o
-extension/mdns_utils/*.o
+extension/mdns/*.o
 .vscode/
 win/out/
 !win/openssl/README.md

@@ -14,7 +14,7 @@ MNET_LIBNAME='mnet.dll'
 DEBUG=' -g'
 RELEASE=' -O2'
 
-LIB_SRCS=" ../src/*.c ../extension/mdns_utils/mdns_utils.c"
+LIB_SRCS=" ../src/*.c ../extension/mdns/mdns.c"
 E_SRCS=" ../examples/*.c"
 T_SRCS=" ../test/*.c"
 
