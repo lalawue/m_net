@@ -81,6 +81,8 @@ example_c: $(E_SRCS) $(T_SRCS)
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_svr_c.out $^ $(LIBS) -DEXAMPLE_ECHO_SVR_C
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_cnt_c.out $^ $(LIBS) -DEXAMPLE_ECHO_CNT_C
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/chann_web_c.out $^ $(LIBS) -DEXAMPLE_CHANN_WEB_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_udp_svr_c.out $^ $(LIBS) -DEXAMPLE_ECHO_UDP_SVR_C
+	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/echo_udp_cnt_c.out $^ $(LIBS) -DEXAMPLE_ECHO_UDP_CNT_C
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/multi_process_svr_c.out $^ $(LIBS) -DEXAMPLE_MULTI_PROCESS_SVR_C
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/multi_process_cnt_c.out $^ $(LIBS) -DEXAMPLE_MULTI_PROCESS_CNT_C
 	$(CC) $(DEBUG) $(CFLAGS) $(INCS) -o build/test_reconnect_c.out $^ $(LIBS) -DTEST_RECONNECT_C

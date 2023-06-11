@@ -1722,6 +1722,33 @@ mnet_chann_send(chann_t *n, void *buf, int len) {
 }
 
 int
+mnet_dgram_recv(chann_t *n, chann_addr_t *addr_in, void *buf, int len) {
+   if ((n->ctype == CHANN_TYPE_DGRAM || n->ctype == CHANN_TYPE_BROADCAST) && buf && len>0) {
+      mnet_ext_t *ext = n ? _ext_config(n->ctype) : NULL;
+      if (ext->state_fn(ext->ext_ctx, n, n->state)>=CHANN_STATE_CONNECTED) {
+         int ret = mnet_chann_recv(n, buf, len);
+         mnet_chann_socket_addr(n, addr_in);
+         return ret;
+      }
+   }
+   return 0;
+}
+
+int
+mnet_dgram_send(chann_t *n, chann_addr_t *addr, void *buf, int len) {
+   if ((n->ctype == CHANN_TYPE_DGRAM || n->ctype == CHANN_TYPE_BROADCAST) && addr && buf && len>0) {
+      mnet_ext_t *ext = n ? _ext_config(n->ctype) : NULL;
+      if (ext->state_fn(ext->ext_ctx, n, n->state)>=CHANN_STATE_CONNECTED) {
+         _chann_fill_addr(n, addr->ip, addr->port);
+      } else {
+         mnet_chann_connect(n, addr->ip, addr->port);
+      }
+      return mnet_chann_send(n, buf, len);
+   }
+   return 0;
+}
+
+int
 mnet_chann_cached(chann_t *n) {
    if (n) {
       rwb_head_t *prh = &n->rwb_send;
@@ -1766,7 +1793,12 @@ mnet_chann_socket_addr(chann_t *n, chann_addr_t *addr) {
 
 int
 mnet_chann_peer_addr(chann_t *n, chann_addr_t *out_addr) {
-   if (n && n->state>=CHANN_STATE_CONNECTED && out_addr) {
+   mnet_ext_t *ext = n ? _ext_config(n->ctype) : NULL;
+   if (n &&
+       n->ctype == CHANN_TYPE_STREAM &&
+       ext->state_fn(ext->ext_ctx, n, n->state)>=CHANN_STATE_CONNECTED &&
+       out_addr)
+   {
       struct sockaddr_in addr;
       socklen_t addr_len = sizeof(addr);
       if (0 == getpeername(n->fd, (struct sockaddr*)&addr, &addr_len)) {

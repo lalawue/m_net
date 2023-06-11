@@ -130,6 +130,10 @@ void mnet_chann_active_event(chann_t *n, chann_event_t et, int64_t value);
 int mnet_chann_recv(chann_t *n, void *buf, int len);
 int mnet_chann_send(chann_t *n, void *buf, int len); /* send will always cached would blocked data */
 
+/* DGRAM send/recv data return -1 for error, and recv require listen first */
+int mnet_dgram_recv(chann_t*, chann_addr_t *addr_in, void *buf, int len);
+int mnet_dgram_send(chann_t*, chann_addr_t *addr_out, void *buf, int len);
+
 /* cached bytes not send
  */
 int mnet_chann_cached(chann_t *n);
