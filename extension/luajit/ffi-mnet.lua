@@ -419,7 +419,7 @@ function Chann:dgramRecv()
     if ret <= 0 then
         return nil
     end
-    return ffi.string(_recvbuf, ret), self._addr[0].ip, self._addr[0].port
+    return ffi.string(_recvbuf, ret), ffi.string(self._addr[0].ip, 16), self._addr[0].port
 end
 
 function Chann:dgramSend(data, ip, port)
